@@ -233,24 +233,11 @@ fn main() -> io::Result<()> {
     for i in 1..constant_pool_count {
         let tag = read_u8!(reader);
         match tag {
-            7 => constant_pool.push(PoolKind::Class {
-                name_index: read_u16!(reader),
-            }),
-            9 => constant_pool.push(PoolKind::FieldRef {
-                class_index: read_u16!(reader),
-                name_and_type_index: read_u16!(reader),
-            }),
-            10 => constant_pool.push(PoolKind::MethodRef {
-                class_index: read_u16!(reader),
-                name_and_type_index: read_u16!(reader),
-            }),
-            11 => constant_pool.push(PoolKind::InterfaceMethodref {
-                class_index: read_u16!(reader),
-                name_and_type_index: read_u16!(reader),
-            }),
-            8 => constant_pool.push(PoolKind::String {
-                string_index: read_u16!(reader),
-            }),
+            1 => {
+                let mut buffer = vec![0u8; read_u16!(reader) as usize];
+                reader.read_exact(&mut buffer)?;
+                constant_pool.push(PoolKind::Utf8 { bytes: buffer })
+            }
             3 => constant_pool.push(PoolKind::Integer {
                 bytes: read_u32!(reader),
             }),
@@ -265,15 +252,28 @@ fn main() -> io::Result<()> {
                 high_bytes: read_u32!(reader),
                 low_bytes: read_u32!(reader),
             }),
+            7 => constant_pool.push(PoolKind::Class {
+                name_index: read_u16!(reader),
+            }),
+            8 => constant_pool.push(PoolKind::String {
+                string_index: read_u16!(reader),
+            }),
+            9 => constant_pool.push(PoolKind::FieldRef {
+                class_index: read_u16!(reader),
+                name_and_type_index: read_u16!(reader),
+            }),
+            10 => constant_pool.push(PoolKind::MethodRef {
+                class_index: read_u16!(reader),
+                name_and_type_index: read_u16!(reader),
+            }),
+            11 => constant_pool.push(PoolKind::InterfaceMethodref {
+                class_index: read_u16!(reader),
+                name_and_type_index: read_u16!(reader),
+            }),
             12 => constant_pool.push(PoolKind::NameAndType {
                 name_index: read_u16!(reader),
                 descriptor_index: read_u16!(reader),
             }),
-            1 => {
-                let mut buffer = vec![0u8; read_u16!(reader) as usize];
-                reader.read_exact(&mut buffer)?;
-                constant_pool.push(PoolKind::Utf8 { bytes: buffer })
-            }
             15 => constant_pool.push(PoolKind::MethodHandle {
                 reference_kind: read_u8!(reader),
                 reference_index: read_u16!(reader),
