@@ -5,6 +5,7 @@ use std::io::{self, BufRead, BufReader, Read};
 const TEST_CLASS_FILE_PATH: &str = "test.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
+/*
 enum PoolKind {
     Class = 7,
     Fieldref = 9,
@@ -20,6 +21,61 @@ enum PoolKind {
     MethodHandle = 15,
     MethodType = 16,
     InvokeDynamic = 18,
+}
+*/
+
+enum PoolKind {
+    Class {
+        name_index: u16,
+    },
+    FieldRef {
+        class_index: u16,
+        name_and_type_index: u16,
+    },
+    MethodRef {
+        class_index: u16,
+        name_and_type_index: u16,
+    },
+    InterfaceMethodref {
+        class_index: u16,
+        name_and_type_index: u16,
+    },
+    String {
+        string_index: u16,
+    },
+    Integer {
+        bytes: u32,
+    },
+    Float {
+        bytes: u32,
+    },
+    Long {
+        high_bytes: u32,
+        low_bytes: u32,
+    },
+    Double {
+        high_bytes: u32,
+        low_bytes: u32,
+    },
+    NameAndType {
+        name_index: u16,
+        descriptor_index: u16,
+    },
+    Utf8 {
+        length: u16,
+        bytes: Vec<u8>,
+    },
+    MethodHandleRef {
+        reference_kind: u8,
+        reference_index: u16,
+    },
+    MethodType {
+        descriptor_index: u16,
+    },
+    InvokeDynamic {
+        boostrap_method_attr_index: u16,
+        name_and_type_index: u16,
+    },
 }
 
 enum FieldAccessFlags {
@@ -113,6 +169,7 @@ impl MajorVersion {
     }
 }
 
+/*
 impl PoolKind {
     pub fn from_u16(n: u16) -> PoolKind {
         match n {
@@ -133,11 +190,8 @@ impl PoolKind {
             _ => unimplemented!(),
         }
     }
-    
-    pub fn get_length(&self) ->
 }
-
-
+*/
 
 struct ClassFile {
     version: (MajorVersion, u16),
@@ -210,6 +264,10 @@ fn main() -> io::Result<()> {
     let constant_pool_count = read_u16!(reader);
     let mut constant_pool: Vec<ConstantPoolInfo> = Vec::new();
     for i in 0..constant_pool_count {
+        let tag = read_u8!(reader);
+        match tag {
+            7 => constant_pool.push(PoolKind::Class(name_index: read_u16!(reader))),
+        }
     }
     Ok(())
 }
