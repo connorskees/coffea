@@ -3,6 +3,7 @@ use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read};
 
 const TEST_CLASS_FILE_PATH: &str = "test.class";
+const magic: u32 = 0xCAFEBABE;
 
 enum PoolKind {
     Class = 7,
@@ -60,7 +61,6 @@ struct ConstantPoolInfo {
 }
 
 struct ClassFile {
-    magic: u32,
     minor_version: u16,
     major_version: u16,
     constant_pool_count: u16,
