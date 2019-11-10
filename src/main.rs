@@ -59,7 +59,6 @@ struct FieldInfo {
     access_flags: FieldAccessFlags,
     name_index: u16,
     descriptor_index: u16,
-    attributes_count: u16,
     attribute_info: Vec<AttributeInfo>,
 }
 
@@ -67,7 +66,6 @@ struct MethodInfo {
     access_flags: u16,
     name_index: u16,
     descriptor_index: u16,
-    attributes_count: u16,
     attributes: Vec<AttributeInfo>,
 }
 
@@ -115,20 +113,41 @@ impl MajorVersion {
     }
 }
 
+impl PoolKind {
+    pub fn from_u16(n: u16) -> PoolKind {
+        match n {
+            1 => PoolKind::Utf8,
+            3 => PoolKind::Integer,
+            4 => PoolKind::Float,
+            5 => PoolKind::Long,
+            6 => PoolKind::Double,
+            7 => PoolKind::Class,
+            8 => PoolKind::String,
+            9 => PoolKind::Fieldref,
+            10 => PoolKind::Methodref,
+            11 => PoolKind::InterfaceMethodref,
+            12 => PoolKind::NameAndType,
+            15 => PoolKind::MethodHandle,
+            16 => PoolKind::MethodType,
+            18 => PoolKind::InvokeDynamic,
+            _ => unimplemented!(),
+        }
+    }
+    
+    pub fn get_length(&self) ->
+}
+
+
+
 struct ClassFile {
     version: (MajorVersion, u16),
-    constant_pool_count: u16,
     constant_pool: Vec<ConstantPoolInfo>,
     access_flags: u16,
     this_class: u16,
     super_class: u16,
-    interfaces_count: u16,
     interfaces: Vec<u8>,
-    fields_count: u16,
     fields: Vec<FieldInfo>,
-    methods_count: u16,
     methods: Vec<MethodInfo>,
-    attributes_count: u16,
     attributes: Vec<AttributeInfo>,
 }
 
@@ -188,5 +207,9 @@ fn main() -> io::Result<()> {
     let minor_version = read_u16!(reader);
     let major_version = MajorVersion::from_u16(read_u16!(reader));
 
+    let constant_pool_count = read_u16!(reader);
+    let mut constant_pool: Vec<ConstantPoolInfo> = Vec::new();
+    for i in 0..constant_pool_count {
+    }
     Ok(())
 }
