@@ -33,24 +33,24 @@ enum AccessFlags {
 }
 
 struct AttributeInfo {
-    attribute_name_index: [u8; 2],
-    attribute_length: [u8; 4],
+    attribute_name_index: u16,
+    attribute_length: u32,
     info: Vec<u8>,
 }
 
 struct FieldInfo {
     access_flags: AccessFlags,
-    name_index: [u8; 2],
-    descriptor_index: [u8; 2],
-    attributes_count: [u8; 2],
+    name_index: u16,
+    descriptor_index: u16,
+    attributes_count: u16,
     attribute_info: Vec<AttributeInfo>,
 }
 
 struct MethodInfo {
-    access_flags: [u8; 2],
-    name_index: [u8; 2],
-    descriptor_index: [u8; 2],
-    attributes_count: [u8; 2],
+    access_flags: u16,
+    name_index: u16,
+    descriptor_index: u16,
+    attributes_count: u16,
     attributes: Vec<AttributeInfo>,
 }
 
@@ -60,21 +60,21 @@ struct ConstantPoolInfo {
 }
 
 struct ClassFile {
-    magic: [u8; 4],
-    minor_version: [u8; 2],
-    major_version: [u8; 2],
-    constant_pool_count: [u8; 2],
+    magic: u32,
+    minor_version: u16,
+    major_version: u16,
+    constant_pool_count: u16,
     constant_pool: Vec<ConstantPoolInfo>,
-    access_flags: [u8; 2],
-    this_class: [u8; 2],
-    super_class: [u8; 2],
-    interfaces_count: [u8; 2],
+    access_flags: u16,
+    this_class: u16,
+    super_class: u16,
+    interfaces_count: u16,
     interfaces: Vec<u8>,
-    fields_count: [u8; 2],
+    fields_count: u16,
     fields: Vec<FieldInfo>,
-    methods_count: [u8; 2],
+    methods_count: u16,
     methods: Vec<MethodInfo>,
-    attributes_count: [u8; 2],
+    attributes_count: u16,
     attributes: Vec<AttributeInfo>,
 }
 
