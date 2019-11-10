@@ -230,7 +230,7 @@ fn main() -> io::Result<()> {
     let major_version = MajorVersion::from_u16(read_u16!(reader));
     let constant_pool_count = read_u16!(reader);
     let mut constant_pool: Vec<PoolKind> = Vec::new();
-    for i in 0..constant_pool_count - 1 {
+    for i in 1..constant_pool_count {
         let tag = read_u8!(reader);
         match tag {
             7 => constant_pool.push(PoolKind::Class {
@@ -285,7 +285,7 @@ fn main() -> io::Result<()> {
                 boostrap_method_attr_index: read_u16!(reader),
                 name_and_type_index: read_u16!(reader),
             }),
-            _ => println!("{}", tag.to_string()),
+            _ => unimplemented!(),
         }
     }
     Ok(())
