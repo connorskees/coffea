@@ -5,25 +5,6 @@ use std::io::{self, BufRead, BufReader, Read};
 const TEST_CLASS_FILE_PATH: &str = "test.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
-/*
-enum PoolKind {
-    Class = 7,
-    Fieldref = 9,
-    Methodref = 10,
-    InterfaceMethodref = 11,
-    String = 8,
-    Integer = 3,
-    Float = 4,
-    Long = 5,
-    Double = 6,
-    NameAndType = 12,
-    Utf8 = 1,
-    MethodHandle = 15,
-    MethodType = 16,
-    InvokeDynamic = 18,
-}
-*/
-
 enum PoolKind {
     Class {
         name_index: u16,
@@ -62,10 +43,9 @@ enum PoolKind {
         descriptor_index: u16,
     },
     Utf8 {
-        length: u16,
         bytes: Vec<u8>,
     },
-    MethodHandleRef {
+    MethodHandle {
         reference_kind: u8,
         reference_index: u16,
     },
@@ -169,30 +149,6 @@ impl MajorVersion {
     }
 }
 
-/*
-impl PoolKind {
-    pub fn from_u16(n: u16) -> PoolKind {
-        match n {
-            1 => PoolKind::Utf8,
-            3 => PoolKind::Integer,
-            4 => PoolKind::Float,
-            5 => PoolKind::Long,
-            6 => PoolKind::Double,
-            7 => PoolKind::Class,
-            8 => PoolKind::String,
-            9 => PoolKind::Fieldref,
-            10 => PoolKind::Methodref,
-            11 => PoolKind::InterfaceMethodref,
-            12 => PoolKind::NameAndType,
-            15 => PoolKind::MethodHandle,
-            16 => PoolKind::MethodType,
-            18 => PoolKind::InvokeDynamic,
-            _ => unimplemented!(),
-        }
-    }
-}
-*/
-
 struct ClassFile {
     version: (MajorVersion, u16),
     constant_pool: Vec<ConstantPoolInfo>,
@@ -262,11 +218,63 @@ fn main() -> io::Result<()> {
     let major_version = MajorVersion::from_u16(read_u16!(reader));
 
     let constant_pool_count = read_u16!(reader);
-    let mut constant_pool: Vec<ConstantPoolInfo> = Vec::new();
+    let mut constant_pool: Vec<PoolKind> = Vec::new();
     for i in 0..constant_pool_count {
         let tag = read_u8!(reader);
         match tag {
-            7 => constant_pool.push(PoolKind::Class(name_index: read_u16!(reader))),
+            7 => constant_pool.push(PoolKind::Class {
+                name_index: read_u16!(reader),
+            }),
+            9 => constant_pool.push(PoolKind::FieldRef {
+                class_index: read_u16!(reader),
+                name_and_type_index: read_u16!(reader),
+            }),
+            10 => constant_pool.push(PoolKind::MethodRef {
+                class_index: read_u16!(reader),
+                name_and_type_index: read_u16!(reader),
+            }),
+            11 => constant_pool.push(PoolKind::InterfaceMethodref {
+                class_index: read_u16!(reader),
+                name_and_type_index: read_u16!(reader),
+            }),
+            8 => constant_pool.push(PoolKind::String {
+                string_index: read_u16!(reader),
+            }),
+            3 => constant_pool.push(PoolKind::Integer {
+                bytes: read_u32!(reader),
+            }),
+            4 => constant_pool.push(PoolKind::Float {
+                bytes: read_u32!(reader),
+            }),
+            5 => constant_pool.push(PoolKind::Long {
+                high_bytes: read_u32!(reader),
+                low_bytes: read_u32!(reader),
+            }),
+            6 => constant_pool.push(PoolKind::Double {
+                high_bytes: read_u32!(reader),
+                low_bytes: read_u32!(reader),
+            }),
+            12 => constant_pool.push(PoolKind::NameAndType {
+                name_index: read_u16!(reader),
+                descriptor_index: read_u16!(reader),
+            }),
+            1 => {
+                let mut buffer = vec![0u8; read_u16!(reader) as usize];
+                reader.read_exact(&mut buffer)?;
+                constant_pool.push(PoolKind::Utf8 { bytes: buffer })
+            }
+            15 => constant_pool.push(PoolKind::MethodHandle {
+                reference_kind: read_u8!(reader),
+                reference_index: read_u16!(reader),
+            }),
+            16 => constant_pool.push(PoolKind::MethodType {
+                descriptor_index: read_u16!(reader),
+            }),
+            18 => constant_pool.push(PoolKind::InvokeDynamic {
+                boostrap_method_attr_index: read_u16!(reader),
+                name_and_type_index: read_u16!(reader),
+            }),
+            _ => println!("{}", tag.to_string()),
         }
     }
     Ok(())
