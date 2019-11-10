@@ -1,3 +1,6 @@
+#![allow(dead_code, unused_imports)]
+#![deny(missing_debug_implementations, unsafe_code)]
+
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read};
@@ -5,6 +8,7 @@ use std::io::{self, BufRead, BufReader, Read};
 const TEST_CLASS_FILE_PATH: &str = "test.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
+#[derive(Debug)]
 enum PoolKind {
     Class {
         name_index: u16,
@@ -58,6 +62,7 @@ enum PoolKind {
     },
 }
 
+#[derive(Debug)]
 enum FieldAccessFlags {
     Public = 0x0001,
     Private = 0x0002,
@@ -70,6 +75,7 @@ enum FieldAccessFlags {
     Enum = 0x4000,
 }
 
+#[derive(Debug)]
 enum MethodAccessFlags {
     Public = 0x0001,
     Private = 0x0002,
@@ -85,12 +91,14 @@ enum MethodAccessFlags {
     Synthetic = 0x1000,
 }
 
+#[derive(Debug)]
 struct AttributeInfo {
     attribute_name_index: u16,
     attribute_length: u32,
     info: Vec<u8>,
 }
 
+#[derive(Debug)]
 struct FieldInfo {
     access_flags: FieldAccessFlags,
     name_index: u16,
@@ -98,6 +106,7 @@ struct FieldInfo {
     attribute_info: Vec<AttributeInfo>,
 }
 
+#[derive(Debug)]
 struct MethodInfo {
     access_flags: u16,
     name_index: u16,
@@ -105,11 +114,13 @@ struct MethodInfo {
     attributes: Vec<AttributeInfo>,
 }
 
+#[derive(Debug)]
 struct ConstantPoolInfo {
     pool_kind: PoolKind,
     bytes: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub enum MajorVersion {
     JavaSE14 = 58,
     JavaSE13 = 57,
@@ -149,6 +160,7 @@ impl MajorVersion {
     }
 }
 
+#[derive(Debug)]
 struct ClassFile {
     version: (MajorVersion, u16),
     constant_pool: Vec<ConstantPoolInfo>,
