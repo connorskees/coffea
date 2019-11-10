@@ -5,7 +5,6 @@ use std::io::{self, BufRead, BufReader, Read};
 const TEST_CLASS_FILE_PATH: &str = "test.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
-
 enum PoolKind {
     Class = 7,
     Fieldref = 9,
@@ -23,15 +22,31 @@ enum PoolKind {
     InvokeDynamic = 18,
 }
 
-enum AccessFlags {
+enum FieldAccessFlags {
     Public = 0x0001,
+    Private = 0x0002,
+    Protected = 0x0004,
+    Static = 0x0008,
     Final = 0x0010,
-    Super = 0x0020,
-    Interface = 0x0200,
-    Abstract = 0x0400,
+    Volatile = 0x0040,
+    Transient = 0x0080,
     Synthetic = 0x1000,
-    Annotation = 0x2000,
     Enum = 0x4000,
+}
+
+enum MethodAccessFlags {
+    Public = 0x0001,
+    Private = 0x0002,
+    Protected = 0x0004,
+    Static = 0x0008,
+    Final = 0x0010,
+    Synchronized = 0x0020,
+    Bridge = 0x0040,
+    VarArgs = 0x0080,
+    Native = 0x0100,
+    Abstract = 0x0400,
+    Strict = 0x0800,
+    Synthetic = 0x1000,
 }
 
 struct AttributeInfo {
@@ -41,7 +56,7 @@ struct AttributeInfo {
 }
 
 struct FieldInfo {
-    access_flags: AccessFlags,
+    access_flags: FieldAccessFlags,
     name_index: u16,
     descriptor_index: u16,
     attributes_count: u16,
@@ -99,7 +114,6 @@ impl MajorVersion {
         }
     }
 }
-
 
 struct ClassFile {
     version: (MajorVersion, u16),
