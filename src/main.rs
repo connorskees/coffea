@@ -41,7 +41,7 @@ macro_rules! read_u16 {
     };
 }
 
-/// Read 4 bytes as a u16
+/// Read 4 bytes as a u32
 macro_rules! read_u32 {
     ($reader:ident) => {
         if let Some(mut buffer) = Some([0u8; 4]) {
