@@ -216,10 +216,9 @@ fn main() -> io::Result<()> {
 
     let minor_version = read_u16!(reader);
     let major_version = MajorVersion::from_u16(read_u16!(reader));
-
     let constant_pool_count = read_u16!(reader);
     let mut constant_pool: Vec<PoolKind> = Vec::new();
-    for i in 0..constant_pool_count {
+    for i in 0..constant_pool_count - 1 {
         let tag = read_u8!(reader);
         match tag {
             7 => constant_pool.push(PoolKind::Class {
