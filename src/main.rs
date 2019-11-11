@@ -311,13 +311,22 @@ fn main() -> io::Result<()> {
     let minor_version = read_u16!(reader);
     let major_version = MajorVersion::from_u16(read_u16!(reader));
     let constant_pool_count = read_u16!(reader);
+    println!("constant_pool_count {}", constant_pool_count.to_string());
     let mut constant_pool: Vec<PoolKind> = Vec::new();
-    for i in 1..constant_pool_count {
+    for i in 1..constant_pool_count - 0 {
+        // println!("{}", i.to_string());
         let tag = read_u8!(reader);
+        println!("tag {}", tag.to_string());
         constant_pool.push(match tag {
             1 => {
-                let mut buffer = vec![0u8; read_u16!(reader) as usize];
+                let length = read_u16!(reader);
+                let mut buffer = vec![0u8; length as usize];
                 reader.read_exact(&mut buffer)?;
+                println!(
+                    "str {}, i{}",
+                    std::str::from_utf8(&buffer).unwrap(),
+                    i.to_string()
+                );
                 PoolKind::Utf8 { bytes: buffer }
             }
             3 => PoolKind::integer(read_u32!(reader)),
@@ -336,7 +345,6 @@ fn main() -> io::Result<()> {
             _ => unimplemented!("unrecognized tag kind"),
         });
     }
-
     let access_flags = read_u16!(reader);
     let this_class = read_u16!(reader);
     let super_class = read_u16!(reader);
