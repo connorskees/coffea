@@ -288,5 +288,11 @@ fn main() -> io::Result<()> {
             _ => unimplemented!(),
         }
     }
+
+    let access_flags = read_u16!(reader);
+    let this_class = read_u16!(reader);
+    let super_class = read_u16!(reader);
+    let interfaces_count = read_u16!(reader);
+    println!("interfaces count {}", this_class.to_string());
     Ok(())
 }
