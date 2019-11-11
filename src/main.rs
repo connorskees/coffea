@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read};
 
-const TEST_CLASS_FILE_PATH: &str = "test.class";
+const TEST_CLASS_FILE_PATH: &str = "test2.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
 #[derive(Debug)]
@@ -313,8 +313,8 @@ fn main() -> io::Result<()> {
     let constant_pool_count = read_u16!(reader);
     println!("constant_pool_count {}", constant_pool_count.to_string());
     let mut constant_pool: Vec<PoolKind> = Vec::new();
-    for i in 1..constant_pool_count - 0 {
-        // println!("{}", i.to_string());
+    let mut i = 1;
+    while i <= constant_pool_count-1 {
         let tag = read_u8!(reader);
         println!("tag {}", tag.to_string());
         constant_pool.push(match tag {
@@ -331,8 +331,15 @@ fn main() -> io::Result<()> {
             }
             3 => PoolKind::integer(read_u32!(reader)),
             4 => PoolKind::float(read_u32!(reader)),
-            5 => PoolKind::long(read_u32!(reader), read_u32!(reader)),
-            6 => PoolKind::double(read_u32!(reader), read_u32!(reader)),
+            5 => {
+                // doubles and longs count as 2 spots
+                i += 1;
+                PoolKind::long(read_u32!(reader), read_u32!(reader))
+            },
+            6 => {
+                i += 1;
+                PoolKind::double(read_u32!(reader), read_u32!(reader))
+            },
             7 => PoolKind::class(read_u16!(reader)),
             8 => PoolKind::string(read_u16!(reader)),
             9 => PoolKind::field_ref(read_u16!(reader), read_u16!(reader)),
@@ -344,11 +351,12 @@ fn main() -> io::Result<()> {
             18 => PoolKind::invoke_dynamic(read_u16!(reader), read_u16!(reader)),
             _ => unimplemented!("unrecognized tag kind"),
         });
+        i += 1;
     }
+
     let access_flags = read_u16!(reader);
     let this_class = read_u16!(reader);
     let super_class = read_u16!(reader);
-    let interfaces_count = read_u16!(reader);
-    println!("interfaces count {}", this_class.to_string());
+
     Ok(())
 }
