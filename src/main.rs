@@ -21,7 +21,7 @@ enum PoolKind {
         class_index: u16,
         name_and_type_index: u16,
     },
-    InterfaceMethodref {
+    InterfaceMethodRef {
         class_index: u16,
         name_and_type_index: u16,
     },
@@ -60,6 +60,88 @@ enum PoolKind {
         boostrap_method_attr_index: u16,
         name_and_type_index: u16,
     },
+}
+
+impl PoolKind {
+    fn class(name_index: u16) -> PoolKind {
+        PoolKind::Class { name_index }
+    }
+
+    fn field_ref(class_index: u16, name_and_type_index: u16) -> PoolKind {
+        PoolKind::FieldRef {
+            class_index,
+            name_and_type_index,
+        }
+    }
+
+    fn method_ref(class_index: u16, name_and_type_index: u16) -> PoolKind {
+        PoolKind::MethodRef {
+            class_index,
+            name_and_type_index,
+        }
+    }
+
+    fn interface_method_ref(class_index: u16, name_and_type_index: u16) -> PoolKind {
+        PoolKind::InterfaceMethodRef {
+            class_index,
+            name_and_type_index,
+        }
+    }
+
+    fn string(string_index: u16) -> PoolKind {
+        PoolKind::String { string_index }
+    }
+
+    fn integer(bytes: u32) -> PoolKind {
+        PoolKind::Integer { bytes }
+    }
+
+    fn float(bytes: u32) -> PoolKind {
+        PoolKind::Float { bytes }
+    }
+
+    fn long(high_bytes: u32, low_bytes: u32) -> PoolKind {
+        PoolKind::Long {
+            high_bytes,
+            low_bytes,
+        }
+    }
+
+    fn double(high_bytes: u32, low_bytes: u32) -> PoolKind {
+        PoolKind::Double {
+            high_bytes,
+            low_bytes,
+        }
+    }
+
+    fn name_and_type(name_index: u16, descriptor_index: u16) -> PoolKind {
+        PoolKind::NameAndType {
+            name_index,
+            descriptor_index,
+        }
+    }
+
+    fn utf8(bytes: Vec<u8>) -> PoolKind {
+        PoolKind::Utf8 { bytes }
+    }
+
+    fn method_handle(reference_kind: u8, reference_index: u16) -> PoolKind {
+        PoolKind::MethodHandle {
+            reference_kind,
+            reference_index,
+        }
+    }
+
+    fn method_type(descriptor_index: u16) -> PoolKind {
+        PoolKind::MethodType { descriptor_index }
+    }
+
+    fn invoke_dynamic(boostrap_method_attr_index: u16, name_and_type_index: u16) -> PoolKind {
+        PoolKind::InvokeDynamic {
+            boostrap_method_attr_index,
+            name_and_type_index,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -233,61 +315,27 @@ fn main() -> io::Result<()> {
     let mut constant_pool: Vec<PoolKind> = Vec::new();
     for i in 1..constant_pool_count {
         let tag = read_u8!(reader);
-        match tag {
+        constant_pool.push(match tag {
             1 => {
                 let mut buffer = vec![0u8; read_u16!(reader) as usize];
                 reader.read_exact(&mut buffer)?;
-                constant_pool.push(PoolKind::Utf8 { bytes: buffer })
+                PoolKind::Utf8 { bytes: buffer }
             }
-            3 => constant_pool.push(PoolKind::Integer {
-                bytes: read_u32!(reader),
-            }),
-            4 => constant_pool.push(PoolKind::Float {
-                bytes: read_u32!(reader),
-            }),
-            5 => constant_pool.push(PoolKind::Long {
-                high_bytes: read_u32!(reader),
-                low_bytes: read_u32!(reader),
-            }),
-            6 => constant_pool.push(PoolKind::Double {
-                high_bytes: read_u32!(reader),
-                low_bytes: read_u32!(reader),
-            }),
-            7 => constant_pool.push(PoolKind::Class {
-                name_index: read_u16!(reader),
-            }),
-            8 => constant_pool.push(PoolKind::String {
-                string_index: read_u16!(reader),
-            }),
-            9 => constant_pool.push(PoolKind::FieldRef {
-                class_index: read_u16!(reader),
-                name_and_type_index: read_u16!(reader),
-            }),
-            10 => constant_pool.push(PoolKind::MethodRef {
-                class_index: read_u16!(reader),
-                name_and_type_index: read_u16!(reader),
-            }),
-            11 => constant_pool.push(PoolKind::InterfaceMethodref {
-                class_index: read_u16!(reader),
-                name_and_type_index: read_u16!(reader),
-            }),
-            12 => constant_pool.push(PoolKind::NameAndType {
-                name_index: read_u16!(reader),
-                descriptor_index: read_u16!(reader),
-            }),
-            15 => constant_pool.push(PoolKind::MethodHandle {
-                reference_kind: read_u8!(reader),
-                reference_index: read_u16!(reader),
-            }),
-            16 => constant_pool.push(PoolKind::MethodType {
-                descriptor_index: read_u16!(reader),
-            }),
-            18 => constant_pool.push(PoolKind::InvokeDynamic {
-                boostrap_method_attr_index: read_u16!(reader),
-                name_and_type_index: read_u16!(reader),
-            }),
-            _ => println!("{}", tag.to_string()),
-        }
+            3 => PoolKind::integer(read_u32!(reader)),
+            4 => PoolKind::float(read_u32!(reader)),
+            5 => PoolKind::long(read_u32!(reader), read_u32!(reader)),
+            6 => PoolKind::double(read_u32!(reader), read_u32!(reader)),
+            7 => PoolKind::class(read_u16!(reader)),
+            8 => PoolKind::string(read_u16!(reader)),
+            9 => PoolKind::field_ref(read_u16!(reader), read_u16!(reader)),
+            10 => PoolKind::method_ref(read_u16!(reader), read_u16!(reader)),
+            11 => PoolKind::interface_method_ref(read_u16!(reader), read_u16!(reader)),
+            12 => PoolKind::name_and_type(read_u16!(reader), read_u16!(reader)),
+            15 => PoolKind::method_handle(read_u8!(reader), read_u16!(reader)),
+            16 => PoolKind::method_type(read_u16!(reader)),
+            18 => PoolKind::invoke_dynamic(read_u16!(reader), read_u16!(reader)),
+            _ => unimplemented!("unrecognized tag kind"),
+        });
     }
     Ok(())
 }
