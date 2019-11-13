@@ -61,9 +61,7 @@ enum PoolKind {
         name_index: u16,
         descriptor_index: u16,
     },
-    Utf8 {
-        bytes: Vec<u8>,
-    },
+    Utf8(String),
     MethodHandle {
         reference_kind: u8,
         reference_index: u16,
@@ -144,7 +142,7 @@ impl PoolKind {
     }
 
     fn utf8(bytes: Vec<u8>) -> PoolKind {
-        PoolKind::Utf8 { bytes }
+        PoolKind::Utf8(std::str::from_utf8(&bytes).unwrap().to_owned())
     }
 
     fn method_handle(reference_kind: u8, reference_index: u16) -> PoolKind {
@@ -437,7 +435,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                 1 => {
                     let mut buffer = vec![0u8; self.read_u16()? as usize];
                     self.reader.read_exact(&mut buffer)?;
-                    PoolKind::Utf8 { bytes: buffer }
+                    PoolKind::utf8(buffer)
                 }
                 3 => PoolKind::integer(self.read_u32()?),
                 4 => PoolKind::float(self.read_u32()?),
