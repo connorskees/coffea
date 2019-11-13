@@ -366,7 +366,7 @@ impl MajorVersion {
 }
 
 #[derive(Debug, Default)]
-struct ClassFile<R: Read + BufRead> {
+struct ClassFile {
     pub version: (MajorVersion, u16),
     pub constant_pool: Vec<PoolKind>,
     pub access_flags: ClassAccessFlags,
@@ -376,27 +376,26 @@ struct ClassFile<R: Read + BufRead> {
     pub fields: Vec<FieldInfo>,
     pub methods: Vec<MethodInfo>,
     pub attributes: Vec<AttributeInfo>,
+}
+
+impl ClassFile {
+    pub fn from_bufreader<R: Read + BufRead>(reader: R) -> Result<ClassFile, io::Error> {
+        ClassFileBuilder { reader }.parse()
+    }
+
+    pub fn from_path<P: AsRef<std::path::Path>>(p: P) -> Result<ClassFile, io::Error> {
+        let buffer = BufReader::new(File::open(p).unwrap());
+        ClassFile::from_bufreader(buffer)
+    }
+}
+
+struct ClassFileBuilder<R: Read + BufRead> {
     reader: R,
 }
 
-impl<R: Read + BufRead> ClassFile<R> {
-    pub fn from_bufreader(reader: R) -> Result<ClassFile<R>, io::Error> {
-        let file: ClassFile<R> = ClassFile {
-            version: Default::default(),
-            constant_pool: Default::default(),
-            access_flags: Default::default(),
-            this_class: Default::default(),
-            super_class: Default::default(),
-            interfaces: Default::default(),
-            fields: Default::default(),
-            methods: Default::default(),
-            attributes: Default::default(),
-            reader,
-        };
-        file.parse()
-    }
-
-    fn parse(mut self) -> Result<ClassFile<R>, io::Error> {
+impl<R: Read + BufRead> ClassFileBuilder<R> {
+    fn parse(mut self) -> Result<ClassFile, io::Error> {
+        assert_eq!(read_bytes_to_buffer!(self.reader, 4), CLASS_FILE_HEADER);
         let version = self.read_version()?;
         let constant_pool = self.read_const_pool()?;
         let access_flags = ClassAccessFlags::from_u16(self.read_u16()?);
@@ -416,7 +415,6 @@ impl<R: Read + BufRead> ClassFile<R> {
             super_class,
             interfaces,
             fields,
-            reader: self.reader,
             methods,
             attributes,
         })
@@ -542,7 +540,7 @@ impl<R: Read + BufRead> ClassFile<R> {
     }
 }
 
-impl<R: Read + BufRead> ClassFile<R> {
+impl<R: Read + BufRead> ClassFileBuilder<R> {
     /// Read a single byte as a u8
     fn read_u8(&mut self) -> Result<u8, io::Error> {
         let mut buffer = [0u8];
@@ -568,7 +566,9 @@ impl<R: Read + BufRead> ClassFile<R> {
 
 fn main() -> io::Result<()> {
     let mut reader = BufReader::new(File::open(TEST_CLASS_FILE_PATH)?);
-    assert_eq!(read_bytes_to_buffer!(reader, 4), CLASS_FILE_HEADER);
+    let file = ClassFile::from_bufreader(reader)?;
+
+    dbg!(file);
 
     Ok(())
 }
