@@ -5,12 +5,13 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read};
 
-const TEST_CLASS_FILE_PATH: &str = "test2.class";
+const TEST_CLASS_FILE_PATH: &str = "test.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
 type JResult<T> = Result<T, io::Error>;
 
 /// Read `n` bytes as [u8; n]
+/// This is a hack until const generics
 macro_rules! read_bytes_to_buffer {
     ($reader:expr, $bytes:literal) => {
         if let Some(mut buffer) = Some([0u8; $bytes]) {
@@ -73,14 +74,8 @@ enum PoolKind {
         boostrap_method_attr_index: u16,
         name_and_type_index: u16,
     },
-    Unknown,
 }
 
-impl std::default::Default for PoolKind {
-    fn default() -> PoolKind {
-        PoolKind::Unknown
-    }
-}
 
 impl PoolKind {
     fn class(name_index: u16) -> PoolKind {
@@ -164,7 +159,7 @@ impl PoolKind {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ClassAccessFlags {
     is_public: bool,
     is_final: bool,
@@ -245,7 +240,7 @@ impl FieldAccessFlags {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MethodAccessFlags {
     is_public: bool,
     is_private: bool,
@@ -296,7 +291,6 @@ impl MethodAccessFlags {
 #[derive(Debug)]
 struct AttributeInfo {
     attribute_name_index: u16,
-    attribute_length: u32,
     info: Vec<u8>,
 }
 
@@ -308,7 +302,7 @@ struct FieldInfo {
     attribute_info: Vec<AttributeInfo>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct MethodInfo {
     access_flags: MethodAccessFlags,
     name_index: u16,
@@ -363,7 +357,7 @@ impl MajorVersion {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct ClassFile {
     pub version: (MajorVersion, u16),
     pub constant_pool: Vec<PoolKind>,
@@ -504,7 +498,6 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 
         Ok(AttributeInfo {
             attribute_name_index,
-            attribute_length,
             info,
         })
     }
