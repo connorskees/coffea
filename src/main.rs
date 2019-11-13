@@ -5,10 +5,14 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read};
 
+use crate::attributes::AttributeInfo;
+
 const TEST_CLASS_FILE_PATH: &str = "test.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
 type JResult<T> = Result<T, io::Error>;
+
+mod attributes;
 
 /// Read `n` bytes as [u8; n]
 /// This is a hack until const generics
@@ -75,7 +79,6 @@ enum PoolKind {
         name_and_type_index: u16,
     },
 }
-
 
 impl PoolKind {
     fn class(name_index: u16) -> PoolKind {
@@ -286,12 +289,6 @@ impl MethodAccessFlags {
             is_synthetic: (n & MethodAccessFlags::SYNTHETIC) != 0,
         }
     }
-}
-
-#[derive(Debug)]
-struct AttributeInfo {
-    attribute_name_index: u16,
-    info: Vec<u8>,
 }
 
 #[derive(Debug)]
