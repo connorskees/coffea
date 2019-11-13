@@ -6,13 +6,21 @@ use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read};
 
 use crate::attributes::AttributeInfo;
+pub use crate::fields::{FieldAccessFlags, FieldInfo};
+use crate::methods::{MethodAccessFlags, MethodInfo};
+pub use crate::pool::PoolKind;
+pub use crate::version::MajorVersion;
 
 const TEST_CLASS_FILE_PATH: &str = "test.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
 type JResult<T> = Result<T, io::Error>;
 
-mod attributes;
+pub mod attributes;
+mod fields;
+pub mod methods;
+mod pool;
+mod version;
 
 /// Read `n` bytes as [u8; n]
 /// This is a hack until const generics
@@ -26,140 +34,6 @@ macro_rules! read_bytes_to_buffer {
             unreachable!()
         }
     };
-}
-
-#[derive(Debug)]
-enum PoolKind {
-    Class {
-        name_index: u16,
-    },
-    FieldRef {
-        class_index: u16,
-        name_and_type_index: u16,
-    },
-    MethodRef {
-        class_index: u16,
-        name_and_type_index: u16,
-    },
-    InterfaceMethodRef {
-        class_index: u16,
-        name_and_type_index: u16,
-    },
-    String {
-        string_index: u16,
-    },
-    Integer {
-        bytes: u32,
-    },
-    Float {
-        bytes: u32,
-    },
-    Long {
-        high_bytes: u32,
-        low_bytes: u32,
-    },
-    Double {
-        high_bytes: u32,
-        low_bytes: u32,
-    },
-    NameAndType {
-        name_index: u16,
-        descriptor_index: u16,
-    },
-    Utf8(String),
-    MethodHandle {
-        reference_kind: u8,
-        reference_index: u16,
-    },
-    MethodType {
-        descriptor_index: u16,
-    },
-    InvokeDynamic {
-        boostrap_method_attr_index: u16,
-        name_and_type_index: u16,
-    },
-}
-
-impl PoolKind {
-    fn class(name_index: u16) -> PoolKind {
-        PoolKind::Class { name_index }
-    }
-
-    fn field_ref(class_index: u16, name_and_type_index: u16) -> PoolKind {
-        PoolKind::FieldRef {
-            class_index,
-            name_and_type_index,
-        }
-    }
-
-    fn method_ref(class_index: u16, name_and_type_index: u16) -> PoolKind {
-        PoolKind::MethodRef {
-            class_index,
-            name_and_type_index,
-        }
-    }
-
-    fn interface_method_ref(class_index: u16, name_and_type_index: u16) -> PoolKind {
-        PoolKind::InterfaceMethodRef {
-            class_index,
-            name_and_type_index,
-        }
-    }
-
-    fn string(string_index: u16) -> PoolKind {
-        PoolKind::String { string_index }
-    }
-
-    fn integer(bytes: u32) -> PoolKind {
-        PoolKind::Integer { bytes }
-    }
-
-    fn float(bytes: u32) -> PoolKind {
-        PoolKind::Float { bytes }
-    }
-
-    fn long(high_bytes: u32, low_bytes: u32) -> PoolKind {
-        PoolKind::Long {
-            high_bytes,
-            low_bytes,
-        }
-    }
-
-    fn double(high_bytes: u32, low_bytes: u32) -> PoolKind {
-        PoolKind::Double {
-            high_bytes,
-            low_bytes,
-        }
-    }
-
-    fn name_and_type(name_index: u16, descriptor_index: u16) -> PoolKind {
-        PoolKind::NameAndType {
-            name_index,
-            descriptor_index,
-        }
-    }
-
-    fn utf8(bytes: Vec<u8>) -> PoolKind {
-        PoolKind::Utf8(std::str::from_utf8(&bytes).unwrap().to_owned())
-    }
-
-    fn method_handle(reference_kind: u8, reference_index: u16) -> PoolKind {
-        PoolKind::MethodHandle {
-            reference_kind,
-            reference_index,
-        }
-    }
-
-    fn method_type(descriptor_index: u16) -> PoolKind {
-        PoolKind::MethodType { descriptor_index }
-    }
-
-    fn invoke_dynamic(boostrap_method_attr_index: u16, name_and_type_index: u16) -> PoolKind {
-        PoolKind::InvokeDynamic {
-            boostrap_method_attr_index,
-            name_and_type_index,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -205,157 +79,7 @@ impl ClassAccessFlags {
 }
 
 #[derive(Debug)]
-pub struct FieldAccessFlags {
-    is_public: bool,
-    is_private: bool,
-    is_protected: bool,
-    is_static: bool,
-    is_final: bool,
-    is_volatile: bool,
-    is_transient: bool,
-    is_synthetic: bool,
-    is_enum: bool,
-}
-
-impl FieldAccessFlags {
-    const PUBLIC: u16 = 0x0001;
-    const PRIVATE: u16 = 0x0002;
-    const PROTECTED: u16 = 0x0004;
-    const STATIC: u16 = 0x0008;
-    const FINAL: u16 = 0x0010;
-    const VOLATILE: u16 = 0x0040;
-    const TRANSIENT: u16 = 0x0080;
-    const SYNTHETIC: u16 = 0x1000;
-    const ENUM: u16 = 0x4000;
-
-    pub const fn from_u16(n: u16) -> FieldAccessFlags {
-        FieldAccessFlags {
-            is_public: (n & FieldAccessFlags::PUBLIC) != 0,
-            is_private: (n & FieldAccessFlags::PRIVATE) != 0,
-            is_protected: (n & FieldAccessFlags::PROTECTED) != 0,
-            is_static: (n & FieldAccessFlags::STATIC) != 0,
-            is_final: (n & FieldAccessFlags::FINAL) != 0,
-            is_volatile: (n & FieldAccessFlags::VOLATILE) != 0,
-            is_transient: (n & FieldAccessFlags::TRANSIENT) != 0,
-            is_synthetic: (n & FieldAccessFlags::SYNTHETIC) != 0,
-            is_enum: (n & FieldAccessFlags::ENUM) != 0,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct MethodAccessFlags {
-    is_public: bool,
-    is_private: bool,
-    is_protected: bool,
-    is_static: bool,
-    is_final: bool,
-    is_synchronized: bool,
-    is_bridge: bool,
-    is_var_args: bool,
-    is_native: bool,
-    is_abstract: bool,
-    is_strict: bool,
-    is_synthetic: bool,
-}
-
-impl MethodAccessFlags {
-    const PUBLIC: u16 = 0x0001;
-    const PRIVATE: u16 = 0x0002;
-    const PROTECTED: u16 = 0x0004;
-    const STATIC: u16 = 0x0008;
-    const FINAL: u16 = 0x0010;
-    const SYNCHRONIZED: u16 = 0x0020;
-    const BRIDGE: u16 = 0x0040;
-    const VARARGS: u16 = 0x0080;
-    const NATIVE: u16 = 0x0100;
-    const ABSTRACT: u16 = 0x0400;
-    const STRICT: u16 = 0x0800;
-    const SYNTHETIC: u16 = 0x1000;
-
-    pub fn from_u16(n: u16) -> MethodAccessFlags {
-        MethodAccessFlags {
-            is_public: (n & MethodAccessFlags::PUBLIC) != 0,
-            is_private: (n & MethodAccessFlags::PRIVATE) != 0,
-            is_protected: (n & MethodAccessFlags::PROTECTED) != 0,
-            is_static: (n & MethodAccessFlags::STATIC) != 0,
-            is_final: (n & MethodAccessFlags::FINAL) != 0,
-            is_synchronized: (n & MethodAccessFlags::SYNCHRONIZED) != 0,
-            is_bridge: (n & MethodAccessFlags::BRIDGE) != 0,
-            is_var_args: (n & MethodAccessFlags::VARARGS) != 0,
-            is_native: (n & MethodAccessFlags::NATIVE) != 0,
-            is_abstract: (n & MethodAccessFlags::ABSTRACT) != 0,
-            is_strict: (n & MethodAccessFlags::STRICT) != 0,
-            is_synthetic: (n & MethodAccessFlags::SYNTHETIC) != 0,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct FieldInfo {
-    access_flags: FieldAccessFlags,
-    name_index: u16,
-    descriptor_index: u16,
-    attribute_info: Vec<AttributeInfo>,
-}
-
-#[derive(Debug)]
-struct MethodInfo {
-    access_flags: MethodAccessFlags,
-    name_index: u16,
-    descriptor_index: u16,
-    attributes: Vec<AttributeInfo>,
-}
-
-#[derive(Debug)]
-pub enum MajorVersion {
-    JavaSE14 = 58,
-    JavaSE13 = 57,
-    JavaSE12 = 56,
-    JavaSE11 = 55,
-    JavaSE10 = 54,
-    JavaSE9 = 53,
-    JavaSE8 = 52,
-    JavaSE7 = 51,
-    JavaSE6 = 50,
-    JavaSE5 = 49,
-    JDK1_4 = 48,
-    JDK1_3 = 47,
-    JDK1_2 = 46,
-    JDK1_1 = 45,
-    Unknown = 0,
-}
-
-impl std::default::Default for MajorVersion {
-    fn default() -> MajorVersion {
-        MajorVersion::Unknown
-    }
-}
-
-impl MajorVersion {
-    pub fn from_u16(n: u16) -> MajorVersion {
-        match n {
-            58 => MajorVersion::JavaSE14,
-            57 => MajorVersion::JavaSE13,
-            56 => MajorVersion::JavaSE12,
-            55 => MajorVersion::JavaSE11,
-            54 => MajorVersion::JavaSE10,
-            53 => MajorVersion::JavaSE9,
-            52 => MajorVersion::JavaSE8,
-            51 => MajorVersion::JavaSE7,
-            50 => MajorVersion::JavaSE6,
-            49 => MajorVersion::JavaSE5,
-            48 => MajorVersion::JDK1_4,
-            47 => MajorVersion::JDK1_3,
-            46 => MajorVersion::JDK1_2,
-            45 => MajorVersion::JDK1_1,
-            _ => unimplemented!(),
-        }
-    }
-}
-
-#[derive(Debug)]
-struct ClassFile {
+pub struct ClassFile {
     pub version: (MajorVersion, u16),
     pub constant_pool: Vec<PoolKind>,
     pub access_flags: ClassAccessFlags,
@@ -490,6 +214,8 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let attribute_name_index = self.read_u16()?;
         let attribute_length = self.read_u32()?;
 
+        // match self.
+
         let mut info = vec![0u8; attribute_length as usize];
         self.reader.read_exact(&mut info)?;
 
@@ -553,10 +279,16 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 }
 
 fn main() -> io::Result<()> {
-    let mut reader = BufReader::new(File::open(TEST_CLASS_FILE_PATH)?);
+    let reader = BufReader::new(File::open(TEST_CLASS_FILE_PATH)?);
     let file = ClassFile::from_bufreader(reader)?;
 
-    dbg!(file);
+    // for a in file.attributes {
+    // dbg!(&file.constant_pool[(a.attribute_name_index-1) as usize]);
+    // }
+    // let index = .name_index;
+    dbg!(&file.methods[0]);
+    // dbg!(file.this_class, file.super_class);
+    dbg!(&file.constant_pool[(8) as usize]);
 
     Ok(())
 }

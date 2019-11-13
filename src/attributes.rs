@@ -15,24 +15,60 @@ enum Attribute {
         name_index: u16,
         code: CodeAttribute,
     },
-    StackMapTable,
-    Exceptions,
-    InnerClasses,
-    EnclosingMethod,
-    Synthetic,
-    Signature,
-    SourceFile,
-    SourceDebugExtension,
-    LineNumberTable,
-    LocalVariableTable,
-    LocalVariableTypeTable,
-    Deprecated,
-    RuntimeVisibleAnnotations,
-    RuntimeInvisibleAnnotations,
-    RuntimeVisibleParameterAnnotations,
-    RuntimeInvisibleParameterAnnotations,
-    AnnotationDefault,
-    BootstrapMethods,
+    StackMapTable{
+        name_index: u16,
+    },
+    Exceptions{
+        name_index: u16,
+    },
+    InnerClasses{
+        name_index: u16,
+    },
+    EnclosingMethod{
+        name_index: u16,
+    },
+    Synthetic{
+        name_index: u16,
+    },
+    Signature{
+        name_index: u16,
+    },
+    SourceFile{
+        name_index: u16,
+    },
+    SourceDebugExtension{
+        name_index: u16,
+    },
+    LineNumberTable{
+        name_index: u16,
+    },
+    LocalVariableTable{
+        name_index: u16,
+    },
+    LocalVariableTypeTable{
+        name_index: u16,
+    },
+    Deprecated{
+        name_index: u16,
+    },
+    RuntimeVisibleAnnotations{
+        name_index: u16,
+    },
+    RuntimeInvisibleAnnotations{
+        name_index: u16,
+    },
+    RuntimeVisibleParameterAnnotations{
+        name_index: u16,
+    },
+    RuntimeInvisibleParameterAnnotations{
+        name_index: u16,
+    },
+    AnnotationDefault{
+        name_index: u16,
+    },
+    BootstrapMethods{
+        name_index: u16,
+    },
     Other {
         name_index: u16,
         info: Vec<u8>,
@@ -55,3 +91,15 @@ struct ExceptionTableEntry {
     handler_pc: u16,
     catch_type: u16,
 }
+
+struct BootstrapMethodAttribute {
+
+}
+
+// BootstrapMethods_attribute {
+//     u2 num_bootstrap_methods;
+//     {   u2 bootstrap_method_ref;
+//         u2 num_bootstrap_arguments;
+//         u2 bootstrap_arguments[num_bootstrap_arguments];
+//     } bootstrap_methods[num_bootstrap_methods];
+// }
