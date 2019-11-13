@@ -318,12 +318,6 @@ struct MethodInfo {
     attributes: Vec<AttributeInfo>,
 }
 
-#[derive(Debug, Default)]
-struct ConstantPoolInfo {
-    pool_kind: PoolKind,
-    bytes: Vec<u8>,
-}
-
 #[derive(Debug)]
 pub enum MajorVersion {
     JavaSE14 = 58,
@@ -374,7 +368,7 @@ impl MajorVersion {
 #[derive(Debug, Default)]
 struct ClassFile<R: Read + BufRead> {
     pub version: (MajorVersion, u16),
-    pub constant_pool: Vec<ConstantPoolInfo>,
+    pub constant_pool: Vec<PoolKind>,
     pub access_flags: ClassAccessFlags,
     pub this_class: u16,
     pub super_class: u16,
@@ -411,11 +405,12 @@ impl<R: Read + BufRead> ClassFile<R> {
         let interfaces = self.read_interfaces()?;
         let fields = self.read_fields()?;
         let methods = self.read_methods()?;
+        let attributes_count = self.read_u16()?;
+        let attributes = self.read_attributes(attributes_count)?;
 
-        // Ok(ClassFile {
-        //     version, constant_pool, access_flags, this_class, super_class, interfaces, fields, reader: self.reader
-        // })
-        unimplemented!()
+        Ok(ClassFile {
+            version, constant_pool, access_flags, this_class, super_class, interfaces, fields, reader: self.reader, methods, attributes
+        })
     }
 
     fn read_version(&mut self) -> JResult<(MajorVersion, u16)> {
