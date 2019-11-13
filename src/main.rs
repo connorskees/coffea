@@ -409,7 +409,16 @@ impl<R: Read + BufRead> ClassFile<R> {
         let attributes = self.read_attributes(attributes_count)?;
 
         Ok(ClassFile {
-            version, constant_pool, access_flags, this_class, super_class, interfaces, fields, reader: self.reader, methods, attributes
+            version,
+            constant_pool,
+            access_flags,
+            this_class,
+            super_class,
+            interfaces,
+            fields,
+            reader: self.reader,
+            methods,
+            attributes,
         })
     }
 
@@ -521,7 +530,12 @@ impl<R: Read + BufRead> ClassFile<R> {
             let descriptor_index = self.read_u16()?;
             let attributes_count = self.read_u16()?;
             let attributes = self.read_attributes(attributes_count)?;
-            methods.push(MethodInfo { access_flags, name_index, descriptor_index, attributes });
+            methods.push(MethodInfo {
+                access_flags,
+                name_index,
+                descriptor_index,
+                attributes,
+            });
         }
 
         Ok(methods)
