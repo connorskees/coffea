@@ -144,6 +144,23 @@ impl PoolKind {
     }
 }
 
+/*
+impl FieldInfo {
+    fn FieldInfo(
+        access_flags: u16,
+        name_index: u16,
+        descriptor_index: u16,
+        attributes_count: u16,
+        attributes: Vec<AttributeInfo>,
+    ) -> FieldInfo {
+        PoolKind::InvokeDynamic {
+            boostrap_method_attr_index,
+            name_and_type_index,
+        }
+    }
+}
+*/
+
 #[derive(Debug)]
 enum FieldAccessFlags {
     Public = 0x0001,
@@ -185,6 +202,7 @@ struct FieldInfo {
     access_flags: FieldAccessFlags,
     name_index: u16,
     descriptor_index: u16,
+    attributes_count: u16,
     attribute_info: Vec<AttributeInfo>,
 }
 
@@ -304,6 +322,24 @@ macro_rules! read_u32 {
     };
 }
 
+fn ReadAttributes(reader: BufReader<std::fs::File>, attribute_count: u16) -> Vec<AttributeInfo> {
+    let mut attributes: Vec<AttributeInfo> = Vec::new();
+    for i in 0..attribute_count {
+        let name_index = read_u16!(reader);
+        let length = read_u32!(reader);
+        let info: Vec<u8> = Vec::new();
+        for i in 0..length {
+            info.push(read_u8!(reader));
+        }
+        attributes.push(AttributeInfo {
+            attribute_name_index: name_index,
+            attribute_length: length,
+            info: info,
+        });
+    }
+    return attributes;
+}
+
 fn main() -> io::Result<()> {
     let mut reader = BufReader::new(File::open(TEST_CLASS_FILE_PATH)?);
     assert_eq!(read_bytes_to_buffer!(reader, 4), CLASS_FILE_HEADER);
@@ -314,7 +350,7 @@ fn main() -> io::Result<()> {
     println!("constant_pool_count {}", constant_pool_count.to_string());
     let mut constant_pool: Vec<PoolKind> = Vec::new();
     let mut i = 1;
-    while i <= constant_pool_count-1 {
+    while i <= constant_pool_count - 1 {
         let tag = read_u8!(reader);
         println!("tag {}", tag.to_string());
         constant_pool.push(match tag {
@@ -335,11 +371,11 @@ fn main() -> io::Result<()> {
                 // doubles and longs count as 2 spots
                 i += 1;
                 PoolKind::long(read_u32!(reader), read_u32!(reader))
-            },
+            }
             6 => {
                 i += 1;
                 PoolKind::double(read_u32!(reader), read_u32!(reader))
-            },
+            }
             7 => PoolKind::class(read_u16!(reader)),
             8 => PoolKind::string(read_u16!(reader)),
             9 => PoolKind::field_ref(read_u16!(reader), read_u16!(reader)),
@@ -357,6 +393,16 @@ fn main() -> io::Result<()> {
     let access_flags = read_u16!(reader);
     let this_class = read_u16!(reader);
     let super_class = read_u16!(reader);
+
+    let interfaces_count = read_u16!(reader);
+    let mut interfaces: Vec<u8> = Vec::new();
+    while i < interfaces_count {
+        interfaces.push(read_u8!(reader));
+        i += 1;
+    }
+
+    let fields_count = read_u16!(reader);
+    let mut fields: Vec<FieldInfo> = Vec::new();
 
     Ok(())
 }
