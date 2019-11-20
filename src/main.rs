@@ -290,15 +290,5 @@ fn main() -> io::Result<()> {
     // dbg!(file.this_class, file.super_class);
     dbg!(&file.constant_pool[(8) as usize]);
 
-    let interfaces_count = read_u16!(reader);
-    let mut interfaces: Vec<u8> = Vec::new();
-    while i < interfaces_count {
-        interfaces.push(read_u8!(reader));
-        i += 1;
-    }
-
-    let fields_count = read_u16!(reader);
-    let mut fields: Vec<FieldInfo> = Vec::new();
-
     Ok(())
 }
