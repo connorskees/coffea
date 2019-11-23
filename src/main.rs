@@ -92,11 +92,11 @@ pub struct ClassFile {
 }
 
 impl ClassFile {
-    pub fn from_bufreader<R: Read + BufRead>(reader: R) -> Result<ClassFile, io::Error> {
+    pub fn from_bufreader<R: Read + BufRead>(reader: R) -> JResult<ClassFile> {
         ClassFileBuilder { reader }.parse()
     }
 
-    pub fn from_path<P: AsRef<std::path::Path>>(p: P) -> Result<ClassFile, io::Error> {
+    pub fn from_path<P: AsRef<std::path::Path>>(p: P) -> JResult<ClassFile> {
         let buffer = BufReader::new(File::open(p).unwrap());
         ClassFile::from_bufreader(buffer)
     }
@@ -107,7 +107,7 @@ struct ClassFileBuilder<R: Read + BufRead> {
 }
 
 impl<R: Read + BufRead> ClassFileBuilder<R> {
-    fn parse(mut self) -> Result<ClassFile, io::Error> {
+    fn parse(mut self) -> JResult<ClassFile> {
         assert_eq!(read_bytes_to_buffer!(self.reader, 4), CLASS_FILE_HEADER);
         let version = self.read_version()?;
         let constant_pool = self.read_const_pool()?;
@@ -256,22 +256,21 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 
 impl<R: Read + BufRead> ClassFileBuilder<R> {
     /// Read a single byte as a u8
-    fn read_u8(&mut self) -> Result<u8, io::Error> {
+    fn read_u8(&mut self) -> JResult<u8> {
         let mut buffer = [0u8];
         self.reader.read_exact(&mut buffer)?;
         Ok(u8::from_be_bytes(buffer))
     }
 
     /// Read 2 bytes as a u16
-    fn read_u16(&mut self) -> Result<u16, io::Error> {
+    fn read_u16(&mut self) -> JResult<u16> {
         let mut buffer = [0u8; 2];
         self.reader.read_exact(&mut buffer)?;
         Ok(u16::from_be_bytes(buffer))
     }
 
     /// Read 4 bytes as a u32
-
-    fn read_u32(&mut self) -> Result<u32, io::Error> {
+    fn read_u32(&mut self) -> JResult<u32> {
         let mut buffer = [0u8; 4];
         self.reader.read_exact(&mut buffer)?;
         Ok(u32::from_be_bytes(buffer))
