@@ -5,13 +5,13 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read};
 
-use crate::attributes::{Attribute, ExceptionTableEntry};
+use crate::attributes::{Attribute, ExceptionTableEntry, LocalVariableTableEntry, *};
 pub use crate::fields::{FieldAccessFlags, FieldInfo};
 use crate::methods::{MethodAccessFlags, MethodInfo};
 pub use crate::pool::PoolKind;
 pub use crate::version::MajorVersion;
 
-const TEST_CLASS_FILE_PATH: &str = "test3.class";
+const TEST_CLASS_FILE_PATH: &str = "Euler5.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
 type JResult<T> = Result<T, io::Error>;
@@ -219,10 +219,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let attribute_name_index = self.read_u16()?;
         let attribute_length = self.read_u32()?;
 
-        let mut info = vec![0u8; attribute_length as usize];
-        self.reader.read_exact(&mut info)?;
-
-        Ok(match self.const_pool[usize::from(attribute_name_index)] {
+        Ok(match self.const_pool[usize::from(attribute_name_index-1)] {
             PoolKind::Utf8(ref s) => match s.as_str() {
                 "ConstantValue" => self.parse_attr_constant_value()?,
                 "Code" => self.parse_attr_code()?,
@@ -245,7 +242,10 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                 "AnnotationDefault" => self.parse_attr_annotation_default()?,
                 "BootstrapMethods" => self.parse_attr_bootstrap_methods()?,
                 "Other" => self.parse_attr_other()?,
-                _ => unimplemented!(),
+                _ => {
+                    self.reader.read_exact(&mut vec![0u8; attribute_length as usize])?;
+                    unimplemented!()
+                },
             },
             _ => unimplemented!(),
         })
@@ -284,17 +284,18 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse_attr_constant_value(&mut self) -> JResult<Attribute> {
         Ok(Attribute::ConstantValue { const_value_index: self.read_u16()? })
     }
+
     fn parse_attr_code(&mut self) -> JResult<Attribute> {
         let max_stack = self.read_u16()?;
         let max_locals = self.read_u16()?;
-        
+
         let code_length = self.read_u32()?;
         let mut code = vec![0u8; code_length as usize];
         self.reader.read_exact(&mut code)?;
 
         let exception_table_length = self.read_u16()?;
         let exception_table = self.read_exception_table(exception_table_length)?;
-        
+
         let attributes_count = self.read_u16()?;
         let attribute_info = self.read_attributes(attributes_count)?;
 
@@ -348,12 +349,39 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse_attr_source_debug_extension(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
+    
     fn parse_attr_line_number_table(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let line_number_table_length = self.read_u16()?;
+        let mut line_number_table = Vec::new();
+        for _ in 0..line_number_table_length {
+            let start = self.read_u16()?;
+            let line_number = self.read_u16()?;
+            line_number_table.push(LineNumberTableEntry { start, line_number });
+        }
+        Ok(Attribute::LineNumberTable(line_number_table))
     }
+    
     fn parse_attr_local_variable_table(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let local_variable_table_length = self.read_u16()?;
+        let mut entries = Vec::new();
+        for _ in 0..local_variable_table_length {
+            entries.push(self.read_local_variable_table_entry()?);
+        }
+
+        Ok(Attribute::LocalVariableTable(entries))
     }
+
+    fn read_local_variable_table_entry(&mut self) -> JResult<LocalVariableTableEntry> {
+        let start = self.read_u16()?;
+        let length = self.read_u16()?;
+        let name_index = self.read_u16()?;
+        let descriptor_index = self.read_u16()?;
+        let index = self.read_u16()?;
+        Ok(LocalVariableTableEntry {
+            start, length, name_index, descriptor_index, index
+        })
+    }
+
     fn parse_attr_local_variable_type_table(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
