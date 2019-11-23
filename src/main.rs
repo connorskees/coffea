@@ -224,27 +224,27 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 
         Ok(match self.const_pool[usize::from(attribute_name_index)] {
             PoolKind::Utf8(ref s) => match s.as_str() {
-                "ConstantValue" => Attribute::constant_value(self.read_u16()?),
-                "Code" => Attribute::code(),
-                "StackMapTable" => Attribute::stack_map_table(),
-                "Exceptions" => Attribute::exceptions(),
-                "InnerClasses" => Attribute::inner_classes(),
-                "EnclosingMethod" => Attribute::enclosing_method(),
-                "Synthetic" => Attribute::synthetic(),
-                "Signature" => Attribute::signature(),
-                "SourceFile" => Attribute::source_file(),
-                "SourceDebugExtension" => Attribute::source_debug_extension(),
-                "LineNumberTable" => Attribute::line_number_table(),
-                "LocalVariableTable" => Attribute::local_variable_table(),
-                "LocalVariableTypeTable" => Attribute::local_variable_type_table(),
+                "ConstantValue" => self.read_attr_constant_value()?,
+                "Code" => self.read_attr_code()?,
+                "StackMapTable" => self.read_attr_stack_map_table()?,
+                "Exceptions" => self.read_attr_exceptions()?,
+                "InnerClasses" => self.read_attr_inner_classes()?,
+                "EnclosingMethod" => self.read_attr_enclosing_method()?,
+                "Synthetic" => self.read_attr_synthetic()?,
+                "Signature" => self.read_attr_signature()?,
+                "SourceFile" => self.read_attr_source_file()?,
+                "SourceDebugExtension" => self.read_attr_source_debug_extension()?,
+                "LineNumberTable" => self.read_attr_line_number_table()?,
+                "LocalVariableTable" => self.read_attr_local_variable_table()?,
+                "LocalVariableTypeTable" => self.read_attr_local_variable_type_table()?,
                 "Deprecated" => Attribute::Deprecated,
-                "RuntimeVisibleAnnotations" => Attribute::runtime_visible_annotations(),
-                "RuntimeInvisibleAnnotations" => Attribute::runtime_invisible_annotations(),
-                "RuntimeVisibleParameterAnnotations" => Attribute::runtime_visible_parameter_annotations(),
-                "RuntimeInvisibleParameterAnnotations" => Attribute::runtime_invisible_parameter_annotations(),
-                "AnnotationDefault" => Attribute::annotation_default(),
-                "BootstrapMethods" => Attribute::bootstrap_methods(),
-                "Other" => Attribute::other(),
+                "RuntimeVisibleAnnotations" => self.read_attr_runtime_visible_annotations()?,
+                "RuntimeInvisibleAnnotations" => self.read_attr_runtime_invisible_annotations()?,
+                "RuntimeVisibleParameterAnnotations" => self.read_attr_runtime_visible_parameter_annotations()?,
+                "RuntimeInvisibleParameterAnnotations" => self.read_attr_runtime_invisible_parameter_annotations()?,
+                "AnnotationDefault" => self.read_attr_annotation_default()?,
+                "BootstrapMethods" => self.read_attr_bootstrap_methods()?,
+                "Other" => self.read_attr_other()?,
                 _ => unimplemented!(),
             },
             _ => unimplemented!(),
@@ -279,6 +279,70 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         Ok(methods)
     }
 }
+
+impl<R: Read + BufRead> ClassFileBuilder<R> {
+    fn read_attr_constant_value(&mut self) -> JResult<Attribute> {
+        Ok(Attribute::ConstantValue { const_value_index: self.read_u16()? })
+    }
+    fn read_attr_code(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_stack_map_table(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_exceptions(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_inner_classes(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_enclosing_method(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_synthetic(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_signature(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_source_file(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_source_debug_extension(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_line_number_table(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_local_variable_table(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_local_variable_type_table(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_runtime_visible_annotations(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_runtime_invisible_annotations(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_runtime_visible_parameter_annotations(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_runtime_invisible_parameter_annotations(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_annotation_default(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_bootstrap_methods(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+    fn read_attr_other(&mut self) -> JResult<Attribute> {
+        unimplemented!()
+    }
+}
+
 
 impl<R: Read + BufRead> ClassFileBuilder<R> {
     /// Read a single byte as a u8

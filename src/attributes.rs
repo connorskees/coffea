@@ -50,69 +50,6 @@ pub enum Attribute {
     },
 }
 
-impl Attribute {
-    pub fn constant_value(const_value_index: u16) -> Attribute {
-        Attribute::ConstantValue { const_value_index }
-    }
-    pub fn code() -> Attribute {
-        unimplemented!()
-    }
-    pub fn stack_map_table() -> Attribute {
-        unimplemented!()
-    }
-    pub fn exceptions() -> Attribute {
-        unimplemented!()
-    }
-    pub fn inner_classes() -> Attribute {
-        unimplemented!()
-    }
-    pub fn enclosing_method() -> Attribute {
-        unimplemented!()
-    }
-    pub fn synthetic() -> Attribute {
-        unimplemented!()
-    }
-    pub fn signature() -> Attribute {
-        unimplemented!()
-    }
-    pub fn source_file() -> Attribute {
-        unimplemented!()
-    }
-    pub fn source_debug_extension() -> Attribute {
-        unimplemented!()
-    }
-    pub fn line_number_table() -> Attribute {
-        unimplemented!()
-    }
-    pub fn local_variable_table() -> Attribute {
-        unimplemented!()
-    }
-    pub fn local_variable_type_table() -> Attribute {
-        unimplemented!()
-    }
-    pub fn runtime_visible_annotations() -> Attribute {
-        unimplemented!()
-    }
-    pub fn runtime_invisible_annotations() -> Attribute {
-        unimplemented!()
-    }
-    pub fn runtime_visible_parameter_annotations() -> Attribute {
-        unimplemented!()
-    }
-    pub fn runtime_invisible_parameter_annotations() -> Attribute {
-        unimplemented!()
-    }
-    pub fn annotation_default() -> Attribute {
-        unimplemented!()
-    }
-    pub fn bootstrap_methods() -> Attribute {
-        unimplemented!()
-    }
-    pub fn other() -> Attribute {
-        unimplemented!()
-    }
-}
-
 #[derive(Debug)]
 pub struct CodeAttribute {
     max_stack: u16,
