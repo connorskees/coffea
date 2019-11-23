@@ -11,7 +11,7 @@ use crate::methods::{MethodAccessFlags, MethodInfo};
 pub use crate::pool::PoolKind;
 pub use crate::version::MajorVersion;
 
-const TEST_CLASS_FILE_PATH: &str = "Euler5.class";
+const TEST_CLASS_FILE_PATH: &str = "test.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
 type JResult<T> = Result<T, io::Error>;
@@ -36,7 +36,7 @@ macro_rules! read_bytes_to_buffer {
     };
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ClassAccessFlags {
     is_public: bool,
     is_final: bool,
@@ -78,7 +78,7 @@ impl ClassAccessFlags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassFile {
     pub version: (MajorVersion, u16),
     pub constant_pool: Vec<PoolKind>,
@@ -121,6 +121,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let super_class = self.read_u16()?;
         let interfaces = self.read_interfaces()?;
         let fields = self.read_fields()?;
+        dbg!(&fields);
         let methods = self.read_methods()?;
         let attributes_count = self.read_u16()?;
         let attributes = self.read_attributes(attributes_count)?;
@@ -203,6 +204,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
             let name_index = self.read_u16()?;
             let descriptor_index = self.read_u16()?;
             let attributes_count = self.read_u16()?;
+            dbg!(&access_flags);
             let attributes = self.read_attributes(attributes_count)?;
 
             fields.push(FieldInfo {
@@ -244,6 +246,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                 "Other" => self.parse_attr_other()?,
                 _ => {
                     self.reader.read_exact(&mut vec![0u8; attribute_length as usize])?;
+                    dbg!(&self.const_pool[usize::from(attribute_name_index-1)]);
                     unimplemented!()
                 },
             },
@@ -343,9 +346,11 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse_attr_signature(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
+
     fn parse_attr_source_file(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        Ok(Attribute::SourceFile(self.read_u16()?))
     }
+
     fn parse_attr_source_debug_extension(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
@@ -436,13 +441,16 @@ fn main() -> io::Result<()> {
     let reader = BufReader::new(File::open(TEST_CLASS_FILE_PATH)?);
     let file = ClassFile::from_bufreader(reader)?;
 
+    // dbg!(&file);
+    // dbg!(&file.constant_pool[12]);
+
     // for a in file.attributes {
     // dbg!(&file.constant_pool[(a.attribute_name_index-1) as usize]);
     // }
     // let index = .name_index;
-    dbg!(&file.methods[0]);
+    // dbg!(&file.methods[0]);
     // dbg!(file.this_class, file.super_class);
-    dbg!(&file.constant_pool[(8) as usize]);
+    // dbg!(&file.constant_pool[(8) as usize]);
 
     Ok(())
 }

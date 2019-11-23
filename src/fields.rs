@@ -1,6 +1,6 @@
 use crate::attributes::Attribute;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FieldAccessFlags {
     is_public: bool,
     is_private: bool,
@@ -39,7 +39,7 @@ impl FieldAccessFlags {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FieldInfo {
     pub access_flags: FieldAccessFlags,
     pub name_index: u16,

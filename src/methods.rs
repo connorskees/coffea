@@ -1,6 +1,6 @@
 use crate::attributes::Attribute;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MethodInfo {
     pub access_flags: MethodAccessFlags,
     pub name_index: u16,
@@ -8,7 +8,7 @@ pub struct MethodInfo {
     pub attributes: Vec<Attribute>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MethodAccessFlags {
     is_public: bool,
     is_private: bool,

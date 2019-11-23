@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Attribute {
     ConstantValue {
         const_value_index: u16,
@@ -27,9 +27,7 @@ pub enum Attribute {
     Signature {
         signature_index: u16,
     },
-    SourceFile {
-        sourcefile_index: u16,
-    },
+    SourceFile(u16),
     SourceDebugExtension {
         debug_extensions: Vec<u8>,
     },
@@ -48,7 +46,7 @@ pub enum Attribute {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ExceptionTableEntry {
     /// `start` and `end` are indices into the `code` vec and
     /// indicate the range during which the exception handler is active.
@@ -65,7 +63,7 @@ pub struct ExceptionTableEntry {
     pub catch_type: u16,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum VerificationTypeInfo {
     Top {},
     Integer {},
@@ -78,7 +76,7 @@ pub enum VerificationTypeInfo {
     Uninitialized { offset: u16 },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FrameType {
     SameFrame,
     SameLocals1StackItem {
@@ -105,7 +103,7 @@ pub enum FrameType {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ClassInfo {
     inner_class_info_index: u16,
     outer_class_info_index: u16,
@@ -113,13 +111,13 @@ pub struct ClassInfo {
     inner_class_access_flags: u16,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LineNumberTableEntry {
     pub start: u16,
     pub line_number: u16,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LocalVariableTableEntry {
     pub start: u16,
     pub length: u16,
@@ -128,7 +126,7 @@ pub struct LocalVariableTableEntry {
     pub index: u16,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct LocalVariableTypeTableEntry {
     start_pc: u16,
     length: u16,
@@ -137,22 +135,22 @@ pub struct LocalVariableTypeTableEntry {
     index: u16,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Annotation {
     type_index: u16,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ElementValuePair {
     element_name_index: u16,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ElementValue {
     tag: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct BootstrapMethodAttribute {}
 
 // BootstrapMethods_attribute {

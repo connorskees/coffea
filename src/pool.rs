@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PoolKind {
     Class {
         name_index: u16,

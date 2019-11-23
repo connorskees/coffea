@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MajorVersion {
     JavaSE14 = 58,
     JavaSE13 = 57,
