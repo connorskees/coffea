@@ -1,4 +1,3 @@
-
 #[derive(Debug)]
 pub enum MajorVersion {
     JavaSE14 = 58,
