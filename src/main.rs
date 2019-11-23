@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read};
 
-use crate::attributes::{AttributeInfo, Attribute};
+use crate::attributes::Attribute;
 pub use crate::fields::{FieldAccessFlags, FieldInfo};
 use crate::methods::{MethodAccessFlags, MethodInfo};
 pub use crate::pool::PoolKind;
@@ -88,12 +88,16 @@ pub struct ClassFile {
     pub interfaces: Vec<u16>,
     pub fields: Vec<FieldInfo>,
     pub methods: Vec<MethodInfo>,
-    pub attributes: Vec<AttributeInfo>,
+    pub attributes: Vec<Attribute>,
 }
 
 impl ClassFile {
     pub fn from_bufreader<R: Read + BufRead>(reader: R) -> JResult<ClassFile> {
-        ClassFileBuilder { reader, const_pool: Vec::new() }.parse()
+        ClassFileBuilder {
+            reader,
+            const_pool: Vec::new(),
+        }
+        .parse()
     }
 
     pub fn from_path<P: AsRef<std::path::Path>>(p: P) -> JResult<ClassFile> {
@@ -211,32 +215,43 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         Ok(fields)
     }
 
-    fn read_attribute(&mut self) -> JResult<AttributeInfo> {
+    fn read_attribute(&mut self) -> JResult<Attribute> {
         let attribute_name_index = self.read_u16()?;
         let attribute_length = self.read_u32()?;
 
         let mut info = vec![0u8; attribute_length as usize];
         self.reader.read_exact(&mut info)?;
 
-        match self.const_pool[usize::from(attribute_name_index)] {
-            PoolKind::Utf8(ref s) => {
-                match s.as_str() {
-                    "Code" => Attribute::from_bytes(&info),
-                    _ => unimplemented!()
-                }
+        Ok(match self.const_pool[usize::from(attribute_name_index)] {
+            PoolKind::Utf8(ref s) => match s.as_str() {
+                "ConstantValue" => Attribute::constant_value(self.read_u16()?),
+                "Code" => Attribute::code(),
+                "StackMapTable" => Attribute::stack_map_table(),
+                "Exceptions" => Attribute::exceptions(),
+                "InnerClasses" => Attribute::inner_classes(),
+                "EnclosingMethod" => Attribute::enclosing_method(),
+                "Synthetic" => Attribute::synthetic(),
+                "Signature" => Attribute::signature(),
+                "SourceFile" => Attribute::source_file(),
+                "SourceDebugExtension" => Attribute::source_debug_extension(),
+                "LineNumberTable" => Attribute::line_number_table(),
+                "LocalVariableTable" => Attribute::local_variable_table(),
+                "LocalVariableTypeTable" => Attribute::local_variable_type_table(),
+                "Deprecated" => Attribute::Deprecated,
+                "RuntimeVisibleAnnotations" => Attribute::runtime_visible_annotations(),
+                "RuntimeInvisibleAnnotations" => Attribute::runtime_invisible_annotations(),
+                "RuntimeVisibleParameterAnnotations" => Attribute::runtime_visible_parameter_annotations(),
+                "RuntimeInvisibleParameterAnnotations" => Attribute::runtime_invisible_parameter_annotations(),
+                "AnnotationDefault" => Attribute::annotation_default(),
+                "BootstrapMethods" => Attribute::bootstrap_methods(),
+                "Other" => Attribute::other(),
+                _ => unimplemented!(),
             },
             _ => unimplemented!(),
-        };
-
-        
-
-        Ok(AttributeInfo {
-            attribute_name_index,
-            info,
         })
     }
 
-    fn read_attributes(&mut self, count: u16) -> JResult<Vec<AttributeInfo>> {
+    fn read_attributes(&mut self, count: u16) -> JResult<Vec<Attribute>> {
         let mut attributes = Vec::new();
         for _ in 0..count {
             attributes.push(self.read_attribute()?);

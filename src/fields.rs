@@ -1,4 +1,4 @@
-use crate::attributes::AttributeInfo;
+use crate::attributes::Attribute;
 
 #[derive(Debug)]
 pub struct FieldAccessFlags {
@@ -44,5 +44,5 @@ pub struct FieldInfo {
     pub access_flags: FieldAccessFlags,
     pub name_index: u16,
     pub descriptor_index: u16,
-    pub attribute_info: Vec<AttributeInfo>,
+    pub attribute_info: Vec<Attribute>,
 }
