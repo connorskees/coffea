@@ -4,7 +4,11 @@ pub enum Attribute {
         const_value_index: u16,
     },
     Code {
-        code: CodeAttribute,
+        max_stack: u16,
+        max_locals: u16,
+        code: Vec<u8>,
+        exception_table: Vec<ExceptionTableEntry>,
+        attribute_info: Vec<Attribute>,
     },
     StackMapTable {
         entries: Vec<FrameType>,
@@ -51,20 +55,20 @@ pub enum Attribute {
 }
 
 #[derive(Debug)]
-pub struct CodeAttribute {
-    max_stack: u16,
-    max_locals: u16,
-    code: Vec<u8>,
-    exception_table: Vec<ExceptionTableEntry>,
-    attribute_info: Vec<Attribute>,
-}
-
-#[derive(Debug)]
 pub struct ExceptionTableEntry {
-    start_pc: u16,
-    end_pc: u16,
-    handler_pc: u16,
-    catch_type: u16,
+    /// `start` and `end` are indices into the `code` vec and
+    /// indicate the range during which the exception handler is active.
+    /// 
+    /// `start` is an *inclusive* index into the  `code` vec at the position of an the opcode of an instruction.
+    pub start: u16,
+    /// `end` is an *exclusive* index into the  `code` vec at the position of an the opcode of an instruction.
+    pub end: u16,
+    /// Indicates the start of the exception handler.
+    /// Must be a valid index into the `code` vec at the position of the opcode of an instruction.
+    pub handler: u16,
+    /// A nonzero value must be a valid index into the constant pool table at the position of a Class variant
+    /// A zero value is used to implement a `finally` block
+    pub catch_type: u16,
 }
 
 #[derive(Debug)]

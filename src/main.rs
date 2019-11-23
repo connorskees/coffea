@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read};
 
-use crate::attributes::Attribute;
+use crate::attributes::{Attribute, ExceptionTableEntry};
 pub use crate::fields::{FieldAccessFlags, FieldInfo};
 use crate::methods::{MethodAccessFlags, MethodInfo};
 pub use crate::pool::PoolKind;
@@ -149,7 +149,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let constant_pool_count = self.read_u16()?;
         let mut constant_pool: Vec<PoolKind> = Vec::new();
         let mut i = 1;
-        while i <= constant_pool_count - 1 {
+        while i < constant_pool_count {
             let tag = self.read_u8()?;
             constant_pool.push(match tag {
                 1 => {
@@ -224,27 +224,27 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 
         Ok(match self.const_pool[usize::from(attribute_name_index)] {
             PoolKind::Utf8(ref s) => match s.as_str() {
-                "ConstantValue" => self.read_attr_constant_value()?,
-                "Code" => self.read_attr_code()?,
-                "StackMapTable" => self.read_attr_stack_map_table()?,
-                "Exceptions" => self.read_attr_exceptions()?,
-                "InnerClasses" => self.read_attr_inner_classes()?,
-                "EnclosingMethod" => self.read_attr_enclosing_method()?,
-                "Synthetic" => self.read_attr_synthetic()?,
-                "Signature" => self.read_attr_signature()?,
-                "SourceFile" => self.read_attr_source_file()?,
-                "SourceDebugExtension" => self.read_attr_source_debug_extension()?,
-                "LineNumberTable" => self.read_attr_line_number_table()?,
-                "LocalVariableTable" => self.read_attr_local_variable_table()?,
-                "LocalVariableTypeTable" => self.read_attr_local_variable_type_table()?,
+                "ConstantValue" => self.parse_attr_constant_value()?,
+                "Code" => self.parse_attr_code()?,
+                "StackMapTable" => self.parse_attr_stack_map_table()?,
+                "Exceptions" => self.parse_attr_exceptions()?,
+                "InnerClasses" => self.parse_attr_inner_classes()?,
+                "EnclosingMethod" => self.parse_attr_enclosing_method()?,
+                "Synthetic" => self.parse_attr_synthetic()?,
+                "Signature" => self.parse_attr_signature()?,
+                "SourceFile" => self.parse_attr_source_file()?,
+                "SourceDebugExtension" => self.parse_attr_source_debug_extension()?,
+                "LineNumberTable" => self.parse_attr_line_number_table()?,
+                "LocalVariableTable" => self.parse_attr_local_variable_table()?,
+                "LocalVariableTypeTable" => self.parse_attr_local_variable_type_table()?,
                 "Deprecated" => Attribute::Deprecated,
-                "RuntimeVisibleAnnotations" => self.read_attr_runtime_visible_annotations()?,
-                "RuntimeInvisibleAnnotations" => self.read_attr_runtime_invisible_annotations()?,
-                "RuntimeVisibleParameterAnnotations" => self.read_attr_runtime_visible_parameter_annotations()?,
-                "RuntimeInvisibleParameterAnnotations" => self.read_attr_runtime_invisible_parameter_annotations()?,
-                "AnnotationDefault" => self.read_attr_annotation_default()?,
-                "BootstrapMethods" => self.read_attr_bootstrap_methods()?,
-                "Other" => self.read_attr_other()?,
+                "RuntimeVisibleAnnotations" => self.parse_attr_runtime_visible_annotations()?,
+                "RuntimeInvisibleAnnotations" => self.parse_attr_runtime_invisible_annotations()?,
+                "RuntimeVisibleParameterAnnotations" => self.parse_attr_runtime_visible_parameter_annotations()?,
+                "RuntimeInvisibleParameterAnnotations" => self.parse_attr_runtime_invisible_parameter_annotations()?,
+                "AnnotationDefault" => self.parse_attr_annotation_default()?,
+                "BootstrapMethods" => self.parse_attr_bootstrap_methods()?,
+                "Other" => self.parse_attr_other()?,
                 _ => unimplemented!(),
             },
             _ => unimplemented!(),
@@ -281,64 +281,101 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 }
 
 impl<R: Read + BufRead> ClassFileBuilder<R> {
-    fn read_attr_constant_value(&mut self) -> JResult<Attribute> {
+    fn parse_attr_constant_value(&mut self) -> JResult<Attribute> {
         Ok(Attribute::ConstantValue { const_value_index: self.read_u16()? })
     }
-    fn read_attr_code(&mut self) -> JResult<Attribute> {
+    fn parse_attr_code(&mut self) -> JResult<Attribute> {
+        let max_stack = self.read_u16()?;
+        let max_locals = self.read_u16()?;
+        
+        let code_length = self.read_u32()?;
+        let mut code = vec![0u8; code_length as usize];
+        self.reader.read_exact(&mut code)?;
+
+        let exception_table_length = self.read_u16()?;
+        let exception_table = self.read_exception_table(exception_table_length)?;
+        
+        let attributes_count = self.read_u16()?;
+        let attribute_info = self.read_attributes(attributes_count)?;
+
+        Ok(Attribute::Code {
+            max_stack,
+            max_locals,
+            code,
+            exception_table,
+            attribute_info,
+        })
+    }
+
+    fn read_exception_table_entry(&mut self) -> JResult<ExceptionTableEntry> {
+        let start = self.read_u16()?;
+        let end = self.read_u16()?;
+        let handler = self.read_u16()?;
+        let catch_type = self.read_u16()?;
+
+        Ok(ExceptionTableEntry { start, end, handler, catch_type })
+    }
+
+    fn read_exception_table(&mut self, len: u16) -> JResult<Vec<ExceptionTableEntry>> {
+        let mut entries = Vec::new();
+        for _ in 0..len {
+            entries.push(self.read_exception_table_entry()?);
+        }
+        Ok(entries)
+    }
+
+    fn parse_attr_stack_map_table(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_stack_map_table(&mut self) -> JResult<Attribute> {
+    fn parse_attr_exceptions(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_exceptions(&mut self) -> JResult<Attribute> {
+    fn parse_attr_inner_classes(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_inner_classes(&mut self) -> JResult<Attribute> {
+    fn parse_attr_enclosing_method(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_enclosing_method(&mut self) -> JResult<Attribute> {
+    fn parse_attr_synthetic(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_synthetic(&mut self) -> JResult<Attribute> {
+    fn parse_attr_signature(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_signature(&mut self) -> JResult<Attribute> {
+    fn parse_attr_source_file(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_source_file(&mut self) -> JResult<Attribute> {
+    fn parse_attr_source_debug_extension(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_source_debug_extension(&mut self) -> JResult<Attribute> {
+    fn parse_attr_line_number_table(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_line_number_table(&mut self) -> JResult<Attribute> {
+    fn parse_attr_local_variable_table(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_local_variable_table(&mut self) -> JResult<Attribute> {
+    fn parse_attr_local_variable_type_table(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_local_variable_type_table(&mut self) -> JResult<Attribute> {
+    fn parse_attr_runtime_visible_annotations(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_runtime_visible_annotations(&mut self) -> JResult<Attribute> {
+    fn parse_attr_runtime_invisible_annotations(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_runtime_invisible_annotations(&mut self) -> JResult<Attribute> {
+    fn parse_attr_runtime_visible_parameter_annotations(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_runtime_visible_parameter_annotations(&mut self) -> JResult<Attribute> {
+    fn parse_attr_runtime_invisible_parameter_annotations(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_runtime_invisible_parameter_annotations(&mut self) -> JResult<Attribute> {
+    fn parse_attr_annotation_default(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_annotation_default(&mut self) -> JResult<Attribute> {
+    fn parse_attr_bootstrap_methods(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    fn read_attr_bootstrap_methods(&mut self) -> JResult<Attribute> {
-        unimplemented!()
-    }
-    fn read_attr_other(&mut self) -> JResult<Attribute> {
+    fn parse_attr_other(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
 }
