@@ -5,13 +5,13 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read};
 
-use crate::attributes::AttributeInfo;
+use crate::attributes::{AttributeInfo, Attribute};
 pub use crate::fields::{FieldAccessFlags, FieldInfo};
 use crate::methods::{MethodAccessFlags, MethodInfo};
 pub use crate::pool::PoolKind;
 pub use crate::version::MajorVersion;
 
-const TEST_CLASS_FILE_PATH: &str = "test.class";
+const TEST_CLASS_FILE_PATH: &str = "test3.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
 type JResult<T> = Result<T, io::Error>;
@@ -93,7 +93,7 @@ pub struct ClassFile {
 
 impl ClassFile {
     pub fn from_bufreader<R: Read + BufRead>(reader: R) -> JResult<ClassFile> {
-        ClassFileBuilder { reader }.parse()
+        ClassFileBuilder { reader, const_pool: Vec::new() }.parse()
     }
 
     pub fn from_path<P: AsRef<std::path::Path>>(p: P) -> JResult<ClassFile> {
@@ -104,13 +104,14 @@ impl ClassFile {
 
 struct ClassFileBuilder<R: Read + BufRead> {
     reader: R,
+    const_pool: Vec<PoolKind>,
 }
 
 impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse(mut self) -> JResult<ClassFile> {
         assert_eq!(read_bytes_to_buffer!(self.reader, 4), CLASS_FILE_HEADER);
         let version = self.read_version()?;
-        let constant_pool = self.read_const_pool()?;
+        self.const_pool = self.read_const_pool()?;
         let access_flags = ClassAccessFlags::from_u16(self.read_u16()?);
         let this_class = self.read_u16()?;
         let super_class = self.read_u16()?;
@@ -122,7 +123,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 
         Ok(ClassFile {
             version,
-            constant_pool,
+            constant_pool: self.const_pool,
             access_flags,
             this_class,
             super_class,
@@ -214,10 +215,20 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let attribute_name_index = self.read_u16()?;
         let attribute_length = self.read_u32()?;
 
-        // match self.
-
         let mut info = vec![0u8; attribute_length as usize];
         self.reader.read_exact(&mut info)?;
+
+        match self.const_pool[usize::from(attribute_name_index)] {
+            PoolKind::Utf8(ref s) => {
+                match s.as_str() {
+                    "Code" => Attribute::from_bytes(&info),
+                    _ => unimplemented!()
+                }
+            },
+            _ => unimplemented!(),
+        };
+
+        
 
         Ok(AttributeInfo {
             attribute_name_index,

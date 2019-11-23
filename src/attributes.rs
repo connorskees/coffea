@@ -1,17 +1,21 @@
-#[derive(Debug)]
 pub struct AttributeInfo {
     pub attribute_name_index: u16,
     pub info: Vec<u8>,
 }
 
-#[derive(Debug)]
-pub struct Attribute {
-    name_index: u16,
-    attribute_type: AttributeType,
+impl std::fmt::Debug for AttributeInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "AttributeInfo {{ name_index: {}, info: {} bytes }}",
+            self.attribute_name_index,
+            self.info.len()
+        )
+    }
 }
 
 #[derive(Debug)]
-enum AttributeType {
+pub enum Attribute {
     ConstantValue {
         const_value_index: u16,
     },
@@ -62,8 +66,14 @@ enum AttributeType {
     },
 }
 
+impl Attribute {
+    pub fn from_bytes(b: &[u8]) -> Attribute {
+        unimplemented!()
+    }
+}
+
 #[derive(Debug)]
-struct CodeAttribute {
+pub struct CodeAttribute {
     max_stack: u16,
     max_locals: u16,
     code: Vec<u8>,
@@ -72,7 +82,7 @@ struct CodeAttribute {
 }
 
 #[derive(Debug)]
-struct ExceptionTableEntry {
+pub struct ExceptionTableEntry {
     start_pc: u16,
     end_pc: u16,
     handler_pc: u16,
@@ -80,7 +90,7 @@ struct ExceptionTableEntry {
 }
 
 #[derive(Debug)]
-enum VerificationTypeInfo {
+pub enum VerificationTypeInfo {
     Top {},
     Integer {},
     Float {},
@@ -93,7 +103,7 @@ enum VerificationTypeInfo {
 }
 
 #[derive(Debug)]
-enum FrameType {
+pub enum FrameType {
     SameFrame,
     SameLocals1StackItem {
         stack: [VerificationTypeInfo; 1],
@@ -120,7 +130,7 @@ enum FrameType {
 }
 
 #[derive(Debug)]
-struct ClassInfo {
+pub struct ClassInfo {
     inner_class_info_index: u16,
     outer_class_info_index: u16,
     inner_name_index: u16,
@@ -128,13 +138,13 @@ struct ClassInfo {
 }
 
 #[derive(Debug)]
-struct LineNumberTableEntry {
+pub struct LineNumberTableEntry {
     start_pc: u16,
     line_number: u16,
 }
 
 #[derive(Debug)]
-struct LocalVariableTableEntry {
+pub struct LocalVariableTableEntry {
     start_pc: u16,
     length: u16,
     name_index: u16,
@@ -143,7 +153,7 @@ struct LocalVariableTableEntry {
 }
 
 #[derive(Debug)]
-struct LocalVariableTypeTableEntry {
+pub struct LocalVariableTypeTableEntry {
     start_pc: u16,
     length: u16,
     name_index: u16,
@@ -152,18 +162,21 @@ struct LocalVariableTypeTableEntry {
 }
 
 #[derive(Debug)]
-struct Annotation {
+pub struct Annotation {
     type_index: u16,
 }
 
-struct ElementValuePair {
+#[derive(Debug)]
+pub struct ElementValuePair {
     element_name_index: u16,
 }
 
-struct ElementValue {
+#[derive(Debug)]
+pub struct ElementValue {
     tag: u8,
 }
 
+#[derive(Debug)]
 struct BootstrapMethodAttribute {}
 
 // BootstrapMethods_attribute {
