@@ -3,13 +3,7 @@ pub enum Attribute {
     ConstantValue {
         const_value_index: u16,
     },
-    Code {
-        max_stack: u16,
-        max_locals: u16,
-        code: Vec<u8>,
-        exception_table: Vec<ExceptionTableEntry>,
-        attribute_info: Vec<Attribute>,
-    },
+    Code(Code),
     StackMapTable(Vec<FrameType>),
     Exceptions {
         exception_index_table: Vec<u16>,
@@ -38,6 +32,21 @@ pub enum Attribute {
     Other {
         info: Vec<u8>,
     },
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct Code {
+    pub max_stack: u16,
+    pub max_locals: u16,
+    pub code: Vec<u8>,
+    pub exception_table: Vec<ExceptionTableEntry>,
+    pub attribute_info: Vec<Attribute>,
+}
+
+impl std::fmt::Debug for Code {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Code {{\n    max_stack: {},\n    max_locals: {},\n    code: {} bytes\n}}", self.max_stack, self.max_locals, self.code.len())
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

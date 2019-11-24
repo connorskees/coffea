@@ -106,6 +106,40 @@ impl ClassFile {
     }
 }
 
+impl ClassFile {
+    pub fn version(&self) -> (MajorVersion, u16) {
+        self.version
+    }
+
+    pub fn access_flags(&self) -> ClassAccessFlags {
+        self.access_flags
+    }
+
+    pub fn class_name(&self) -> JResult<&str> {
+        match self.constant_pool[usize::from(self.this_class-1)] {
+            PoolKind::Class{ name_index } => match self.constant_pool[usize::from(name_index-1)] {
+                PoolKind::Utf8(ref s) => Ok(s),
+                _ => unimplemented!()
+            }
+            _ => unimplemented!()
+        }
+    }
+
+    pub fn super_class_name(&self) -> JResult<&str> {
+        match self.constant_pool[usize::from(self.super_class-1)] {
+            PoolKind::Class{ name_index } => match self.constant_pool[usize::from(name_index-1)] {
+                PoolKind::Utf8(ref s) => Ok(s),
+                _ => unimplemented!()
+            }
+            _ => unimplemented!()
+        }
+    }
+
+    pub fn methods(&self) -> &Vec<MethodInfo> {
+        &self.methods
+    }
+}
+
 struct ClassFileBuilder<R: Read + BufRead> {
     reader: R,
     const_pool: Vec<PoolKind>,
@@ -319,13 +353,13 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let attributes_count = self.read_u16()?;
         let attribute_info = self.read_attributes(attributes_count)?;
 
-        Ok(Attribute::Code {
+        Ok(Attribute::Code(Code {
             max_stack,
             max_locals,
             code,
             exception_table,
             attribute_info,
-        })
+        }))
     }
 
     fn read_exception_table_entry(&mut self) -> JResult<ExceptionTableEntry> {
@@ -557,7 +591,7 @@ fn main() -> io::Result<()> {
     let reader = BufReader::new(File::open(TEST_CLASS_FILE_PATH)?);
     let file = ClassFile::from_bufreader(reader)?;
 
-    // dbg!(&file);
+    dbg!(&file.methods());
     // dbg!(&file.constant_pool[12]);
 
     // for a in file.attributes {
