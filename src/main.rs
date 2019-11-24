@@ -183,7 +183,10 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                 _ => unimplemented!("unrecognized tag kind"),
             });
             if push_twice {
-                constant_pool.push(PoolKind::Long{ high_bytes: 0, low_bytes: 0 });
+                constant_pool.push(PoolKind::Long {
+                    high_bytes: 0,
+                    low_bytes: 0,
+                });
             }
             push_twice = false;
             i += 1;
@@ -226,37 +229,45 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let attribute_name_index = self.read_u16()?;
         let attribute_length = self.read_u32()?;
 
-        Ok(match self.const_pool[usize::from(attribute_name_index-1)] {
-            PoolKind::Utf8(ref s) => match s.as_str() {
-                "ConstantValue" => self.parse_attr_constant_value()?,
-                "Code" => self.parse_attr_code()?,
-                "StackMapTable" => self.parse_attr_stack_map_table()?,
-                "Exceptions" => self.parse_attr_exceptions()?,
-                "InnerClasses" => self.parse_attr_inner_classes()?,
-                "EnclosingMethod" => self.parse_attr_enclosing_method()?,
-                "Synthetic" => self.parse_attr_synthetic()?,
-                "Signature" => self.parse_attr_signature()?,
-                "SourceFile" => self.parse_attr_source_file()?,
-                "SourceDebugExtension" => self.parse_attr_source_debug_extension()?,
-                "LineNumberTable" => self.parse_attr_line_number_table()?,
-                "LocalVariableTable" => self.parse_attr_local_variable_table()?,
-                "LocalVariableTypeTable" => self.parse_attr_local_variable_type_table()?,
-                "Deprecated" => Attribute::Deprecated,
-                "RuntimeVisibleAnnotations" => self.parse_attr_runtime_visible_annotations()?,
-                "RuntimeInvisibleAnnotations" => self.parse_attr_runtime_invisible_annotations()?,
-                "RuntimeVisibleParameterAnnotations" => self.parse_attr_runtime_visible_parameter_annotations()?,
-                "RuntimeInvisibleParameterAnnotations" => self.parse_attr_runtime_invisible_parameter_annotations()?,
-                "AnnotationDefault" => self.parse_attr_annotation_default()?,
-                "BootstrapMethods" => self.parse_attr_bootstrap_methods()?,
-                "Other" => self.parse_attr_other()?,
-                _ => {
-                    let mut info = vec![0u8; attribute_length as usize];
-                    self.reader.read_exact(&mut info)?;
-                    Attribute::Other{ info }
+        Ok(
+            match self.const_pool[usize::from(attribute_name_index - 1)] {
+                PoolKind::Utf8(ref s) => match s.as_str() {
+                    "ConstantValue" => self.parse_attr_constant_value()?,
+                    "Code" => self.parse_attr_code()?,
+                    "StackMapTable" => self.parse_attr_stack_map_table()?,
+                    "Exceptions" => self.parse_attr_exceptions()?,
+                    "InnerClasses" => self.parse_attr_inner_classes()?,
+                    "EnclosingMethod" => self.parse_attr_enclosing_method()?,
+                    "Synthetic" => self.parse_attr_synthetic()?,
+                    "Signature" => self.parse_attr_signature()?,
+                    "SourceFile" => self.parse_attr_source_file()?,
+                    "SourceDebugExtension" => self.parse_attr_source_debug_extension()?,
+                    "LineNumberTable" => self.parse_attr_line_number_table()?,
+                    "LocalVariableTable" => self.parse_attr_local_variable_table()?,
+                    "LocalVariableTypeTable" => self.parse_attr_local_variable_type_table()?,
+                    "Deprecated" => Attribute::Deprecated,
+                    "RuntimeVisibleAnnotations" => self.parse_attr_runtime_visible_annotations()?,
+                    "RuntimeInvisibleAnnotations" => {
+                        self.parse_attr_runtime_invisible_annotations()?
+                    }
+                    "RuntimeVisibleParameterAnnotations" => {
+                        self.parse_attr_runtime_visible_parameter_annotations()?
+                    }
+                    "RuntimeInvisibleParameterAnnotations" => {
+                        self.parse_attr_runtime_invisible_parameter_annotations()?
+                    }
+                    "AnnotationDefault" => self.parse_attr_annotation_default()?,
+                    "BootstrapMethods" => self.parse_attr_bootstrap_methods()?,
+                    "Other" => self.parse_attr_other()?,
+                    _ => {
+                        let mut info = vec![0u8; attribute_length as usize];
+                        self.reader.read_exact(&mut info)?;
+                        Attribute::Other { info }
+                    }
                 },
+                _ => unimplemented!("TODO: handle non-PoolKind::Utf8 in `read_attribute()`"),
             },
-            _ => unimplemented!("TODO: handle non-PoolKind::Utf8 in `read_attribute()`"),
-        })
+        )
     }
 
     fn read_attributes(&mut self, count: u16) -> JResult<Vec<Attribute>> {
@@ -290,7 +301,9 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 
 impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse_attr_constant_value(&mut self) -> JResult<Attribute> {
-        Ok(Attribute::ConstantValue { const_value_index: self.read_u16()? })
+        Ok(Attribute::ConstantValue {
+            const_value_index: self.read_u16()?,
+        })
     }
 
     fn parse_attr_code(&mut self) -> JResult<Attribute> {
@@ -322,7 +335,12 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let handler = self.read_u16()?;
         let catch_type = self.read_u16()?;
 
-        Ok(ExceptionTableEntry { start, end, handler, catch_type })
+        Ok(ExceptionTableEntry {
+            start,
+            end,
+            handler,
+            catch_type,
+        })
     }
 
     fn read_exception_table(&mut self, len: u16) -> JResult<Vec<ExceptionTableEntry>> {
@@ -335,19 +353,60 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 
     fn parse_attr_stack_map_table(&mut self) -> JResult<Attribute> {
         let number_of_entries = self.read_u16()?;
-        let table = Vec::new();
+        let mut table: Vec<FrameType> = Vec::new();
         for _ in 0..number_of_entries {
-
+            let tag = self.read_u8()?;
+            table.push(match tag {
+                0..=63 => FrameType::Same{ offset_delta: u16::from(tag) },
+                64..=127 => FrameType::SameLocals1StackItem{ offset_delta: u16::from(tag-64), stack: self.read_verification_type_info()? },
+                128..=246 => unimplemented!("TODO: reserved tags"),
+                247 => FrameType::SameLocals1StackItemExtended{ offset_delta: self.read_u16()?, stack: self.read_verification_type_info()? },
+                248..=250 => FrameType::Chop{ k: 251-tag, offset_delta: self.read_u16()? },
+                251 => FrameType::SameExtended{ offset_delta: self.read_u16()? },
+                252..=254 => {
+                    let offset_delta = self.read_u16()?;
+                    let mut locals = Vec::new();
+                    for _ in 0..(tag-251) {
+                        locals.push(self.read_verification_type_info()?);
+                    }
+                    FrameType::Append{ offset_delta, locals }
+                },
+                255 => {
+                    let offset_delta = self.read_u16()?;
+                    let number_of_locals = self.read_u16()?;
+                    let mut locals = Vec::new();
+                    for _ in 0..number_of_locals {
+                        locals.push(self.read_verification_type_info()?);
+                    }
+                    let number_of_stack_items = self.read_u16()?;
+                    let mut stack = Vec::new();
+                    for _ in 0..number_of_stack_items {
+                        stack.push(self.read_verification_type_info()?);
+                    }
+                    FrameType::Full {
+                        offset_delta, locals, stack
+                    }
+                },
+            });
         }
         Ok(Attribute::StackMapTable(table))
-    // stack_map_frame entries[number_of_entries];
-
     }
 
-    fn read_frame_type(&mut self) -> FrameType {
-        unimplemented!()
+    fn read_verification_type_info(&mut self) -> JResult<VerificationTypeInfo> {
+        let tag = self.read_u8()?;
+        match tag {
+            0 => Ok(VerificationTypeInfo::Top),
+            1 => Ok(VerificationTypeInfo::Integer),
+            2 => Ok(VerificationTypeInfo::Float),
+            3 => Ok(VerificationTypeInfo::Double),
+            4 => Ok(VerificationTypeInfo::Long),
+            5 => Ok(VerificationTypeInfo::Null),
+            6 => Ok(VerificationTypeInfo::UninitializedThis),
+            7 => Ok(VerificationTypeInfo::Object(self.read_u16()?)),
+            8 => Ok(VerificationTypeInfo::UninitializedVar{ offset: self.read_u16()? }),
+            _ => unimplemented!("TODO: invalid verification type info tag (>8)"),
+        }
     }
-   
     fn parse_attr_exceptions(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
@@ -360,7 +419,6 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse_attr_synthetic(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    
     fn parse_attr_signature(&mut self) -> JResult<Attribute> {
         Ok(Attribute::Signature(self.read_u16()?))
     }
@@ -372,7 +430,6 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse_attr_source_debug_extension(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
-    
     fn parse_attr_line_number_table(&mut self) -> JResult<Attribute> {
         let line_number_table_length = self.read_u16()?;
         let mut line_number_table = Vec::new();
@@ -383,7 +440,6 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         }
         Ok(Attribute::LineNumberTable(line_number_table))
     }
-    
     fn parse_attr_local_variable_table(&mut self) -> JResult<Attribute> {
         let local_variable_table_length = self.read_u16()?;
         let mut entries = Vec::new();
@@ -401,7 +457,11 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let descriptor_index = self.read_u16()?;
         let index = self.read_u16()?;
         Ok(LocalVariableTableEntry {
-            start, length, name_index, descriptor_index, index
+            start,
+            length,
+            name_index,
+            descriptor_index,
+            index,
         })
     }
 
@@ -430,7 +490,6 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         unimplemented!()
     }
 }
-
 
 impl<R: Read + BufRead> ClassFileBuilder<R> {
     /// Read a single byte as a u8

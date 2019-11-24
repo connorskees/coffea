@@ -31,12 +31,12 @@ pub enum Attribute {
     LocalVariableTable(Vec<LocalVariableTableEntry>),
     LocalVariableTypeTable(Vec<LocalVariableTypeTableEntry>),
     Deprecated,
-    RuntimeVisibleAnnotations,
-    RuntimeInvisibleAnnotations,
-    RuntimeVisibleParameterAnnotations,
-    RuntimeInvisibleParameterAnnotations,
-    AnnotationDefault,
-    BootstrapMethods,
+    RuntimeVisibleAnnotations(Vec<Annotation>),
+    RuntimeInvisibleAnnotations(Vec<Annotation>),
+    RuntimeVisibleParameterAnnotations(Vec<Vec<Annotation>>),
+    RuntimeInvisibleParameterAnnotations(Vec<Vec<Annotation>>),
+    AnnotationDefault(ElementValue),
+    BootstrapMethods(Vec<BootstrapMethod>),
     Other {
         info: Vec<u8>,
     },
@@ -46,7 +46,7 @@ pub enum Attribute {
 pub struct ExceptionTableEntry {
     /// `start` and `end` are indices into the `code` vec and
     /// indicate the range during which the exception handler is active.
-    /// 
+    ///
     /// `start` is an *inclusive* index into the  `code` vec at the position of an the opcode of an instruction.
     pub start: u16,
     /// `end` is an *exclusive* index into the  `code` vec at the position of an the opcode of an instruction.
@@ -61,38 +61,38 @@ pub struct ExceptionTableEntry {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum VerificationTypeInfo {
-    Top {},
-    Integer {},
-    Float {},
-    Double {},
-    Long {},
-    Null {},
-    UninitializedThis {},
-    Object { cpool_index: u16 },
-    Uninitialized { offset: u16 },
+    Top,
+    Integer,
+    Float,
+    Double,
+    Long,
+    Null,
+    UninitializedThis,
+    Object(u16),
+    UninitializedVar { offset: u16 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FrameType {
-    SameFrame,
+    Same{ offset_delta: u16 },
     SameLocals1StackItem {
-        stack: [VerificationTypeInfo; 1],
+        offset_delta: u16,
+        stack: VerificationTypeInfo,
     }, // Array of VerificationTypes may be incorrect
-    SameLocals1StackItemFrameExtended {
+    SameLocals1StackItemExtended {
         offset_delta: u16,
-        stack: [VerificationTypeInfo; 1],
+        stack: VerificationTypeInfo,
     },
-    ChopFrame {
-        offset_delta: u16,
-    },
-    SameFrameExtended {
+    Chop {
+        k: u8,
         offset_delta: u16,
     },
-    AppendFrame {
+    SameExtended{ offset_delta: u16 },
+    Append {
         offset_delta: u16,
         locals: Vec<VerificationTypeInfo>,
     },
-    FullFrame {
+    Full {
         offset_delta: u16,
         locals: Vec<VerificationTypeInfo>,
         stack: Vec<VerificationTypeInfo>,
@@ -131,28 +131,39 @@ pub struct LocalVariableTypeTableEntry {
     index: u16,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Annotation {
     type_index: u16,
+    element_value_pairs: Vec<ElementValuePair>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElementValuePair {
     element_name_index: u16,
+    element_value: ElementValue,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EnumConstValue {
+    type_name_index: u16,
+    const_name_index: u16,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElementValue {
     tag: u8,
+    enum_const_value: EnumConstValue,
+    clas_info_index: u16,
+    annotation_value: Annotation,
+    values: Vec<ElementValuePair>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-struct BootstrapMethodAttribute {}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NumParameters {}
 
-// BootstrapMethods_attribute {
-//     u2 num_bootstrap_methods;
-//     {   u2 bootstrap_method_ref;
-//         u2 num_bootstrap_arguments;
-//         u2 bootstrap_arguments[num_bootstrap_arguments];
-//     } bootstrap_methods[num_bootstrap_methods];
-// }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BootstrapMethod {
+    boostrap_method_ref: u16,
+    num_bootstrap_arguments: u16,
+    boostrap_arguments: Vec<u16>,
+}
