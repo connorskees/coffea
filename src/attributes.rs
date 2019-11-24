@@ -10,9 +10,7 @@ pub enum Attribute {
         exception_table: Vec<ExceptionTableEntry>,
         attribute_info: Vec<Attribute>,
     },
-    StackMapTable {
-        entries: Vec<FrameType>,
-    },
+    StackMapTable(Vec<FrameType>),
     Exceptions {
         exception_index_table: Vec<u16>,
     },
@@ -24,9 +22,7 @@ pub enum Attribute {
         method_index: u16,
     },
     Synthetic,
-    Signature {
-        signature_index: u16,
-    },
+    Signature(u16),
     SourceFile(u16),
     SourceDebugExtension {
         debug_extensions: Vec<u8>,

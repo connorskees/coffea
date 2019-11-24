@@ -334,8 +334,20 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     }
 
     fn parse_attr_stack_map_table(&mut self) -> JResult<Attribute> {
+        let number_of_entries = self.read_u16()?;
+        let table = Vec::new();
+        for _ in 0..number_of_entries {
+
+        }
+        Ok(Attribute::StackMapTable(table))
+    // stack_map_frame entries[number_of_entries];
+
+    }
+
+    fn read_frame_type(&mut self) -> FrameType {
         unimplemented!()
     }
+   
     fn parse_attr_exceptions(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
@@ -348,8 +360,9 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse_attr_synthetic(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
+    
     fn parse_attr_signature(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        Ok(Attribute::Signature(self.read_u16()?))
     }
 
     fn parse_attr_source_file(&mut self) -> JResult<Attribute> {
