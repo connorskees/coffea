@@ -11,7 +11,7 @@ use crate::methods::{MethodAccessFlags, MethodInfo};
 pub use crate::pool::PoolKind;
 pub use crate::version::MajorVersion;
 
-const TEST_CLASS_FILE_PATH: &str = "test.class";
+const TEST_CLASS_FILE_PATH: &str = "test2.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
 type JResult<T> = Result<T, io::Error>;
@@ -121,7 +121,6 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let super_class = self.read_u16()?;
         let interfaces = self.read_interfaces()?;
         let fields = self.read_fields()?;
-        dbg!(&fields);
         let methods = self.read_methods()?;
         let attributes_count = self.read_u16()?;
         let attributes = self.read_attributes(attributes_count)?;
@@ -150,6 +149,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let constant_pool_count = self.read_u16()?;
         let mut constant_pool: Vec<PoolKind> = Vec::new();
         let mut i = 1;
+        let mut push_twice = false;
         while i < constant_pool_count {
             let tag = self.read_u8()?;
             constant_pool.push(match tag {
@@ -163,10 +163,12 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                 5 => {
                     // doubles and longs count as 2 spots
                     i += 1;
+                    push_twice = true;
                     PoolKind::long(self.read_u32()?, self.read_u32()?)
                 }
                 6 => {
                     i += 1;
+                    push_twice = true;
                     PoolKind::double(self.read_u32()?, self.read_u32()?)
                 }
                 7 => PoolKind::class(self.read_u16()?),
@@ -180,6 +182,10 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                 18 => PoolKind::invoke_dynamic(self.read_u16()?, self.read_u16()?),
                 _ => unimplemented!("unrecognized tag kind"),
             });
+            if push_twice {
+                constant_pool.push(PoolKind::Long{ high_bytes: 0, low_bytes: 0 });
+            }
+            push_twice = false;
             i += 1;
         }
         Ok(constant_pool)
@@ -204,7 +210,6 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
             let name_index = self.read_u16()?;
             let descriptor_index = self.read_u16()?;
             let attributes_count = self.read_u16()?;
-            dbg!(&access_flags);
             let attributes = self.read_attributes(attributes_count)?;
 
             fields.push(FieldInfo {
@@ -245,12 +250,12 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                 "BootstrapMethods" => self.parse_attr_bootstrap_methods()?,
                 "Other" => self.parse_attr_other()?,
                 _ => {
-                    self.reader.read_exact(&mut vec![0u8; attribute_length as usize])?;
-                    dbg!(&self.const_pool[usize::from(attribute_name_index-1)]);
-                    unimplemented!()
+                    let mut info = vec![0u8; attribute_length as usize];
+                    self.reader.read_exact(&mut info)?;
+                    Attribute::Other{ info }
                 },
             },
-            _ => unimplemented!(),
+            _ => unimplemented!("TODO: handle non-PoolKind::Utf8 in `read_attribute()`"),
         })
     }
 
