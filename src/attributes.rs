@@ -1,24 +1,15 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Attribute {
-    ConstantValue {
-        const_value_index: u16,
-    },
+    ConstantValue { const_value_index: u16 },
     Code(Code),
     StackMapTable(Vec<FrameType>),
-    Exceptions {
-        exception_index_table: Vec<u16>,
-    },
+    Exceptions { exception_index_table: Vec<u16> },
     InnerClasses(Vec<ClassInfo>),
-    EnclosingMethod {
-        class_index: u16,
-        method_index: u16,
-    },
+    EnclosingMethod { class_index: u16, method_index: u16 },
     Synthetic,
     Signature(u16),
     SourceFile(u16),
-    SourceDebugExtension {
-        debug_extensions: Vec<u8>,
-    },
+    SourceDebugExtension { debug_extensions: Vec<u8> },
     LineNumberTable(Vec<LineNumberTableEntry>),
     LocalVariableTable(Vec<LocalVariableTableEntry>),
     LocalVariableTypeTable(Vec<LocalVariableTableEntry>),
@@ -29,9 +20,7 @@ pub enum Attribute {
     RuntimeInvisibleParameterAnnotations(Vec<Vec<Annotation>>),
     AnnotationDefault(ElementValue),
     BootstrapMethods(Vec<BootstrapMethod>),
-    Other {
-        info: Vec<u8>,
-    },
+    Other { info: Vec<u8> },
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -45,7 +34,13 @@ pub struct Code {
 
 impl std::fmt::Debug for Code {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Code {{\n    max_stack: {},\n    max_locals: {},\n    code: {} bytes\n}}", self.max_stack, self.max_locals, self.code.len())
+        write!(
+            f,
+            "Code {{\n    max_stack: {},\n    max_locals: {},\n    code: {} bytes\n}}",
+            self.max_stack,
+            self.max_locals,
+            self.code.len()
+        )
     }
 }
 
@@ -81,7 +76,9 @@ pub enum VerificationTypeInfo {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FrameType {
-    Same{ offset_delta: u16 },
+    Same {
+        offset_delta: u16,
+    },
     SameLocals1StackItem {
         offset_delta: u16,
         stack: VerificationTypeInfo,
@@ -94,7 +91,9 @@ pub enum FrameType {
         k: u8,
         offset_delta: u16,
     },
-    SameExtended{ offset_delta: u16 },
+    SameExtended {
+        offset_delta: u16,
+    },
     Append {
         offset_delta: u16,
         locals: Vec<VerificationTypeInfo>,

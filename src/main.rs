@@ -116,22 +116,24 @@ impl ClassFile {
     }
 
     pub fn class_name(&self) -> JResult<&str> {
-        match self.constant_pool[usize::from(self.this_class-1)] {
-            PoolKind::Class{ name_index } => match self.constant_pool[usize::from(name_index-1)] {
+        match self.constant_pool[usize::from(self.this_class - 1)] {
+            PoolKind::Class { name_index } => match self.constant_pool[usize::from(name_index - 1)]
+            {
                 PoolKind::Utf8(ref s) => Ok(s),
-                _ => unimplemented!()
-            }
-            _ => unimplemented!()
+                _ => unimplemented!(),
+            },
+            _ => unimplemented!(),
         }
     }
 
     pub fn super_class_name(&self) -> JResult<&str> {
-        match self.constant_pool[usize::from(self.super_class-1)] {
-            PoolKind::Class{ name_index } => match self.constant_pool[usize::from(name_index-1)] {
+        match self.constant_pool[usize::from(self.super_class - 1)] {
+            PoolKind::Class { name_index } => match self.constant_pool[usize::from(name_index - 1)]
+            {
                 PoolKind::Utf8(ref s) => Ok(s),
-                _ => unimplemented!()
-            }
-            _ => unimplemented!()
+                _ => unimplemented!(),
+            },
+            _ => unimplemented!(),
         }
     }
 
@@ -390,20 +392,36 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         for _ in 0..number_of_entries {
             let tag = self.read_u8()?;
             table.push(match tag {
-                0..=63 => FrameType::Same{ offset_delta: u16::from(tag) },
-                64..=127 => FrameType::SameLocals1StackItem{ offset_delta: u16::from(tag-64), stack: self.read_verification_type_info()? },
+                0..=63 => FrameType::Same {
+                    offset_delta: u16::from(tag),
+                },
+                64..=127 => FrameType::SameLocals1StackItem {
+                    offset_delta: u16::from(tag - 64),
+                    stack: self.read_verification_type_info()?,
+                },
                 128..=246 => unimplemented!("TODO: reserved tags"),
-                247 => FrameType::SameLocals1StackItemExtended{ offset_delta: self.read_u16()?, stack: self.read_verification_type_info()? },
-                248..=250 => FrameType::Chop{ k: 251-tag, offset_delta: self.read_u16()? },
-                251 => FrameType::SameExtended{ offset_delta: self.read_u16()? },
+                247 => FrameType::SameLocals1StackItemExtended {
+                    offset_delta: self.read_u16()?,
+                    stack: self.read_verification_type_info()?,
+                },
+                248..=250 => FrameType::Chop {
+                    k: 251 - tag,
+                    offset_delta: self.read_u16()?,
+                },
+                251 => FrameType::SameExtended {
+                    offset_delta: self.read_u16()?,
+                },
                 252..=254 => {
                     let offset_delta = self.read_u16()?;
                     let mut locals = Vec::new();
-                    for _ in 0..(tag-251) {
+                    for _ in 0..(tag - 251) {
                         locals.push(self.read_verification_type_info()?);
                     }
-                    FrameType::Append{ offset_delta, locals }
-                },
+                    FrameType::Append {
+                        offset_delta,
+                        locals,
+                    }
+                }
                 255 => {
                     let offset_delta = self.read_u16()?;
                     let number_of_locals = self.read_u16()?;
@@ -417,9 +435,11 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                         stack.push(self.read_verification_type_info()?);
                     }
                     FrameType::Full {
-                        offset_delta, locals, stack
+                        offset_delta,
+                        locals,
+                        stack,
                     }
-                },
+                }
             });
         }
         Ok(Attribute::StackMapTable(table))
@@ -436,11 +456,13 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
             5 => Ok(VerificationTypeInfo::Null),
             6 => Ok(VerificationTypeInfo::UninitializedThis),
             7 => Ok(VerificationTypeInfo::Object(self.read_u16()?)),
-            8 => Ok(VerificationTypeInfo::UninitializedVar{ offset: self.read_u16()? }),
+            8 => Ok(VerificationTypeInfo::UninitializedVar {
+                offset: self.read_u16()?,
+            }),
             _ => unimplemented!("TODO: invalid verification type info tag (>8)"),
         }
     }
-    
+
     fn parse_attr_exceptions(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
@@ -460,7 +482,12 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let inner_name_index = self.read_u16()?;
         let inner_class_access_flags = self.read_u16()?;
         // TODO: flags need their own struct?
-        Ok(ClassInfo{ inner_class_info_index, outer_class_info_index, inner_name_index, inner_class_access_flags })
+        Ok(ClassInfo {
+            inner_class_info_index,
+            outer_class_info_index,
+            inner_name_index,
+            inner_class_access_flags,
+        })
     }
 
     fn parse_attr_enclosing_method(&mut self) -> JResult<Attribute> {
@@ -552,7 +579,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         }
         Ok(Attribute::BootstrapMethods(entries))
     }
-    
+
     fn read_bootstrap_method(&mut self) -> JResult<BootstrapMethod> {
         let bootstrap_method_ref = self.read_u16()?;
         let num_bootstrap_arguments = self.read_u16()?;
@@ -560,7 +587,10 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         for _ in 0..num_bootstrap_arguments {
             bootstrap_arguments.push(self.read_u16()?);
         }
-        Ok(BootstrapMethod{ bootstrap_method_ref, bootstrap_arguments })
+        Ok(BootstrapMethod {
+            bootstrap_method_ref,
+            bootstrap_arguments,
+        })
     }
 }
 
