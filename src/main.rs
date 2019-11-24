@@ -372,10 +372,10 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                     "Exceptions" => self.parse_attr_exceptions()?,
                     "InnerClasses" => self.parse_attr_inner_classes()?,
                     "EnclosingMethod" => self.parse_attr_enclosing_method()?,
-                    "Synthetic" => self.parse_attr_synthetic()?,
+                    "Synthetic" => Attribute::Synthetic,
                     "Signature" => self.parse_attr_signature()?,
                     "SourceFile" => self.parse_attr_source_file()?,
-                    "SourceDebugExtension" => self.parse_attr_source_debug_extension()?,
+                    "SourceDebugExtension" => self.parse_attr_source_debug_extension(attribute_length)?,
                     "LineNumberTable" => self.parse_attr_line_number_table()?,
                     "LocalVariableTable" => self.parse_attr_local_variable_table()?,
                     "LocalVariableTypeTable" => self.parse_attr_local_variable_type_table()?,
@@ -562,7 +562,12 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     }
 
     fn parse_attr_exceptions(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let number_of_exceptions = self.read_u16()?;
+        let mut exceptions: Vec<u16> = Vec::with_capacity(usize::from(number_of_exceptions));
+        for _ in 0..number_of_exceptions {
+            exceptions.push(self.read_u16()?);
+        }
+        Ok(Attribute::Exceptions(exceptions))
     }
 
     fn parse_attr_inner_classes(&mut self) -> JResult<Attribute> {
@@ -578,8 +583,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let inner_class_info_index = self.read_u16()?;
         let outer_class_info_index = self.read_u16()?;
         let inner_name_index = self.read_u16()?;
-        let inner_class_access_flags = self.read_u16()?;
-        // TODO: flags need their own struct?
+        let inner_class_access_flags = InnerClassFlags::from_u16(self.read_u16()?);
         Ok(ClassInfo {
             inner_class_info_index,
             outer_class_info_index,
@@ -589,10 +593,9 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     }
 
     fn parse_attr_enclosing_method(&mut self) -> JResult<Attribute> {
-        unimplemented!()
-    }
-    fn parse_attr_synthetic(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let class_index = self.read_u16()?;
+        let method_index = self.read_u16()?;
+        Ok(Attribute::EnclosingMethod{ class_index, method_index })
     }
 
     fn parse_attr_signature(&mut self) -> JResult<Attribute> {
@@ -603,8 +606,10 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         Ok(Attribute::SourceFile(self.read_u16()?))
     }
 
-    fn parse_attr_source_debug_extension(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+    fn parse_attr_source_debug_extension(&mut self, attribute_length: u32) -> JResult<Attribute> {
+        let mut debug_extension = vec![0u8; attribute_length as usize];
+        self.reader.read_exact(&mut debug_extension)?;
+        Ok(Attribute::SourceDebugExtension(debug_extension))
     }
 
     fn parse_attr_line_number_table(&mut self) -> JResult<Attribute> {
