@@ -78,6 +78,23 @@ impl ClassAccessFlags {
     }
 }
 
+impl std::fmt::Display for ClassAccessFlags {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}-{}-{}-{}-{}-{}-{}-{}",
+            if self.is_public { "PUBLIC" } else { "" },
+            if self.is_final { "FINAL" } else { "" },
+            if self.is_super { "SUPER" } else { "" },
+            if self.is_interface { "INTERFACE" } else { "" },
+            if self.is_abstract { "ABSTRACT" } else { "" },
+            if self.is_synthetic { "SYNTHETIC" } else { "" },
+            if self.is_annotation { "ANNOTATION" } else { "" },
+            if self.is_enum { "ENUM" } else { "" },
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassFile {
     pub version: (MajorVersion, u16),
@@ -137,8 +154,89 @@ impl ClassFile {
         }
     }
 
+    pub fn interfaces(&self) -> JResult<Vec<&String>> {
+        let mut interfaces = Vec::new();
+        for interface_idx in self.interfaces.iter() {
+            interfaces.push(match self.constant_pool[usize::from(interface_idx - 1)] {
+                PoolKind::Utf8(ref s) => s,
+                _ => unimplemented!(),
+            });
+        }
+        Ok(interfaces)
+    }
+
+    pub fn fields(&self) -> &Vec<FieldInfo> {
+        &self.fields
+    }
+
+    pub fn field_names(&self) -> JResult<Vec<&str>> {
+        let mut fields = Vec::new();
+        for field in self.fields.iter() {
+            fields.push(
+                match self.constant_pool[usize::from(field.name_index - 1)] {
+                    PoolKind::Utf8(ref s) => s.as_str(),
+                    _ => unimplemented!(),
+                },
+            );
+        }
+        Ok(fields)
+    }
+
+    pub fn field_types(&self) -> JResult<Vec<&str>> {
+        let mut fields = Vec::new();
+        for field in self.fields.iter() {
+            fields.push(
+                match self.constant_pool[usize::from(field.descriptor_index - 1)] {
+                    PoolKind::Utf8(ref s) => s.as_str(),
+                    _ => unimplemented!(),
+                },
+            );
+        }
+        Ok(fields)
+    }
+
+    pub fn field_names_and_types(&self) -> JResult<Vec<(&str, &str)>> {
+        Ok(self
+            .field_names()?
+            .into_iter()
+            .zip(self.field_types()?)
+            .collect())
+    }
+
     pub fn methods(&self) -> &Vec<MethodInfo> {
         &self.methods
+    }
+
+    pub fn method_names(&self) -> JResult<Vec<&String>> {
+        let mut methods = Vec::new();
+        for method in self.methods.iter() {
+            methods.push(
+                match self.constant_pool[usize::from(method.name_index - 1)] {
+                    PoolKind::Utf8(ref s) => s,
+                    _ => unimplemented!(),
+                },
+            );
+        }
+        Ok(methods)
+    }
+
+    pub fn attributes(&self) -> &Vec<Attribute> {
+        &self.attributes
+    }
+
+    pub fn source_file(&self) -> Option<&str> {
+        for attr in self.attributes.iter() {
+            match attr {
+                Attribute::SourceFile(idx) => {
+                    match self.constant_pool[usize::from(idx - 1)] {
+                        PoolKind::Utf8(ref s) => return Some(s.as_str()),
+                        _ => unimplemented!(),
+                    }
+                }
+                _ => continue,
+            }
+        }
+        None
     }
 }
 
@@ -621,7 +719,7 @@ fn main() -> io::Result<()> {
     let reader = BufReader::new(File::open(TEST_CLASS_FILE_PATH)?);
     let file = ClassFile::from_bufreader(reader)?;
 
-    dbg!(&file.methods());
+    dbg!(file.source_file());
     // dbg!(&file.constant_pool[12]);
 
     // for a in file.attributes {

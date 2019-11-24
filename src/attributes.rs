@@ -36,10 +36,12 @@ impl std::fmt::Debug for Code {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Code {{\n    max_stack: {},\n    max_locals: {},\n    code: {} bytes\n}}",
+            "Code {{\n    max_stack: {},\n    max_locals: {},\n    code: {} bytes\n    exception_table: {:?},\n    attribute_info: {:#?}\n}}",
             self.max_stack,
             self.max_locals,
-            self.code.len()
+            self.code.len(),
+            self.exception_table,
+            self.attribute_info
         )
     }
 }
