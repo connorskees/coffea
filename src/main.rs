@@ -258,7 +258,6 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                     }
                     "AnnotationDefault" => self.parse_attr_annotation_default()?,
                     "BootstrapMethods" => self.parse_attr_bootstrap_methods()?,
-                    "Other" => self.parse_attr_other()?,
                     _ => {
                         let mut info = vec![0u8; attribute_length as usize];
                         self.reader.read_exact(&mut info)?;
@@ -407,18 +406,36 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
             _ => unimplemented!("TODO: invalid verification type info tag (>8)"),
         }
     }
+    
     fn parse_attr_exceptions(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
+
     fn parse_attr_inner_classes(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let number_of_classes = self.read_u16()?;
+        let mut classes = Vec::new();
+        for _ in 0..number_of_classes {
+            classes.push(self.read_inner_class()?);
+        }
+        Ok(Attribute::InnerClasses(classes))
     }
+
+    fn read_inner_class(&mut self) -> JResult<ClassInfo> {
+        let inner_class_info_index = self.read_u16()?;
+        let outer_class_info_index = self.read_u16()?;
+        let inner_name_index = self.read_u16()?;
+        let inner_class_access_flags = self.read_u16()?;
+        // TODO: flags need their own struct?
+        Ok(ClassInfo{ inner_class_info_index, outer_class_info_index, inner_name_index, inner_class_access_flags })
+    }
+
     fn parse_attr_enclosing_method(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
     fn parse_attr_synthetic(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
+
     fn parse_attr_signature(&mut self) -> JResult<Attribute> {
         Ok(Attribute::Signature(self.read_u16()?))
     }
@@ -430,6 +447,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse_attr_source_debug_extension(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
+
     fn parse_attr_line_number_table(&mut self) -> JResult<Attribute> {
         let line_number_table_length = self.read_u16()?;
         let mut line_number_table = Vec::new();
@@ -440,6 +458,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         }
         Ok(Attribute::LineNumberTable(line_number_table))
     }
+
     fn parse_attr_local_variable_table(&mut self) -> JResult<Attribute> {
         let local_variable_table_length = self.read_u16()?;
         let mut entries = Vec::new();
@@ -466,8 +485,15 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     }
 
     fn parse_attr_local_variable_type_table(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let local_variable_type_table_length = self.read_u16()?;
+        let mut entries = Vec::new();
+        for _ in 0..local_variable_type_table_length {
+            entries.push(self.read_local_variable_table_entry()?);
+        }
+
+        Ok(Attribute::LocalVariableTypeTable(entries))
     }
+
     fn parse_attr_runtime_visible_annotations(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
@@ -483,11 +509,24 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse_attr_annotation_default(&mut self) -> JResult<Attribute> {
         unimplemented!()
     }
+
     fn parse_attr_bootstrap_methods(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let num_bootstrap_methods = self.read_u16()?;
+        let mut entries = Vec::new();
+        for _ in 0..num_bootstrap_methods {
+            entries.push(self.read_bootstrap_method()?);
+        }
+        Ok(Attribute::BootstrapMethods(entries))
     }
-    fn parse_attr_other(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+    
+    fn read_bootstrap_method(&mut self) -> JResult<BootstrapMethod> {
+        let bootstrap_method_ref = self.read_u16()?;
+        let num_bootstrap_arguments = self.read_u16()?;
+        let mut bootstrap_arguments = Vec::with_capacity(usize::from(num_bootstrap_arguments));
+        for _ in 0..num_bootstrap_arguments {
+            bootstrap_arguments.push(self.read_u16()?);
+        }
+        Ok(BootstrapMethod{ bootstrap_method_ref, bootstrap_arguments })
     }
 }
 

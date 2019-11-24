@@ -14,9 +14,7 @@ pub enum Attribute {
     Exceptions {
         exception_index_table: Vec<u16>,
     },
-    InnerClasses {
-        classes: Vec<ClassInfo>,
-    },
+    InnerClasses(Vec<ClassInfo>),
     EnclosingMethod {
         class_index: u16,
         method_index: u16,
@@ -29,7 +27,7 @@ pub enum Attribute {
     },
     LineNumberTable(Vec<LineNumberTableEntry>),
     LocalVariableTable(Vec<LocalVariableTableEntry>),
-    LocalVariableTypeTable(Vec<LocalVariableTypeTableEntry>),
+    LocalVariableTypeTable(Vec<LocalVariableTableEntry>),
     Deprecated,
     RuntimeVisibleAnnotations(Vec<Annotation>),
     RuntimeInvisibleAnnotations(Vec<Annotation>),
@@ -101,10 +99,10 @@ pub enum FrameType {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ClassInfo {
-    inner_class_info_index: u16,
-    outer_class_info_index: u16,
-    inner_name_index: u16,
-    inner_class_access_flags: u16,
+    pub inner_class_info_index: u16,
+    pub outer_class_info_index: u16,
+    pub inner_name_index: u16,
+    pub inner_class_access_flags: u16,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -120,15 +118,6 @@ pub struct LocalVariableTableEntry {
     pub name_index: u16,
     pub descriptor_index: u16,
     pub index: u16,
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct LocalVariableTypeTableEntry {
-    start_pc: u16,
-    length: u16,
-    name_index: u16,
-    signature_index: u16,
-    index: u16,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -163,7 +152,6 @@ pub struct NumParameters {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BootstrapMethod {
-    boostrap_method_ref: u16,
-    num_bootstrap_arguments: u16,
-    boostrap_arguments: Vec<u16>,
+    pub bootstrap_method_ref: u16,
+    pub bootstrap_arguments: Vec<u16>,
 }
