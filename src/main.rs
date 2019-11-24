@@ -229,12 +229,10 @@ impl ClassFile {
     pub fn source_file(&self) -> Option<&str> {
         for attr in self.attributes.iter() {
             match attr {
-                Attribute::SourceFile(idx) => {
-                    match self.constant_pool[usize::from(idx - 1)] {
-                        PoolKind::Utf8(ref s) => return Some(s.as_str()),
-                        _ => unimplemented!(),
-                    }
-                }
+                Attribute::SourceFile(idx) => match self.constant_pool[usize::from(idx - 1)] {
+                    PoolKind::Utf8(ref s) => return Some(s.as_str()),
+                    _ => unimplemented!(),
+                },
                 _ => continue,
             }
         }
@@ -377,7 +375,9 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                     "Synthetic" => Attribute::Synthetic,
                     "Signature" => self.parse_attr_signature()?,
                     "SourceFile" => self.parse_attr_source_file()?,
-                    "SourceDebugExtension" => self.parse_attr_source_debug_extension(attribute_length)?,
+                    "SourceDebugExtension" => {
+                        self.parse_attr_source_debug_extension(attribute_length)?
+                    }
                     "LineNumberTable" => self.parse_attr_line_number_table()?,
                     "LocalVariableTable" => self.parse_attr_local_variable_table()?,
                     "LocalVariableTypeTable" => self.parse_attr_local_variable_type_table()?,
@@ -597,7 +597,10 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse_attr_enclosing_method(&mut self) -> JResult<Attribute> {
         let class_index = self.read_u16()?;
         let method_index = self.read_u16()?;
-        Ok(Attribute::EnclosingMethod{ class_index, method_index })
+        Ok(Attribute::EnclosingMethod {
+            class_index,
+            method_index,
+        })
     }
 
     fn parse_attr_signature(&mut self) -> JResult<Attribute> {
@@ -660,20 +663,105 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         Ok(Attribute::LocalVariableTypeTable(entries))
     }
 
+    fn read_element_value(&mut self) -> JResult<ElementValue> {
+        let tag = self.read_u8()?;
+        let const_value_index = self.read_u16()?;
+        let type_name_index = self.read_u16()?;
+        let const_name_index = self.read_u16()?;
+        let enum_const_value = EnumConstValue {
+            type_name_index,
+            const_name_index,
+        };
+        let class_info_index = self.read_u16()?;
+        let annotation_value = self.read_annotation()?;
+
+        let mut values: Vec<ElementValue> = Vec::new();
+        let num_values = self.read_u16()?;
+        for _ in 0..num_values {
+            values.push(self.read_element_value()?)
+        }
+
+        Ok(ElementValue {
+            tag,
+            const_value_index,
+            enum_const_value,
+            class_info_index,
+            annotation_value,
+            values,
+        })
+    }
+
+    fn read_annotation(&mut self) -> JResult<Annotation> {
+        let type_index = self.read_u16()?;
+        let num_element_value_pairs = self.read_u16()?;
+        let mut element_value_pairs: Vec<ElementValuePair> = Vec::new();
+        for _ in 0..num_element_value_pairs {
+            let element_name_index = self.read_u16()?;
+            let element_value = self.read_element_value()?;
+            element_value_pairs.push(ElementValuePair {
+                element_name_index,
+                element_value,
+            });
+        }
+        Ok(Annotation {
+            type_index,
+            element_value_pairs,
+        })
+    }
+
     fn parse_attr_runtime_visible_annotations(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let num_annotations = self.read_u16()?;
+        let mut annotations: Vec<Annotation> = Vec::new();
+        for _ in 0..num_annotations {
+            annotations.push(self.read_annotation()?);
+        }
+
+        Ok(Attribute::RuntimeVisibleAnnotations(annotations))
     }
     fn parse_attr_runtime_invisible_annotations(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let num_annotations = self.read_u16()?;
+        let mut annotations: Vec<Annotation> = Vec::new();
+        for _ in 0..num_annotations {
+            annotations.push(self.read_annotation()?);
+        }
+
+        Ok(Attribute::RuntimeInvisibleAnnotations(annotations))
     }
     fn parse_attr_runtime_visible_parameter_annotations(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let num_parameters = self.read_u8()?;
+        let mut parameter_annotations: Vec<Vec<Annotation>> = Vec::new();
+        for _ in 0..num_parameters {
+            let num_annotations = self.read_u16()?;
+            let mut annotations: Vec<Annotation> = Vec::new();
+            for _ in 0..num_annotations {
+                annotations.push(self.read_annotation()?);
+            }
+            parameter_annotations.push(annotations);
+        }
+
+        Ok(Attribute::RuntimeVisibleParameterAnnotations(
+            parameter_annotations,
+        ))
     }
     fn parse_attr_runtime_invisible_parameter_annotations(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let num_parameters = self.read_u8()?;
+        let mut parameter_annotations: Vec<Vec<Annotation>> = Vec::new();
+        for _ in 0..num_parameters {
+            let num_annotations = self.read_u16()?;
+            let mut annotations: Vec<Annotation> = Vec::new();
+            for _ in 0..num_annotations {
+                annotations.push(self.read_annotation()?);
+            }
+            parameter_annotations.push(annotations);
+        }
+
+        Ok(Attribute::RuntimeInvisibleParameterAnnotations(
+            parameter_annotations,
+        ))
     }
     fn parse_attr_annotation_default(&mut self) -> JResult<Attribute> {
-        unimplemented!()
+        let element_value = self.read_element_value()?;
+        Ok(Attribute::AnnotationDefault(element_value))
     }
 
     fn parse_attr_bootstrap_methods(&mut self) -> JResult<Attribute> {

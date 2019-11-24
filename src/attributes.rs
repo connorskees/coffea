@@ -153,29 +153,30 @@ pub struct LocalVariableTableEntry {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Annotation {
-    type_index: u16,
-    element_value_pairs: Vec<ElementValuePair>,
+    pub type_index: u16,
+    pub element_value_pairs: Vec<ElementValuePair>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElementValuePair {
-    element_name_index: u16,
-    element_value: ElementValue,
+    pub element_name_index: u16,
+    pub element_value: ElementValue,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnumConstValue {
-    type_name_index: u16,
-    const_name_index: u16,
+    pub type_name_index: u16,
+    pub const_name_index: u16,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElementValue {
-    tag: u8,
-    enum_const_value: EnumConstValue,
-    clas_info_index: u16,
-    annotation_value: Annotation,
-    values: Vec<ElementValuePair>,
+    pub tag: u8,
+    pub const_value_index: u16,
+    pub enum_const_value: EnumConstValue,
+    pub class_info_index: u16,
+    pub annotation_value: Annotation,
+    pub values: Vec<ElementValue>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
