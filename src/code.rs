@@ -217,7 +217,7 @@ impl Code {
                 0xb1 => Instruction::Return,
                 0x35 => Instruction::SAload,
                 0x56 => Instruction::SAstore,
-                0x11 => Instruction::SIPush(next(), next()),
+                0x11 => Instruction::SIPush(u16::from_be_bytes([next(), next()])),
                 0x5f => Instruction::Swap,
                 0xaa => unimplemented!("instruction `TableSwitch` not yet implemented"), //Instruction::TableSwitch,
                 0xc4 => unimplemented!("instruction `Wide` not yet implemented"), //Instruction::Wide,
@@ -648,7 +648,7 @@ pub enum Instruction {
     /// store short to array
     SAstore,
     /// push a short onto the stack as an integer value
-    SIPush(u8, u8),
+    SIPush(u16),
     /// swaps two top words on the stack (note that value1 and value2 must not be double or long)
     Swap,
     /// 16+: [0–3 bytes padding], defaultbyte1, defaultbyte2, defaultbyte3, defaultbyte4, lowbyte1, lowbyte2, lowbyte3, lowbyte4, highbyte1, highbyte2, highbyte3, highbyte4, jump offsets...	index →	continue execution from an address in the table at offset index
