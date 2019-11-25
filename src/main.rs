@@ -6,6 +6,7 @@ use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read};
 
 use crate::attributes::{Attribute, ExceptionTableEntry, LocalVariableTableEntry, *};
+use crate::code::Code;
 pub use crate::fields::{FieldAccessFlags, FieldInfo};
 use crate::methods::{MethodAccessFlags, MethodInfo};
 pub use crate::pool::PoolKind;
@@ -17,6 +18,7 @@ const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 type JResult<T> = Result<T, io::Error>;
 
 pub mod attributes;
+mod code;
 mod fields;
 pub mod methods;
 mod pool;

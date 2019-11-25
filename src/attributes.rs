@@ -1,3 +1,5 @@
+use crate::code::Code;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Attribute {
     ConstantValue { const_value_index: u16 },
@@ -21,29 +23,6 @@ pub enum Attribute {
     AnnotationDefault(ElementValue),
     BootstrapMethods(Vec<BootstrapMethod>),
     Other { info: Vec<u8> },
-}
-
-#[derive(Clone, PartialEq, Eq)]
-pub struct Code {
-    pub max_stack: u16,
-    pub max_locals: u16,
-    pub code: Vec<u8>,
-    pub exception_table: Vec<ExceptionTableEntry>,
-    pub attribute_info: Vec<Attribute>,
-}
-
-impl std::fmt::Debug for Code {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Code {{\n    max_stack: {},\n    max_locals: {},\n    code: {} bytes\n    exception_table: {:?},\n    attribute_info: {:#?}\n}}",
-            self.max_stack,
-            self.max_locals,
-            self.code.len(),
-            self.exception_table,
-            self.attribute_info
-        )
-    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
