@@ -220,7 +220,14 @@ impl Code {
                 0x11 => Instruction::SIPush(u16::from_be_bytes([next(), next()])),
                 0x5f => Instruction::Swap,
                 0xaa => unimplemented!("instruction `TableSwitch` not yet implemented"), //Instruction::TableSwitch,
-                0xc4 => unimplemented!("instruction `Wide` not yet implemented"), //Instruction::Wide,
+                0xc4 => {
+                    let n  = next();
+                    match n {
+                        0x84 => Instruction::Wide5(n, next(), next(), next(), next()),
+                        0x15..=0x19 | 0x36..=0x39 | 0x89 => Instruction::Wide3(n, next(), next()),
+                        _ => unimplemented!("invalid opcode in `Instruction::Wide3`; error handling not yet implemented"),
+                    }
+                }
                 0xcb..=0xfd => Instruction::NoName,
             })
         }
@@ -653,7 +660,9 @@ pub enum Instruction {
     Swap,
     /// 16+: [0–3 bytes padding], defaultbyte1, defaultbyte2, defaultbyte3, defaultbyte4, lowbyte1, lowbyte2, lowbyte3, lowbyte4, highbyte1, highbyte2, highbyte3, highbyte4, jump offsets...	index →	continue execution from an address in the table at offset index
     TableSwitch,
-    /// 3/5: opcode, indexbyte1, indexbyte2, indexbyte2, countbyte1, countbyte2	[same as for corresponding instructions] execute opcode, where opcode is either iload, fload, aload, lload, dload, istore, fstore, astore, lstore, dstore, or ret, but assume the index is 16 bit; or execute iinc, where the index is 16 bits and the constant to increment by is a signed 16 bit short
-    Wide,
+    ///  execute opcode, where opcode is either iload, fload, aload, lload, dload, istore, fstore, astore, lstore, dstore, or ret, but assume the index is 16 bit
+    Wide3(u8, u8, u8),
+    /// execute iinc, where the index is 16 bits and the constant to increment by is a signed 16 bit short
+    Wide5(u8, u8, u8, u8, u8),
     NoName, //= 0xcb..=0xfd
 }
