@@ -222,6 +222,25 @@ impl ClassFile {
         Ok(methods)
     }
 
+    pub fn method_by_name<T: AsRef<str>>(&self, name: T) -> Option<&MethodInfo> {
+        for method in self.methods.iter() {
+            match self.constant_pool[usize::from(method.name_index - 1)] {
+                PoolKind::Utf8(ref s) if s == name.as_ref() => return Some(method),
+                _ => continue,
+            }
+        }
+        None
+    }
+
+    pub fn methods_name_hash(&self) -> JResult<std::collections::HashMap<&str, &MethodInfo>> {
+        let names = self.method_names()?;
+        let mut hash = std::collections::HashMap::new();
+        for ii in 0..names.len() {
+            hash.insert(names[ii].as_str(), &self.methods[ii]);
+        }
+        Ok(hash)
+    }
+
     pub fn attributes(&self) -> &Vec<Attribute> {
         &self.attributes
     }
