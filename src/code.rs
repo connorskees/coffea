@@ -113,7 +113,7 @@ impl Code {
                 0x2e => Instruction::IALoad,
                 0x7e => Instruction::Iand,
                 0x4f => Instruction::IAStore,
-                0x02 => Instruction::IconstM1,
+                0x02 => Instruction::IConstM1,
                 0x03 => Instruction::IConst0,
                 0x04 => Instruction::IConst1,
                 0x05 => Instruction::IConst2,
@@ -138,11 +138,11 @@ impl Code {
                 0xc7 => Instruction::Ifnonnull(next(), next()),
                 0xc6 => Instruction::Ifnull(next(), next()),
                 0x84 => Instruction::Iinc(next(), next()),
-                0x15 => Instruction::Iload(next()),
-                0x1a => Instruction::Iload0,
-                0x1b => Instruction::Iload1,
-                0x1c => Instruction::Iload2,
-                0x1d => Instruction::Iload3,
+                0x15 => Instruction::ILoad(next()),
+                0x1a => Instruction::ILoad0,
+                0x1b => Instruction::ILoad1,
+                0x1c => Instruction::ILoad2,
+                0x1d => Instruction::ILoad3,
                 0xfe => Instruction::Impdep1,
                 0xff => Instruction::Impdep2,
                 0x68 => Instruction::Imul,
@@ -447,7 +447,7 @@ pub enum Instruction {
     /// store an int into an array
     IAStore,
     /// load the int value −1 onto the stack
-    IconstM1,
+    IConstM1,
     /// load the int value 0 onto the stack
     IConst0,
     /// load the int value 1 onto the stack
@@ -497,15 +497,15 @@ pub enum Instruction {
     /// increment local variable #index by signed byte const
     Iinc(u8, u8),
     /// load an int value from a local variable #index
-    Iload(u8),
-    /// an int value from local variable 0
-    Iload0,
-    /// an int value from local variable 1
-    Iload1,
-    /// an int value from local variable 2
-    Iload2,
-    /// an int value from local variable 3
-    Iload3,
+    ILoad(u8),
+    /// load an int value from local variable 0
+    ILoad0,
+    /// load an int value from local variable 1
+    ILoad1,
+    /// load an int value from local variable 2
+    ILoad2,
+    /// load an int value from local variable 3
+    ILoad3,
     /// reserved for implementation-dependent operations within debuggers; should not appear in any class file
     Impdep1,
     /// reserved for implementation-dependent operations within debuggers; should not appear in any class file
