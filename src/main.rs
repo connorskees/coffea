@@ -144,7 +144,7 @@ impl ClassFile {
 
     pub fn class_name(&self) -> JResult<&str> {
         match self.const_pool[usize::from(self.this_class - 1)] {
-            PoolKind::Class { name_index } => match self.const_pool[usize::from(name_index - 1)]
+            PoolKind::Class(name_index) => match self.const_pool[usize::from(name_index - 1)]
             {
                 PoolKind::Utf8(ref s) => Ok(s),
                 _ => Err(ParseError::IndexError),
@@ -155,7 +155,7 @@ impl ClassFile {
 
     pub fn super_class_name(&self) -> JResult<&str> {
         match self.const_pool[usize::from(self.super_class - 1)] {
-            PoolKind::Class { name_index } => match self.const_pool[usize::from(name_index - 1)]
+            PoolKind::Class(name_index) => match self.const_pool[usize::from(name_index - 1)]
             {
                 PoolKind::Utf8(ref s) => Ok(s),
                 _ => Err(ParseError::IndexError),
@@ -255,6 +255,14 @@ impl ClassFile {
         }
         None
     }
+
+    pub fn utf_from_index(&self, index: u16) -> JResult<String> {
+        if let PoolKind::Utf8(s) = &self.const_pool[usize::from(index-1)] {
+            Ok(s.clone())
+        } else {
+            Err(ParseError::IndexError)
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -265,6 +273,7 @@ enum StackEntry {
     Mul(Box<StackEntry>, Box<StackEntry>),
     Div(Box<StackEntry>, Box<StackEntry>),
     Ident(String),
+    Reference(usize),
     String(String),
     Uninitialized,
 }
@@ -279,6 +288,7 @@ impl StackEntry {
             StackEntry::Div(a, b) => format!("{} / {}", b.to_string(), a.to_string()),
             StackEntry::Ident(s) => s,
             StackEntry::String(s) => s,
+            StackEntry::Reference(s) => unimplemented!(),
             StackEntry::Uninitialized => unimplemented!(),
         }
     }
@@ -332,12 +342,14 @@ impl ClassFile {
             match tok {
                 Instruction::BiPush(n) => stack.push(StackEntry::Int(i32::from(n))),
                 Instruction::SIPush(n) => stack.push(StackEntry::Int(i32::from(n))),
-                // Instruction::Ldc(n) => {
-                //     let val = self.const_pool[usize::from(n-1)];
-                //     match val {
-                //         PoolKind::String{ string_index } => stack.push(StackEntry::String())
-                //     }
-                // }
+                Instruction::Ldc(n) => {
+                    let val = &self.const_pool[usize::from(n-1)];
+                    match val {
+                        PoolKind::String(idx) => stack.push(StackEntry::String(self.utf_from_index(*idx)?)),
+                        PoolKind::Integer(i) => stack.push(StackEntry::Int(*i as i32)),
+                        _ => unimplemented!(),
+                    }
+                }
                 Instruction::IConst1 => stack.push(StackEntry::Int(1)),
                 Instruction::IConst2 => stack.push(StackEntry::Int(2)),
                 Instruction::IConst3 => stack.push(StackEntry::Int(3)),
@@ -373,6 +385,18 @@ impl ClassFile {
                     stack.push(StackEntry::Div(Box::new(val1), Box::new(val2)));
                 },
                 Instruction::Return => break,
+
+                Instruction::AStore1 => {
+                    let val = stack.pop().unwrap();
+                    local_variables.insert(1, StackEntry::Ident("a1".to_owned()));
+                    match val {
+                        StackEntry::Reference(n) => unimplemented!(),
+                        StackEntry::String(s) => {
+                            write!(buf, "String s1 = \"{}\";\n", s)?;
+                        }
+                        _ => unimplemented!(),
+                    }
+                }
                 _ => unimplemented!(),
             };
         }
