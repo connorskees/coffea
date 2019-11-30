@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_imports)]
 #![deny(missing_debug_implementations)]
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -40,7 +41,7 @@ macro_rules! read_bytes_to_buffer {
     };
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ClassAccessFlags {
     is_public: bool,
     is_final: bool,
@@ -102,7 +103,7 @@ impl std::fmt::Display for ClassAccessFlags {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassFile {
     pub version: (MajorVersion, u16),
-    pub constant_pool: Vec<PoolKind>,
+    pub const_pool: Vec<PoolKind>,
     pub access_flags: ClassAccessFlags,
     pub this_class: u16,
     pub super_class: u16,
@@ -134,7 +135,7 @@ impl ClassFile {
     }
 
     pub fn const_pool(&self) -> &Vec<PoolKind> {
-        &self.constant_pool
+        &self.const_pool
     }
 
     pub fn access_flags(&self) -> ClassAccessFlags {
@@ -142,31 +143,31 @@ impl ClassFile {
     }
 
     pub fn class_name(&self) -> JResult<&str> {
-        match self.constant_pool[usize::from(self.this_class - 1)] {
-            PoolKind::Class { name_index } => match self.constant_pool[usize::from(name_index - 1)]
+        match self.const_pool[usize::from(self.this_class - 1)] {
+            PoolKind::Class { name_index } => match self.const_pool[usize::from(name_index - 1)]
             {
                 PoolKind::Utf8(ref s) => Ok(s),
-                _ => unimplemented!(),
+                _ => Err(ParseError::IndexError),
             },
-            _ => unimplemented!(),
+            _ => Err(ParseError::IndexError),
         }
     }
 
     pub fn super_class_name(&self) -> JResult<&str> {
-        match self.constant_pool[usize::from(self.super_class - 1)] {
-            PoolKind::Class { name_index } => match self.constant_pool[usize::from(name_index - 1)]
+        match self.const_pool[usize::from(self.super_class - 1)] {
+            PoolKind::Class { name_index } => match self.const_pool[usize::from(name_index - 1)]
             {
                 PoolKind::Utf8(ref s) => Ok(s),
-                _ => unimplemented!(),
+                _ => Err(ParseError::IndexError),
             },
-            _ => unimplemented!(),
+            _ => Err(ParseError::IndexError),
         }
     }
 
     pub fn interfaces(&self) -> JResult<Vec<&String>> {
         let mut interfaces = Vec::new();
         for interface_idx in self.interfaces.iter() {
-            interfaces.push(match self.constant_pool[usize::from(interface_idx - 1)] {
+            interfaces.push(match self.const_pool[usize::from(interface_idx - 1)] {
                 PoolKind::Utf8(ref s) => s,
                 _ => unimplemented!(),
             });
@@ -182,7 +183,7 @@ impl ClassFile {
         let mut fields = Vec::new();
         for field in self.fields.iter() {
             fields.push(
-                match self.constant_pool[usize::from(field.name_index - 1)] {
+                match self.const_pool[usize::from(field.name_index - 1)] {
                     PoolKind::Utf8(ref s) => s.as_str(),
                     _ => unimplemented!(),
                 },
@@ -195,7 +196,7 @@ impl ClassFile {
         let mut fields = Vec::new();
         for field in self.fields.iter() {
             fields.push(
-                match self.constant_pool[usize::from(field.descriptor_index - 1)] {
+                match self.const_pool[usize::from(field.descriptor_index - 1)] {
                     PoolKind::Utf8(ref s) => s.as_str(),
                     _ => unimplemented!(),
                 },
@@ -229,9 +230,9 @@ impl ClassFile {
         Err(ParseError::MethodNotFound)
     }
 
-    pub fn methods_name_hash(&self) -> std::collections::HashMap<&str, &MethodInfo> {
+    pub fn methods_name_hash(&self) -> HashMap<&str, &MethodInfo> {
         let names = self.method_names();
-        let mut hash = std::collections::HashMap::new();
+        let mut hash = HashMap::new();
         for ii in 0..names.len() {
             hash.insert(names[ii].as_str(), &self.methods[ii]);
         }
@@ -245,7 +246,7 @@ impl ClassFile {
     pub fn source_file(&self) -> Option<&str> {
         for attr in self.attributes.iter() {
             match attr {
-                Attribute::SourceFile(idx) => match self.constant_pool[usize::from(idx - 1)] {
+                Attribute::SourceFile(idx) => match self.const_pool[usize::from(idx - 1)] {
                     PoolKind::Utf8(ref s) => return Some(s.as_str()),
                     _ => unimplemented!(),
                 },
@@ -253,6 +254,129 @@ impl ClassFile {
             }
         }
         None
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+enum StackEntry {
+    Int(i32),
+    Add(Box<StackEntry>, Box<StackEntry>),
+    Sub(Box<StackEntry>, Box<StackEntry>),
+    Mul(Box<StackEntry>, Box<StackEntry>),
+    Div(Box<StackEntry>, Box<StackEntry>),
+    Ident(String),
+    String(String),
+    Uninitialized,
+}
+
+impl StackEntry {
+    fn to_string(self) -> String {
+        match self {
+            StackEntry::Int(a) => format!("{}", a),
+            StackEntry::Add(a, b) => format!("({} + {})", b.to_string(), a.to_string()),
+            StackEntry::Sub(a, b) => format!("({} - {})", b.to_string(), a.to_string()),
+            StackEntry::Mul(a, b) => format!("{} * {}", b.to_string(), a.to_string()),
+            StackEntry::Div(a, b) => format!("{} / {}", b.to_string(), a.to_string()),
+            StackEntry::Ident(s) => s,
+            StackEntry::String(s) => s,
+            StackEntry::Uninitialized => unimplemented!(),
+        }
+    }
+}
+
+impl ClassFile {
+    pub fn class_signature(&self) -> JResult<String> {
+        let mut s = Vec::new();
+        if self.access_flags.is_public {
+            s.push("public");
+        }
+        if self.access_flags.is_final {
+            s.push("final");
+        }
+        if self.access_flags.is_abstract {
+            s.push("abstract");
+        }
+        if self.access_flags.is_synthetic {
+            s.push("synthetic");
+        }
+        if self.access_flags.is_annotation {
+            s.push("annotation");
+        }
+        if self.access_flags.is_interface {
+            s.push("interface");
+        }
+        if self.access_flags.is_enum {
+            s.push("enum");
+        }
+        s.push("class");
+        s.push(self.class_name()?);
+        if !self.access_flags.is_super {
+            s.push("extends");
+            s.push(self.super_class_name()?);
+        }
+        s.push("{\n");
+        Ok(s.join(" "))
+    }
+
+    pub fn codegen<N: AsRef<str>, W: Write>(&self, method_name: N, buf: &mut W) -> JResult<()> {
+        let method = self.method_by_name(method_name)?;
+        buf.write(self.class_signature()?.as_bytes())?;
+        buf.write(b"\t")?;
+        buf.write(method.signature().as_bytes())?;
+
+        let tokens = method.code().unwrap().lex();
+        let mut stack: Vec<StackEntry> = Vec::new();
+        let mut local_variables: HashMap<usize, StackEntry> = HashMap::new();
+        for tok in tokens {
+            // dbg!(tok);
+            match tok {
+                Instruction::BiPush(n) => stack.push(StackEntry::Int(i32::from(n))),
+                Instruction::SIPush(n) => stack.push(StackEntry::Int(i32::from(n))),
+                // Instruction::Ldc(n) => {
+                //     let val = self.const_pool[usize::from(n-1)];
+                //     match val {
+                //         PoolKind::String{ string_index } => stack.push(StackEntry::String())
+                //     }
+                // }
+                Instruction::IConst1 => stack.push(StackEntry::Int(1)),
+                Instruction::IConst2 => stack.push(StackEntry::Int(2)),
+                Instruction::IConst3 => stack.push(StackEntry::Int(3)),
+                Instruction::IConst4 => stack.push(StackEntry::Int(4)),
+                Instruction::IConst5 => stack.push(StackEntry::Int(5)),
+                Instruction::ILoad1 => stack.push(local_variables.get(&1).unwrap().clone()),
+                Instruction::IStore1 => {
+                    local_variables.insert(1, StackEntry::Ident("i1".to_owned()));
+                    write!(buf, "int i1 = {};\n", stack.pop().unwrap().to_string())?;
+                },
+                Instruction::IStore2 => {
+                    local_variables.insert(2, StackEntry::Ident("i2".to_owned()));
+                    write!(buf, "int i2 = {};\n", stack.pop().unwrap().to_string())?;
+                },
+                Instruction::Iadd => {
+                    let val1 = stack.pop().unwrap();
+                    let val2 = stack.pop().unwrap();
+                    stack.push(StackEntry::Add(Box::new(val1), Box::new(val2)));
+                },
+                Instruction::Isub => {
+                    let val1 = stack.pop().unwrap();
+                    let val2 = stack.pop().unwrap();
+                    stack.push(StackEntry::Sub(Box::new(val1), Box::new(val2)));
+                },
+                Instruction::Imul => {
+                    let val1 = stack.pop().unwrap();
+                    let val2 = stack.pop().unwrap();
+                    stack.push(StackEntry::Mul(Box::new(val1), Box::new(val2)));
+                },
+                Instruction::Idiv => {
+                    let val1 = stack.pop().unwrap();
+                    let val2 = stack.pop().unwrap();
+                    stack.push(StackEntry::Div(Box::new(val1), Box::new(val2)));
+                },
+                Instruction::Return => break,
+                _ => unimplemented!(),
+            };
+        }
+        Ok(())
     }
 }
 
@@ -277,7 +401,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 
         Ok(ClassFile {
             version,
-            constant_pool: self.const_pool,
+            const_pool: self.const_pool,
             access_flags,
             this_class,
             super_class,
@@ -296,13 +420,13 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     }
 
     fn read_const_pool(&mut self) -> JResult<Vec<PoolKind>> {
-        let constant_pool_count = self.read_u16()?;
-        let mut constant_pool: Vec<PoolKind> = Vec::new();
+        let const_pool_count = self.read_u16()?;
+        let mut const_pool: Vec<PoolKind> = Vec::new();
         let mut i = 1;
         let mut push_twice = false;
-        while i < constant_pool_count {
+        while i < const_pool_count {
             let tag = self.read_u8()?;
-            constant_pool.push(match tag {
+            const_pool.push(match tag {
                 1 => {
                     let mut buffer = vec![0u8; self.read_u16()? as usize];
                     self.reader.read_exact(&mut buffer)?;
@@ -333,7 +457,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                 _ => unimplemented!("unrecognized tag kind"),
             });
             if push_twice {
-                constant_pool.push(PoolKind::Long {
+                const_pool.push(PoolKind::Long {
                     high_bytes: 0,
                     low_bytes: 0,
                 });
@@ -341,7 +465,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
             push_twice = false;
             i += 1;
         }
-        Ok(constant_pool)
+        Ok(const_pool)
     }
 
     fn read_interfaces(&mut self) -> JResult<Vec<u16>> {
@@ -435,15 +559,14 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         for _ in 0..method_count {
             let access_flags = MethodAccessFlags::from_u16(self.read_u16()?);
             let name_index = self.read_u16()?;
-            let name =
-                if let PoolKind::Utf8(s) = &self.const_pool[usize::from(name_index-1)] {
-                    s.clone()
-                } else {
-                    return Err(ParseError::IndexError);
-                };
+            let name = if let PoolKind::Utf8(s) = &self.const_pool[usize::from(name_index - 1)] {
+                s.clone()
+            } else {
+                return Err(ParseError::IndexError);
+            };
             let descriptor_index = self.read_u16()?;
             let return_type =
-                if let PoolKind::Utf8(s) = &self.const_pool[usize::from(descriptor_index-1)] {
+                if let PoolKind::Utf8(s) = &self.const_pool[usize::from(descriptor_index - 1)] {
                     s.clone()
                 } else {
                     return Err(ParseError::IndexError);
@@ -840,20 +963,22 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     }
 }
 
-fn main() -> io::Result<()> {
+fn main() -> JResult<()> {
+    let out = std::process::Command::new("javac")
+        .args(&["test.java"])
+        .output()
+        .expect("fd");
+    if !out.stderr.is_empty() {
+        dbg!(out);
+        std::process::exit(1);
+    }
     let reader = BufReader::new(File::open(TEST_CLASS_FILE_PATH)?);
     let file = ClassFile::from_bufreader(reader)?;
+    // let mut outfile = File::create("testout.java")?;
+    let mut outfile = std::io::stdout();
 
-    dbg!(file.source_file());
-    // dbg!(&file.constant_pool[12]);
-
-    // for a in file.attributes {
-    // dbg!(&file.constant_pool[(a.attribute_name_index-1) as usize]);
-    // }
-    // let index = .name_index;
-    // dbg!(&file.methods[0]);
-    // dbg!(file.this_class, file.super_class);
-    // dbg!(&file.constant_pool[(8) as usize]);
-
+    dbg!(file.method_by_name("main").unwrap().code().unwrap().lex());
+    file.codegen("main", &mut outfile)?;
+    // file.codegen("hi", &mut outfile)?;
     Ok(())
 }
