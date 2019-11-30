@@ -216,36 +216,26 @@ impl ClassFile {
         &self.methods
     }
 
-    pub fn method_names(&self) -> JResult<Vec<&String>> {
-        let mut methods = Vec::new();
-        for method in self.methods.iter() {
-            methods.push(
-                match self.constant_pool[usize::from(method.name_index - 1)] {
-                    PoolKind::Utf8(ref s) => s,
-                    _ => unimplemented!(),
-                },
-            );
-        }
-        Ok(methods)
+    pub fn method_names(&self) -> Vec<&String> {
+        self.methods.iter().map(|m| &m.name).collect()
     }
 
-    pub fn method_by_name<T: AsRef<str>>(&self, name: T) -> Option<&MethodInfo> {
+    pub fn method_by_name<T: AsRef<str>>(&self, name: T) -> JResult<&MethodInfo> {
         for method in self.methods.iter() {
-            match self.constant_pool[usize::from(method.name_index - 1)] {
-                PoolKind::Utf8(ref s) if s == name.as_ref() => return Some(method),
-                _ => continue,
+            if method.name == name.as_ref() {
+                return Ok(method);
             }
         }
-        None
+        Err(ParseError::MethodNotFound)
     }
 
-    pub fn methods_name_hash(&self) -> JResult<std::collections::HashMap<&str, &MethodInfo>> {
-        let names = self.method_names()?;
+    pub fn methods_name_hash(&self) -> std::collections::HashMap<&str, &MethodInfo> {
+        let names = self.method_names();
         let mut hash = std::collections::HashMap::new();
         for ii in 0..names.len() {
             hash.insert(names[ii].as_str(), &self.methods[ii]);
         }
-        Ok(hash)
+        hash
     }
 
     pub fn attributes(&self) -> &Vec<Attribute> {
@@ -445,13 +435,25 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         for _ in 0..method_count {
             let access_flags = MethodAccessFlags::from_u16(self.read_u16()?);
             let name_index = self.read_u16()?;
+            let name =
+                if let PoolKind::Utf8(s) = &self.const_pool[usize::from(name_index-1)] {
+                    s.clone()
+                } else {
+                    return Err(ParseError::IndexError);
+                };
             let descriptor_index = self.read_u16()?;
+            let return_type =
+                if let PoolKind::Utf8(s) = &self.const_pool[usize::from(descriptor_index-1)] {
+                    s.clone()
+                } else {
+                    return Err(ParseError::IndexError);
+                };
             let attributes_count = self.read_u16()?;
             let attributes = self.read_attributes(attributes_count)?;
             methods.push(MethodInfo {
                 access_flags,
-                name_index,
-                descriptor_index,
+                name,
+                return_type,
                 attributes,
             });
         }
