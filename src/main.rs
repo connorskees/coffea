@@ -1,24 +1,26 @@
 #![allow(dead_code, unused_imports)]
-#![deny(missing_debug_implementations, unsafe_code)]
+#![deny(missing_debug_implementations)]
 
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::{self, BufRead, BufReader, Read};
+use std::io::{self, BufRead, BufReader, Read, Write};
 
 use crate::attributes::{Attribute, ExceptionTableEntry, LocalVariableTableEntry, *};
-use crate::code::Code;
+use crate::code::{Code, Instruction};
+use crate::errors::ParseError;
 pub use crate::fields::{FieldAccessFlags, FieldInfo};
 use crate::methods::{MethodAccessFlags, MethodInfo};
 pub use crate::pool::PoolKind;
 pub use crate::version::MajorVersion;
 
-const TEST_CLASS_FILE_PATH: &str = "test2.class";
+const TEST_CLASS_FILE_PATH: &str = "test.class";
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
-type JResult<T> = Result<T, io::Error>;
+type JResult<T> = Result<T, ParseError>;
 
 pub mod attributes;
 mod code;
+pub mod errors;
 mod fields;
 pub mod methods;
 mod pool;
