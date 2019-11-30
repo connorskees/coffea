@@ -40,7 +40,7 @@ macro_rules! read_bytes_to_buffer {
     };
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct ClassAccessFlags {
     is_public: bool,
     is_final: bool,
@@ -112,6 +112,7 @@ pub struct ClassFile {
     pub attributes: Vec<Attribute>,
 }
 
+/// Methods for creating `ClassFiles`s
 impl ClassFile {
     pub fn from_bufreader<R: Read + BufRead>(reader: R) -> JResult<ClassFile> {
         ClassFileBuilder {
@@ -122,7 +123,7 @@ impl ClassFile {
     }
 
     pub fn from_path<P: AsRef<std::path::Path>>(p: P) -> JResult<ClassFile> {
-        let buffer = BufReader::new(File::open(p).unwrap());
+        let buffer = BufReader::new(File::open(p)?);
         ClassFile::from_bufreader(buffer)
     }
 }
@@ -130,6 +131,10 @@ impl ClassFile {
 impl ClassFile {
     pub fn version(&self) -> (MajorVersion, u16) {
         self.version
+    }
+
+    pub fn const_pool(&self) -> &Vec<PoolKind> {
+        &self.constant_pool
     }
 
     pub fn access_flags(&self) -> ClassAccessFlags {
@@ -455,6 +460,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     }
 }
 
+/// Methods for parsing attributes
 impl<R: Read + BufRead> ClassFileBuilder<R> {
     fn parse_attr_constant_value(&mut self) -> JResult<Attribute> {
         Ok(Attribute::ConstantValue {
@@ -808,6 +814,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     }
 }
 
+/// Helper methods for reading common numbers of bytes
 impl<R: Read + BufRead> ClassFileBuilder<R> {
     /// Read a single byte as a u8
     fn read_u8(&mut self) -> JResult<u8> {
