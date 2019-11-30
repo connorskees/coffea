@@ -4,7 +4,7 @@ use std::io;
 pub enum ParseError {
     IoError(io::Error),
     IndexError,
-    MethodNotFound
+    MethodNotFound,
 }
 
 impl From<io::Error> for ParseError {
