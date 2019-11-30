@@ -45,7 +45,9 @@ impl Type {
             Type::Int => String::from("int"),
             Type::Long => String::from("long"),
             // we can be certain that the classname will be ASCII
-            Type::ClassName(s) => unsafe { String::from_utf8_unchecked(s.as_bytes()[10..].to_owned()) },
+            Type::ClassName(s) => unsafe {
+                String::from_utf8_unchecked(s.as_bytes()[10..].to_owned())
+            },
             Type::Short => String::from("short"),
             Type::Boolean => String::from("boolean"),
             Type::Reference(t) => format!("{}[]", t.as_string()),
@@ -73,17 +75,17 @@ fn eat_type<'a>(cc: &mut std::str::Chars<'a>) -> Option<Type> {
                     name.push(c);
                 }
                 Type::ClassName(name)
-            },
+            }
             'S' => Type::Short,
             'Z' => Type::Boolean,
             'V' => Type::Void,
             '[' => {
                 let t = match eat_type(cc) {
                     Some(t) => t.clone(),
-                    None => unimplemented!()
+                    None => unimplemented!(),
                 };
                 Type::Reference(Box::new(t))
-            },
+            }
             _ => unimplemented!("unknown character"),
         })
     } else {
@@ -129,7 +131,11 @@ impl MethodInfo {
         let (args, return_type) = self.parse_return_type();
         let r = return_type.as_string();
         attrs.push(&r);
-        let str_args = args.iter().map(|a| a.clone().as_string()).collect::<Vec<String>>().join(", ");
+        let str_args = args
+            .iter()
+            .map(|a| a.clone().as_string())
+            .collect::<Vec<String>>()
+            .join(", ");
         let s: &str = &format!("{}({}) {{\n", &self.name, str_args);
         attrs.push(s);
         string.push_str(&attrs.join(" "));
