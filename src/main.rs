@@ -129,23 +129,21 @@ impl ClassFile {
 
     pub fn class_name(&self) -> JResult<&str> {
         match self.const_pool[usize::from(self.this_class - 1)] {
-            PoolKind::Class(name_index) => match self.const_pool[usize::from(name_index - 1)]
-            {
+            PoolKind::Class(name_index) => match self.const_pool[usize::from(name_index - 1)] {
                 PoolKind::Utf8(ref s) => Ok(s),
-                _ => Err(ParseError::IndexError),
+                _ => Err(ParseError::IndexError(line!())),
             },
-            _ => Err(ParseError::IndexError),
+            _ => Err(ParseError::IndexError(line!())),
         }
     }
 
     pub fn super_class_name(&self) -> JResult<&str> {
         match self.const_pool[usize::from(self.super_class - 1)] {
-            PoolKind::Class(name_index) => match self.const_pool[usize::from(name_index - 1)]
-            {
+            PoolKind::Class(name_index) => match self.const_pool[usize::from(name_index - 1)] {
                 PoolKind::Utf8(ref s) => Ok(s),
-                _ => Err(ParseError::IndexError),
+                _ => Err(ParseError::IndexError(line!())),
             },
-            _ => Err(ParseError::IndexError),
+            _ => Err(ParseError::IndexError(line!())),
         }
     }
 
