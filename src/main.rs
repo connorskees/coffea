@@ -1,4 +1,5 @@
 #![deny(missing_debug_implementations)]
+#![allow(dead_code)]
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -560,7 +561,7 @@ impl ClassFile {
         let method = self.method_by_name(method_name)?;
         buf.write(self.class_signature()?.as_bytes())?;
         buf.write(method.signature().as_bytes())?;
-        let mut tokens = method.code().unwrap().lex().into_iter();
+        let tokens = method.code().unwrap().lex().into_iter();
         Codegen { class: self, stack: Vec::new(), local_variables: HashMap::new(), tokens }.codegen(buf)
     }
 }
