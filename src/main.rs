@@ -165,12 +165,10 @@ impl ClassFile {
     pub fn field_names(&self) -> JResult<Vec<&str>> {
         let mut fields = Vec::new();
         for field in self.fields.iter() {
-            fields.push(
-                match self.const_pool[usize::from(field.name_index - 1)] {
-                    PoolKind::Utf8(ref s) => s.as_str(),
-                    _ => unimplemented!(),
-                },
-            );
+            fields.push(match self.const_pool[usize::from(field.name_index - 1)] {
+                PoolKind::Utf8(ref s) => s.as_str(),
+                _ => unimplemented!(),
+            });
         }
         Ok(fields)
     }
@@ -326,13 +324,17 @@ impl ClassFile {
                 Instruction::BiPush(n) => stack.push(StackEntry::Int(i32::from(n))),
                 Instruction::SIPush(n) => stack.push(StackEntry::Int(i32::from(n))),
                 Instruction::Ldc(n) => {
-                    let val = &self.const_pool[usize::from(n-1)];
+                    let val = &self.const_pool[usize::from(n - 1)];
                     match val {
-                        PoolKind::String(idx) => stack.push(StackEntry::String(self.utf_from_index(*idx)?)),
+                        PoolKind::String(idx) => {
+                            stack.push(StackEntry::String(self.utf_from_index(*idx)?))
+                        }
                         PoolKind::Integer(i) => stack.push(StackEntry::Int(*i as i32)),
                         _ => unimplemented!(),
                     }
                 }
+                Instruction::IConstM1 => stack.push(StackEntry::Int(-1)),
+                Instruction::IConst0 => stack.push(StackEntry::Int(0)),
                 Instruction::IConst1 => stack.push(StackEntry::Int(1)),
                 Instruction::IConst2 => stack.push(StackEntry::Int(2)),
                 Instruction::IConst3 => stack.push(StackEntry::Int(3)),
