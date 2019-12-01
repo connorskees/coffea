@@ -16,7 +16,7 @@ const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 /// This is a hack until const generics
 macro_rules! read_bytes_to_buffer {
     ($reader:expr, $bytes:literal) => {
-        if let Some(mut buffer) = Some([0u8; $bytes]) {
+        if let Some(mut buffer) = Some([0_u8; $bytes]) {
             $reader.read_exact(&mut buffer)?;
             // u32::from_be_bytes(buffer).to_be_bytes()
             buffer
@@ -75,9 +75,9 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
             let tag = self.read_u8()?;
             const_pool.push(match tag {
                 1 => {
-                    let mut buffer = vec![0u8; self.read_u16()? as usize];
+                    let mut buffer = vec![0_u8; self.read_u16()? as usize];
                     self.reader.read_exact(&mut buffer)?;
-                    PoolKind::utf8(buffer)
+                    PoolKind::utf8(&buffer)
                 }
                 3 => PoolKind::integer(self.read_u32()?),
                 4 => PoolKind::float(self.read_u32()?),
@@ -179,7 +179,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                     "AnnotationDefault" => self.parse_attr_annotation_default()?,
                     "BootstrapMethods" => self.parse_attr_bootstrap_methods()?,
                     _ => {
-                        let mut info = vec![0u8; attribute_length as usize];
+                        let mut info = vec![0_u8; attribute_length as usize];
                         self.reader.read_exact(&mut info)?;
                         Attribute::Other { info }
                     }
@@ -242,7 +242,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
         let max_locals = self.read_u16()?;
 
         let code_length = self.read_u32()?;
-        let mut code = vec![0u8; code_length as usize];
+        let mut code = vec![0_u8; code_length as usize];
         self.reader.read_exact(&mut code)?;
 
         let exception_table_length = self.read_u16()?;
@@ -343,20 +343,20 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 
     fn read_verification_type_info(&mut self) -> JResult<VerificationTypeInfo> {
         let tag = self.read_u8()?;
-        match tag {
-            0 => Ok(VerificationTypeInfo::Top),
-            1 => Ok(VerificationTypeInfo::Integer),
-            2 => Ok(VerificationTypeInfo::Float),
-            3 => Ok(VerificationTypeInfo::Double),
-            4 => Ok(VerificationTypeInfo::Long),
-            5 => Ok(VerificationTypeInfo::Null),
-            6 => Ok(VerificationTypeInfo::UninitializedThis),
-            7 => Ok(VerificationTypeInfo::Object(self.read_u16()?)),
-            8 => Ok(VerificationTypeInfo::UninitializedVar {
+        Ok(match tag {
+            0 => VerificationTypeInfo::Top,
+            1 => VerificationTypeInfo::Integer,
+            2 => VerificationTypeInfo::Float,
+            3 => VerificationTypeInfo::Double,
+            4 => VerificationTypeInfo::Long,
+            5 => VerificationTypeInfo::Null,
+            6 => VerificationTypeInfo::UninitializedThis,
+            7 => VerificationTypeInfo::Object(self.read_u16()?),
+            8 => VerificationTypeInfo::UninitializedVar {
                 offset: self.read_u16()?,
-            }),
+            },
             _ => unimplemented!("TODO: invalid verification type info tag (>8)"),
-        }
+        })
     }
 
     fn parse_attr_exceptions(&mut self) -> JResult<Attribute> {
@@ -408,7 +408,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
     }
 
     fn parse_attr_source_debug_extension(&mut self, attribute_length: u32) -> JResult<Attribute> {
-        let mut debug_extension = vec![0u8; attribute_length as usize];
+        let mut debug_extension = vec![0_u8; attribute_length as usize];
         self.reader.read_exact(&mut debug_extension)?;
         Ok(Attribute::SourceDebugExtension(debug_extension))
     }
@@ -587,21 +587,21 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 impl<R: Read + BufRead> ClassFileBuilder<R> {
     /// Read a single byte as a u8
     fn read_u8(&mut self) -> JResult<u8> {
-        let mut buffer = [0u8];
+        let mut buffer = [0_u8];
         self.reader.read_exact(&mut buffer)?;
         Ok(u8::from_be_bytes(buffer))
     }
 
     /// Read 2 bytes as a u16
     fn read_u16(&mut self) -> JResult<u16> {
-        let mut buffer = [0u8; 2];
+        let mut buffer = [0_u8; 2];
         self.reader.read_exact(&mut buffer)?;
         Ok(u16::from_be_bytes(buffer))
     }
 
     /// Read 4 bytes as a u32
     fn read_u32(&mut self) -> JResult<u32> {
-        let mut buffer = [0u8; 4];
+        let mut buffer = [0_u8; 4];
         self.reader.read_exact(&mut buffer)?;
         Ok(u32::from_be_bytes(buffer))
     }

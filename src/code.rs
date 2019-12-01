@@ -10,6 +10,7 @@ pub struct Code {
 }
 
 impl Code {
+    #[must_use]
     pub fn lex(&self) -> Vec<Instruction> {
         let mut bytes = self.code.iter();
         let mut instructions = Vec::with_capacity(bytes.len());
@@ -668,220 +669,220 @@ pub enum Instruction {
 }
 
 impl Instruction {
+    #[must_use]
     // todo: some have u16 so should count for 3
-    pub(crate) fn len(&self) -> u8 {
+    pub(crate) fn len(self) -> u8 {
         match self {
-            Instruction::AALoad => 1,
-            Instruction::AAStore => 1,
-            Instruction::AConstNull => 1,
-            Instruction::ALoad(_) => 2,
-            Instruction::Aload0 => 1,
-            Instruction::Aload1 => 1,
-            Instruction::Aload2 => 1,
-            Instruction::ALoad3 => 1,
-            Instruction::ANewArray(_, _) => 3,
-            Instruction::AReturn => 1,
-            Instruction::ArrayLength => 1,
-            Instruction::AStore(_) => 2,
-            Instruction::AStore0 => 1,
-            Instruction::AStore1 => 1,
-            Instruction::AStore2 => 1,
-            Instruction::AStore3 => 1,
-            Instruction::Athrow => 1,
-            Instruction::BALoad => 1,
-            Instruction::BAStore => 1,
-            Instruction::BiPush(_) => 2,
-            Instruction::Breakpoint => 1,
-            Instruction::CALoad => 1,
-            Instruction::CAStore => 1,
-            Instruction::Checkcast(_, _) => 3,
-            Instruction::D2f => 1,
-            Instruction::D2i => 1,
-            Instruction::D2l => 1,
-            Instruction::DAdd => 1,
-            Instruction::DALoad => 1,
-            Instruction::DAStore => 1,
-            Instruction::Dcmpg => 1,
-            Instruction::Dcmpl => 1,
-            Instruction::DConst0 => 1,
-            Instruction::DConst1 => 1,
-            Instruction::Ddiv => 1,
-            Instruction::Dload(_) => 2,
-            Instruction::Dload0 => 1,
-            Instruction::Dload1 => 1,
-            Instruction::Dload2 => 1,
-            Instruction::Dload3 => 1,
-            Instruction::Dmul => 1,
-            Instruction::Dneg => 1,
-            Instruction::Drem => 1,
-            Instruction::Dreturn => 1,
-            Instruction::DStore(_) => 2,
-            Instruction::DStore0 => 1,
-            Instruction::DStore1 => 1,
-            Instruction::DStore2 => 1,
-            Instruction::DStore3 => 1,
-            Instruction::Dsub => 1,
-            Instruction::Dup => 1,
-            Instruction::DupX1 => 1,
-            Instruction::DupX2 => 1,
-            Instruction::Dup2 => 1,
-            Instruction::Dup2X1 => 1,
-            Instruction::Dup2X2 => 1,
-            Instruction::F2d => 1,
-            Instruction::F2i => 1,
-            Instruction::F2l => 1,
-            Instruction::FAdd => 1,
-            Instruction::FALoad => 1,
-            Instruction::FAStore => 1,
-            Instruction::Fcmpg => 1,
-            Instruction::Fcmpl => 1,
-            Instruction::FConst0 => 1,
-            Instruction::FConst1 => 1,
-            Instruction::FConst2 => 1,
-            Instruction::Fdiv => 1,
-            Instruction::Fload(_) => 2,
-            Instruction::Fload0 => 1,
-            Instruction::Fload1 => 1,
-            Instruction::Fload2 => 1,
-            Instruction::Fload3 => 1,
-            Instruction::Fmul => 1,
-            Instruction::Fneg => 1,
-            Instruction::Frem => 1,
-            Instruction::Freturn => 1,
-            Instruction::FStore(_) => 2,
-            Instruction::FStore0 => 1,
-            Instruction::FStore1 => 1,
-            Instruction::FStore2 => 1,
-            Instruction::FStore3 => 1,
-            Instruction::Fsub => 1,
-            Instruction::GetField(_) => 2,
-            Instruction::GetStatic(_) => 2,
-            Instruction::Goto(_, _) => 3,
-            Instruction::GotoW(_, _, _, _) => 5,
-            Instruction::I2b => 1,
-            Instruction::I2c => 1,
-            Instruction::I2d => 1,
-            Instruction::I2f => 1,
-            Instruction::I2l => 1,
-            Instruction::I2s => 1,
-            Instruction::IAdd => 1,
-            Instruction::IALoad => 1,
-            Instruction::Iand => 1,
-            Instruction::IAStore => 1,
-            Instruction::IConstM1 => 1,
-            Instruction::IConst0 => 1,
-            Instruction::IConst1 => 1,
-            Instruction::IConst2 => 1,
-            Instruction::IConst3 => 1,
-            Instruction::IConst4 => 1,
-            Instruction::IConst5 => 1,
-            Instruction::Idiv => 1,
-            Instruction::IfAcmpeq(_, _) => 3,
-            Instruction::IfAcmpne(_, _) => 3,
-            Instruction::IfIcmpeq(_, _) => 3,
-            Instruction::IfIcmpge(_, _) => 3,
-            Instruction::IfIcmpgt(_, _) => 3,
-            Instruction::IfIcmple(_, _) => 3,
-            Instruction::IfIcmplt(_, _) => 3,
-            Instruction::IfIcmpne(_, _) => 3,
-            Instruction::Ifeq(_, _) => 3,
-            Instruction::Ifge(_, _) => 3,
-            Instruction::Ifgt(_, _) => 3,
-            Instruction::Ifle(_, _) => 3,
-            Instruction::Iflt(_, _) => 3,
-            Instruction::Ifne(_, _) => 3,
-            Instruction::Ifnonnull(_, _) => 3,
-            Instruction::Ifnull(_, _) => 3,
-            Instruction::Iinc(_, _) => 3,
-            Instruction::ILoad(_) => 2,
-            Instruction::ILoad0 => 1,
-            Instruction::ILoad1 => 1,
-            Instruction::ILoad2 => 1,
-            Instruction::ILoad3 => 1,
-            Instruction::Impdep1 => 1,
-            Instruction::Impdep2 => 1,
-            Instruction::Imul => 1,
-            Instruction::Ineg => 1,
-            Instruction::InstanceOf(_, _) => 3,
-            Instruction::InvokeDynamic(_, _, _, _) => 5,
-            Instruction::InvokeInterface(_, _, _, _) => 5,
-            Instruction::InvokeSpecial(_, _) => 3,
-            Instruction::InvokeStatic(_) => 2,
-            Instruction::InvokeVirtual(_) => 2,
-            Instruction::Ior => 1,
-            Instruction::Irem => 1,
-            Instruction::Ireturn => 1,
-            Instruction::Ishl => 1,
-            Instruction::Ishr => 1,
-            Instruction::IStore(_) => 2,
-            Instruction::IStore0 => 1,
-            Instruction::IStore1 => 1,
-            Instruction::IStore2 => 1,
-            Instruction::IStore3 => 1,
-            Instruction::Isub => 1,
-            Instruction::Iushr => 1,
-            Instruction::Ixor => 1,
-            Instruction::Jsr(_, _) => 3,
-            Instruction::JsrW(_, _, _, _) => 5,
-            Instruction::L2d => 1,
-            Instruction::L2f => 1,
-            Instruction::L2i => 1,
-            Instruction::LAdd => 1,
-            Instruction::Laload => 1,
-            Instruction::Land => 1,
-            Instruction::Lastore => 1,
-            Instruction::Lcmp => 1,
-            Instruction::LConst0 => 1,
-            Instruction::LConst1 => 1,
-            Instruction::Ldc(_) => 2,
-            Instruction::LdcW(_) => 3,
-            Instruction::Ldc2W(_) => 3,
-            Instruction::Ldiv => 1,
-            Instruction::LLoad(_) => 2,
-            Instruction::LLoad0 => 1,
-            Instruction::LLoad1 => 1,
-            Instruction::LLoad2 => 1,
-            Instruction::LLoad3 => 1,
-            Instruction::Lmul => 1,
-            Instruction::Lneg => 1,
-            Instruction::Lookupswitch => {
-                unimplemented!("instruction `LookupSwitch` not yet implemented")
-            } //Instruction::Lookupswitch,
-            Instruction::Lor => 1,
-            Instruction::Lrem => 1,
-            Instruction::Lreturn => 1,
-            Instruction::Lshl => 1,
-            Instruction::Lshr => 1,
-            Instruction::LStore(_) => 2,
-            Instruction::LStore0 => 1,
-            Instruction::LStore1 => 1,
-            Instruction::LStore2 => 1,
-            Instruction::LStore3 => 1,
-            Instruction::Lsub => 1,
-            Instruction::Lushr => 1,
-            Instruction::Lxor => 1,
-            Instruction::MonitorEnter => 1,
-            Instruction::MonitorExit => 1,
-            Instruction::MultiANewArray(_, _, _) => 4,
-            Instruction::New(_, _) => 3,
-            Instruction::NewArray(_) => 2,
-            Instruction::Nop => 1,
-            Instruction::Pop => 1,
-            Instruction::Pop2 => 1,
-            Instruction::PutField(_, _) => 3,
-            Instruction::PutStatic(_, _) => 3,
-            Instruction::Ret(_) => 2,
-            Instruction::Return => 1,
-            Instruction::SAload => 1,
-            Instruction::SAstore => 1,
-            Instruction::SIPush(_) => 2,
-            Instruction::Swap => 1,
+            Instruction::AALoad
+            | Instruction::AAStore
+            | Instruction::AConstNull
+            | Instruction::Aload0
+            | Instruction::Aload1
+            | Instruction::Aload2
+            | Instruction::ALoad3
+            | Instruction::AReturn
+            | Instruction::ArrayLength
+            | Instruction::AStore0
+            | Instruction::AStore1
+            | Instruction::AStore2
+            | Instruction::AStore3
+            | Instruction::Athrow
+            | Instruction::BALoad
+            | Instruction::BAStore
+            | Instruction::Breakpoint
+            | Instruction::CALoad
+            | Instruction::CAStore
+            | Instruction::D2f
+            | Instruction::D2i
+            | Instruction::D2l
+            | Instruction::DAdd
+            | Instruction::DALoad
+            | Instruction::DAStore
+            | Instruction::Dcmpg
+            | Instruction::Dcmpl
+            | Instruction::DConst0
+            | Instruction::DConst1
+            | Instruction::Ddiv
+            | Instruction::Dload0
+            | Instruction::Dload1
+            | Instruction::Dload2
+            | Instruction::Dload3
+            | Instruction::Dmul
+            | Instruction::Dneg
+            | Instruction::Drem
+            | Instruction::Dreturn
+            | Instruction::DStore0
+            | Instruction::DStore1
+            | Instruction::DStore2
+            | Instruction::DStore3
+            | Instruction::Dsub
+            | Instruction::Dup
+            | Instruction::DupX1
+            | Instruction::DupX2
+            | Instruction::Dup2
+            | Instruction::Dup2X1
+            | Instruction::Dup2X2
+            | Instruction::F2d
+            | Instruction::F2i
+            | Instruction::F2l
+            | Instruction::FAdd
+            | Instruction::FALoad
+            | Instruction::FAStore
+            | Instruction::Fcmpg
+            | Instruction::Fcmpl
+            | Instruction::FConst0
+            | Instruction::FConst1
+            | Instruction::FConst2
+            | Instruction::Fdiv
+            | Instruction::Fload0
+            | Instruction::Fload1
+            | Instruction::Fload2
+            | Instruction::Fload3
+            | Instruction::Fmul
+            | Instruction::Fneg
+            | Instruction::Frem
+            | Instruction::Freturn
+            | Instruction::FStore0
+            | Instruction::FStore1
+            | Instruction::FStore2
+            | Instruction::FStore3
+            | Instruction::Fsub
+            | Instruction::I2b
+            | Instruction::I2c
+            | Instruction::I2d
+            | Instruction::I2f
+            | Instruction::I2l
+            | Instruction::I2s
+            | Instruction::IAdd
+            | Instruction::IALoad
+            | Instruction::Iand
+            | Instruction::IAStore
+            | Instruction::IConstM1
+            | Instruction::IConst0
+            | Instruction::IConst1
+            | Instruction::IConst2
+            | Instruction::IConst3
+            | Instruction::IConst4
+            | Instruction::IConst5
+            | Instruction::Idiv
+            | Instruction::ILoad0
+            | Instruction::ILoad1
+            | Instruction::ILoad2
+            | Instruction::ILoad3
+            | Instruction::Impdep1
+            | Instruction::Impdep2
+            | Instruction::Imul
+            | Instruction::Ineg
+            | Instruction::Ior
+            | Instruction::Irem
+            | Instruction::Ireturn
+            | Instruction::Ishl
+            | Instruction::Ishr
+            | Instruction::IStore0
+            | Instruction::IStore1
+            | Instruction::IStore2
+            | Instruction::IStore3
+            | Instruction::Isub
+            | Instruction::Iushr
+            | Instruction::Ixor
+            | Instruction::L2d
+            | Instruction::L2f
+            | Instruction::L2i
+            | Instruction::LAdd
+            | Instruction::Laload
+            | Instruction::Land
+            | Instruction::Lastore
+            | Instruction::Lcmp
+            | Instruction::LConst0
+            | Instruction::LConst1
+            | Instruction::Ldiv
+            | Instruction::LLoad0
+            | Instruction::LLoad1
+            | Instruction::LLoad2
+            | Instruction::LLoad3
+            | Instruction::Lmul
+            | Instruction::Lneg
+            | Instruction::Lor
+            | Instruction::Lrem
+            | Instruction::Lreturn
+            | Instruction::Lshl
+            | Instruction::Lshr
+            | Instruction::LStore0
+            | Instruction::LStore1
+            | Instruction::LStore2
+            | Instruction::LStore3
+            | Instruction::Lsub
+            | Instruction::Lushr
+            | Instruction::Lxor
+            | Instruction::MonitorEnter
+            | Instruction::MonitorExit
+            | Instruction::Nop
+            | Instruction::Pop
+            | Instruction::Pop2
+            | Instruction::Return
+            | Instruction::SAload
+            | Instruction::SAstore
+            | Instruction::Swap
+            | Instruction::NoName => 1,
+            Instruction::ALoad(_)
+            | Instruction::AStore(_)
+            | Instruction::BiPush(_)
+            | Instruction::Dload(_)
+            | Instruction::DStore(_)
+            | Instruction::Fload(_)
+            | Instruction::FStore(_)
+            | Instruction::GetField(_)
+            | Instruction::GetStatic(_)
+            | Instruction::ILoad(_)
+            | Instruction::InvokeStatic(_)
+            | Instruction::InvokeVirtual(_)
+            | Instruction::IStore(_)
+            | Instruction::LStore(_)
+            | Instruction::NewArray(_)
+            | Instruction::Ret(_)
+            | Instruction::SIPush(_)
+            | Instruction::Ldc(_)
+            | Instruction::LLoad(_) => 2,
+            Instruction::ANewArray(_, _)
+            | Instruction::Checkcast(_, _)
+            | Instruction::Goto(_, _)
+            | Instruction::InvokeSpecial(_, _)
+            | Instruction::IfAcmpeq(_, _)
+            | Instruction::IfAcmpne(_, _)
+            | Instruction::IfIcmpeq(_, _)
+            | Instruction::IfIcmpge(_, _)
+            | Instruction::IfIcmpgt(_, _)
+            | Instruction::IfIcmple(_, _)
+            | Instruction::IfIcmplt(_, _)
+            | Instruction::IfIcmpne(_, _)
+            | Instruction::Ifeq(_, _)
+            | Instruction::Ifge(_, _)
+            | Instruction::Ifgt(_, _)
+            | Instruction::Ifle(_, _)
+            | Instruction::Iflt(_, _)
+            | Instruction::Ifne(_, _)
+            | Instruction::Ifnonnull(_, _)
+            | Instruction::Ifnull(_, _)
+            | Instruction::Iinc(_, _)
+            | Instruction::InstanceOf(_, _)
+            | Instruction::Jsr(_, _)
+            | Instruction::LdcW(_)
+            | Instruction::Ldc2W(_)
+            | Instruction::New(_, _)
+            | Instruction::PutField(_, _)
+            | Instruction::PutStatic(_, _) => 3,
+            Instruction::Wide3(_, _, _) | Instruction::MultiANewArray(_, _, _) => 4,
+            Instruction::GotoW(_, _, _, _)
+            | Instruction::InvokeDynamic(_, _, _, _)
+            | Instruction::InvokeInterface(_, _, _, _)
+            | Instruction::JsrW(_, _, _, _) => 5,
+            Instruction::Wide5(_, _, _, _, _) => 6,
             Instruction::TableSwitch => {
                 unimplemented!("instruction `TableSwitch` not yet implemented")
             }
-            Instruction::Wide3(_, _, _) => 4,
-            Instruction::Wide5(_, _, _, _, _) => 6,
-            Instruction::NoName => 1,
+            Instruction::Lookupswitch => {
+                unimplemented!("instruction `LookupSwitch` not yet implemented")
+            } //Instruction::Lookupswitch,
         }
     }
 }

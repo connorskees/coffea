@@ -20,7 +20,8 @@ pub struct FieldDescriptor {
 }
 
 impl FieldDescriptor {
-    pub fn from_str<S: AsRef<str>>(s: S) -> FieldDescriptor {
+    /// Parse field descriptor from str
+    pub fn new<S: AsRef<str>>(s: S) -> FieldDescriptor {
         let mut chars = s.as_ref().chars();
         let ty = FieldDescriptor::eat_type(&mut chars).expect("found no field descriptor type");
 
@@ -52,7 +53,7 @@ impl FieldDescriptor {
                 'V' => Type::Void,
                 '[' => {
                     let t = match FieldDescriptor::eat_type(cc) {
-                        Some(t) => t.clone(),
+                        Some(t) => t,
                         None => unimplemented!(),
                     };
                     Type::Reference(Box::new(t))
@@ -76,6 +77,7 @@ impl FieldAccessFlags {
     pub const SYNTHETIC: u16 = 0x1000;
     pub const ENUM: u16 = 0x4000;
 
+    #[must_use]
     pub const fn from_u16(n: u16) -> FieldAccessFlags {
         FieldAccessFlags {
             is_public: (n & FieldAccessFlags::PUBLIC) != 0,

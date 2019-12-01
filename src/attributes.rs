@@ -120,6 +120,7 @@ impl InnerClassFlags {
     pub const ANNOTATION: u16 = 0x2000;
     pub const ENUM: u16 = 0x4000;
 
+    #[must_use]
     pub const fn from_u16(n: u16) -> InnerClassFlags {
         InnerClassFlags {
             is_public: (n & InnerClassFlags::PUBLIC) != 0,

@@ -17,7 +17,8 @@ pub struct MethodDescriptor {
 }
 
 impl MethodDescriptor {
-    pub fn from_str<S: AsRef<str>>(s: S) -> MethodDescriptor {
+    /// Parse method descriptor from str
+    pub fn new<S: AsRef<str>>(s: S) -> MethodDescriptor {
         let mut chars = s.as_ref().chars();
         let mut args: Vec<Type> = Vec::new();
 
@@ -66,7 +67,7 @@ impl MethodDescriptor {
                 'V' => Type::Void,
                 '[' => {
                     let t = match MethodDescriptor::eat_type(cc) {
-                        Some(t) => t.clone(),
+                        Some(t) => t,
                         None => unimplemented!(),
                     };
                     Type::Reference(Box::new(t))
@@ -80,6 +81,7 @@ impl MethodDescriptor {
 }
 
 impl MethodInfo {
+    #[must_use]
     pub fn signature(&self) -> String {
         let mut string = String::with_capacity(100);
         let flags = self.access_flags;
@@ -93,7 +95,7 @@ impl MethodInfo {
         if flags.is_final {
             attrs.push("final");
         }
-        let signature = MethodDescriptor::from_str(&self.return_type);
+        let signature = MethodDescriptor::new(&self.return_type);
         let return_type = signature.return_type.as_string();
         let args = signature
             .args
@@ -108,8 +110,9 @@ impl MethodInfo {
         string
     }
 
+    #[must_use]
     pub fn code(&self) -> Option<&Code> {
-        for attr in self.attributes.iter() {
+        for attr in &self.attributes {
             match attr {
                 Attribute::Code(c) => return Some(c),
                 _ => continue,
@@ -149,7 +152,8 @@ impl MethodAccessFlags {
     pub const STRICT: u16 = 0x0800;
     pub const SYNTHETIC: u16 = 0x1000;
 
-    pub fn from_u16(n: u16) -> MethodAccessFlags {
+    #[must_use]
+    pub const fn from_u16(n: u16) -> MethodAccessFlags {
         MethodAccessFlags {
             is_public: (n & MethodAccessFlags::PUBLIC) != 0,
             is_private: (n & MethodAccessFlags::PRIVATE) != 0,
@@ -166,40 +170,52 @@ impl MethodAccessFlags {
         }
     }
 
-    pub fn is_public(&self) -> bool {
+    #[must_use]
+    pub const fn is_public(&self) -> bool {
         self.is_public
     }
-    pub fn is_private(&self) -> bool {
+    #[must_use]
+    pub const fn is_private(&self) -> bool {
         self.is_private
     }
-    pub fn is_protected(&self) -> bool {
+    #[must_use]
+    pub const fn is_protected(&self) -> bool {
         self.is_protected
     }
-    pub fn is_static(&self) -> bool {
+    #[must_use]
+    pub const fn is_static(&self) -> bool {
         self.is_static
     }
-    pub fn is_final(&self) -> bool {
+    #[must_use]
+    pub const fn is_final(&self) -> bool {
         self.is_final
     }
-    pub fn is_synchronized(&self) -> bool {
+    #[must_use]
+    pub const fn is_synchronized(&self) -> bool {
         self.is_synchronized
     }
-    pub fn is_bridge(&self) -> bool {
+    #[must_use]
+    pub const fn is_bridge(&self) -> bool {
         self.is_bridge
     }
-    pub fn is_var_args(&self) -> bool {
+    #[must_use]
+    pub const fn is_var_args(&self) -> bool {
         self.is_var_args
     }
-    pub fn is_native(&self) -> bool {
+    #[must_use]
+    pub const fn is_native(&self) -> bool {
         self.is_native
     }
-    pub fn is_abstract(&self) -> bool {
+    #[must_use]
+    pub const fn is_abstract(&self) -> bool {
         self.is_abstract
     }
-    pub fn is_strict(&self) -> bool {
+    #[must_use]
+    pub const fn is_strict(&self) -> bool {
         self.is_strict
     }
-    pub fn is_synthetic(&self) -> bool {
+    #[must_use]
+    pub const fn is_synthetic(&self) -> bool {
         self.is_synthetic
     }
 }

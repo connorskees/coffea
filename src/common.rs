@@ -25,7 +25,9 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn as_string(self) -> String {
+    #[must_use]
+    /// Convert Type to string representation
+    pub fn as_string(&self) -> String {
         match self {
             Type::Byte => String::from("byte"),
             Type::Char => String::from("char"),

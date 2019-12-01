@@ -17,6 +17,7 @@ pub enum MajorVersion {
 }
 
 impl MajorVersion {
+    #[must_use]
     pub fn from_u16(n: u16) -> MajorVersion {
         match n {
             58 => MajorVersion::JavaSE14,
