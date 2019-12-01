@@ -11,13 +11,13 @@ pub struct MethodInfo {
 }
 
 #[derive(Debug, Clone)]
-pub struct MethodSignature {
+pub struct MethodDescriptor {
     pub args: Vec<Type>,
     pub return_type: Type,
 }
 
-impl MethodSignature {
-    pub fn from_descriptor<S: AsRef<str>>(s: S) -> MethodSignature {
+impl MethodDescriptor {
+    pub fn from_str<S: AsRef<str>>(s: S) -> MethodDescriptor {
         let mut chars = s.as_ref().chars();
         let mut args: Vec<Type> = Vec::new();
 
@@ -27,15 +27,15 @@ impl MethodSignature {
             }
         }
 
-        while let Some(c) = MethodSignature::eat_type(&mut chars) {
+        while let Some(c) = MethodDescriptor::eat_type(&mut chars) {
             args.push(c);
         }
 
-        let ret = match MethodSignature::eat_type(&mut chars) {
+        let ret = match MethodDescriptor::eat_type(&mut chars) {
             Some(t) => t,
             None => unimplemented!("no return type given"),
         };
-        MethodSignature {
+        MethodDescriptor {
             return_type: ret,
             args,
         }
@@ -65,7 +65,7 @@ impl MethodSignature {
                 'Z' => Type::Boolean,
                 'V' => Type::Void,
                 '[' => {
-                    let t = match MethodSignature::eat_type(cc) {
+                    let t = match MethodDescriptor::eat_type(cc) {
                         Some(t) => t.clone(),
                         None => unimplemented!(),
                     };
@@ -93,7 +93,7 @@ impl MethodInfo {
         if flags.is_final {
             attrs.push("final");
         }
-        let signature = MethodSignature::from_descriptor(&self.return_type);
+        let signature = MethodDescriptor::from_str(&self.return_type);
         let return_type = signature.return_type.as_string();
         let args = signature
             .args
