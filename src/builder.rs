@@ -1,14 +1,14 @@
-use std::io::{Read, BufRead};
+use std::io::{BufRead, Read};
 
-use crate::errors::{ParseError, JResult};
-use crate::pool::PoolKind;
 use crate::attributes::{Attribute, ExceptionTableEntry, LocalVariableTableEntry, *};
 use crate::code::Code;
 pub use crate::common::Type;
+use crate::errors::{JResult, ParseError};
 pub use crate::fields::{FieldAccessFlags, FieldInfo};
 use crate::methods::{MethodAccessFlags, MethodInfo};
+use crate::pool::PoolKind;
 pub use crate::version::MajorVersion;
-use crate::{ClassFile, ClassAccessFlags};
+use crate::{ClassAccessFlags, ClassFile};
 
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 
@@ -85,7 +85,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                     // doubles and longs count as 2 spots
                     i += 1;
                     push_twice = true;
-                    PoolKind::long(self.read_u32()?, self.read_u32()?)
+                    PoolKind::long(i64::from_be_bytes(read_bytes_to_buffer!(self.reader, 8)))
                 }
                 6 => {
                     i += 1;
@@ -104,12 +104,9 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                 _ => unimplemented!("unrecognized tag kind"),
             });
             if push_twice {
-                const_pool.push(PoolKind::Long {
-                    high_bytes: 0,
-                    low_bytes: 0,
-                });
+                const_pool.push(PoolKind::Long(0));
+                push_twice = false;
             }
-            push_twice = false;
             i += 1;
         }
         Ok(const_pool)

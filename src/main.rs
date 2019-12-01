@@ -9,9 +9,9 @@ use crate::attributes::Attribute;
 use crate::builder::ClassFileBuilder;
 use crate::code::Instruction;
 pub use crate::common::Type;
-use crate::errors::{ParseError, JResult};
-pub use crate::fields::{FieldAccessFlags, FieldInfo, FieldDescriptor};
-use crate::methods::{MethodInfo, MethodDescriptor};
+use crate::errors::{JResult, ParseError};
+pub use crate::fields::{FieldAccessFlags, FieldDescriptor, FieldInfo};
+use crate::methods::{MethodDescriptor, MethodInfo};
 pub use crate::pool::PoolKind;
 pub use crate::version::MajorVersion;
 
@@ -254,7 +254,10 @@ impl ClassFile {
         }
     }
 
-    pub fn read_methodref_from_index(&self, index: u16) -> JResult<(String, String, MethodDescriptor)> {
+    pub fn read_methodref_from_index(
+        &self,
+        index: u16,
+    ) -> JResult<(String, String, MethodDescriptor)> {
         match &self.const_pool[usize::from(index - 1)] {
             PoolKind::MethodRef {
                 name_and_type_index,
@@ -273,40 +276,52 @@ impl ClassFile {
                         }
                         _ => return Err(ParseError::IndexError(line!())),
                     };
-                let class = self.class_name_from_index(*class_index)?.split("/").last().unwrap().to_owned();
+                let class = self
+                    .class_name_from_index(*class_index)?
+                    .split("/")
+                    .last()
+                    .unwrap()
+                    .to_owned();
                 Ok((class, name, sig))
             }
             _ => return Err(ParseError::IndexError(line!())),
         }
     }
 
-    pub fn read_fieldref_from_index(&self, index: u16) -> JResult<(String, String, FieldDescriptor)> {
+    pub fn read_fieldref_from_index(
+        &self,
+        index: u16,
+    ) -> JResult<(String, String, FieldDescriptor)> {
         match &self.const_pool[usize::from(index - 1)] {
             PoolKind::FieldRef {
                 name_and_type_index,
                 class_index,
             } => {
-                let (name, sig): (String, FieldDescriptor) =
-                    match &self.const_pool[usize::from(name_and_type_index - 1)] {
-                        PoolKind::NameAndType {
-                            name_index,
-                            descriptor_index,
-                        } => {
-                            let name = self.utf_from_index(*name_index)?;
-                            let ty =
-                                FieldDescriptor::from_str(self.utf_from_index(*descriptor_index)?);
-                            (name, ty)
-                        }
-                        _ => return Err(ParseError::IndexError(line!())),
-                    };
-                let class = self.class_name_from_index(*class_index)?.split("/").last().unwrap().to_owned();
+                let (name, sig): (String, FieldDescriptor) = match &self.const_pool
+                    [usize::from(name_and_type_index - 1)]
+                {
+                    PoolKind::NameAndType {
+                        name_index,
+                        descriptor_index,
+                    } => {
+                        let name = self.utf_from_index(*name_index)?;
+                        let ty = FieldDescriptor::from_str(self.utf_from_index(*descriptor_index)?);
+                        (name, ty)
+                    }
+                    _ => return Err(ParseError::IndexError(line!())),
+                };
+                let class = self
+                    .class_name_from_index(*class_index)?
+                    .split("/")
+                    .last()
+                    .unwrap()
+                    .to_owned();
                 Ok((class, name, sig))
             }
             _ => return Err(ParseError::IndexError(line!())),
         }
     }
 }
-
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 enum Comparison {
@@ -335,6 +350,8 @@ impl Comparison {
 enum StackEntry {
     Int(i32),
     Float(f32),
+    Double(f64),
+    Long(i64),
     Add(Box<StackEntry>, Box<StackEntry>),
     Sub(Box<StackEntry>, Box<StackEntry>),
     Mul(Box<StackEntry>, Box<StackEntry>),
@@ -351,7 +368,9 @@ impl StackEntry {
     fn to_string(self) -> String {
         match self {
             StackEntry::Int(a) => format!("{}", a),
+            StackEntry::Long(a) => format!("{}l", a),
             StackEntry::Float(a) => format!("{}f", a),
+            StackEntry::Double(a) => format!("{}d", a),
             StackEntry::Add(a, b) => format!("({} + {})", b.to_string(), a.to_string()),
             StackEntry::Sub(a, b) => format!("({} - {})", b.to_string(), a.to_string()),
             StackEntry::Mul(a, b) => format!("{} * {}", b.to_string(), a.to_string()),
@@ -359,9 +378,12 @@ impl StackEntry {
             StackEntry::Ident(s) => s,
             StackEntry::String(s) => format!("\"{}\"", s),
             StackEntry::Reference(_) => unimplemented!(),
-            StackEntry::If(if_, cmp, else_) => {
-                format!("if ({} {} {}) {{\n", if_.to_string(), cmp.to_string(), else_.to_string())
-            },
+            StackEntry::If(if_, cmp, else_) => format!(
+                "if ({} {} {}) {{\n",
+                if_.to_string(),
+                cmp.to_string(),
+                else_.to_string()
+            ),
             StackEntry::Function(name, args) => format!(
                 "{}({})",
                 name,
@@ -371,10 +393,7 @@ impl StackEntry {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            StackEntry::Field(name) => format!(
-                "{}",
-                name
-            ),
+            StackEntry::Field(name) => format!("{}", name),
         }
     }
 }
@@ -394,32 +413,45 @@ impl Codegen {
             match tok {
                 Instruction::BiPush(n) => self.stack.push(StackEntry::Int(i32::from(n))),
                 Instruction::SIPush(n) => self.stack.push(StackEntry::Int(i32::from(n))),
-                Instruction::Ldc(n) => {
+                Instruction::Ldc(n) | Instruction::LdcW(n) => {
                     let val = &self.class.const_pool[usize::from(n - 1)];
                     match val {
-                        PoolKind::String(idx) => {
-                            self.stack.push(StackEntry::String(self.class.utf_from_index(*idx)?))
-                        }
+                        PoolKind::String(idx) => self
+                            .stack
+                            .push(StackEntry::String(self.class.utf_from_index(*idx)?)),
                         PoolKind::Integer(i) => self.stack.push(StackEntry::Int(*i as i32)),
-                        PoolKind::Float{ bytes } => self.stack.push(StackEntry::Float(
-                            match bytes {
-                            0x7f800000 => std::f32::INFINITY,
-                            0xff800000 => std::f32::NEG_INFINITY,
-                            0x7f800001..=0x7fffffff | 0xff800001..=0xffffffff => std::f32::NAN, 
-                            _ => {
-                                f32::from_be_bytes(bytes.to_be_bytes())
-                                // let s: i32 = if (bytes >> 31) == 0 { 1 } else { -1i32 };
-                                // let e: i32 = (bytes >> 23) & 0xff;
-                                // let m: i32 = if e == 0 {
-                                //         (bytes & 0x7fffff) << 1
-                                //     } else {
-                                //         (bytes & 0x7fffff) | 0x800000
-                                //     };
-                                // ((s*m*i32::pow(2, e-150i32)) as f32)
-                            }
-                            }
-                        )),
+                        PoolKind::Float { bytes } => {
+                            self.stack.push(StackEntry::Float(match bytes {
+                                0x7f800000 => std::f32::INFINITY,
+                                0xff800000 => std::f32::NEG_INFINITY,
+                                0x7f800001..=0x7fffffff | 0xff800001..=0xffffffff => std::f32::NAN,
+                                _ => f32::from_be_bytes(bytes.to_be_bytes()),
+                            }))
+                        }
                         _ => unimplemented!(),
+                    }
+                }
+                Instruction::Ldc2W(n) => {
+                    let val = &self.class.const_pool[usize::from(n - 1)];
+                    match val {
+                        PoolKind::Double {
+                            high_bytes,
+                            low_bytes,
+                        } => {
+                            let bits: u64 = (u64::from(*high_bytes) << 32) + u64::from(*low_bytes);
+                            self.stack.push(StackEntry::Double(match bits {
+                                0x7ff0000000000000 => std::f64::INFINITY,
+                                0xfff0000000000000 => std::f64::NEG_INFINITY,
+                                0x7ff0000000000001..=0x7fffffffffffffff | 0xfff0000000000001..=0xffffffffffffffff => std::f64::NAN,
+                                _ => {
+                                    let a = high_bytes.to_be_bytes();
+                                    let b = low_bytes.to_be_bytes();
+                                    f64::from_be_bytes([a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3]])
+                                },
+                            }));
+                        }
+                        PoolKind::Long(long) => self.stack.push(StackEntry::Long(*long)),
+                        _ => unimplemented!("Ldc2w should only encounter doubles and longs"),
                     }
                 }
                 Instruction::IConstM1 => self.stack.push(StackEntry::Int(-1)),
@@ -432,74 +464,204 @@ impl Codegen {
                 Instruction::FConst0 => self.stack.push(StackEntry::Float(0.0)),
                 Instruction::FConst1 => self.stack.push(StackEntry::Float(1.0)),
                 Instruction::FConst2 => self.stack.push(StackEntry::Float(2.0)),
-                Instruction::ILoad0 |
+                Instruction::DConst0 => self.stack.push(StackEntry::Double(0.0)),
+                Instruction::DConst1 => self.stack.push(StackEntry::Double(1.0)),
+                Instruction::LConst0 => self.stack.push(StackEntry::Long(0)),
+                Instruction::LConst1 => self.stack.push(StackEntry::Long(1)),
+
+                Instruction::ILoad0
+                | Instruction::Fload0
+                | Instruction::Dload0
+                | Instruction::LLoad0 => self
+                    .stack
+                    .push(self.local_variables.get(&0).unwrap().clone()),
                 Instruction::Aload0 => {
                     let val = self.local_variables.get(&0);
                     match val {
                         Some(v) => self.stack.push(v.clone()),
                         None => self.stack.push(StackEntry::Ident("this".to_owned())),
                     };
-                },
-                Instruction::ILoad1 |
-                Instruction::Aload1 => self.stack.push(self.local_variables.get(&1).unwrap().clone()),
-                Instruction::ILoad2 |
-                Instruction::Aload2 => self.stack.push(self.local_variables.get(&2).unwrap().clone()),
-                Instruction::ILoad3 => self.stack.push(self.local_variables.get(&3).unwrap().clone()),
+                }
+                Instruction::ILoad1
+                | Instruction::Aload1
+                | Instruction::Fload1
+                | Instruction::Dload1
+                | Instruction::LLoad1 => self
+                    .stack
+                    .push(self.local_variables.get(&1).unwrap().clone()),
+                Instruction::ILoad2
+                | Instruction::Aload2
+                | Instruction::Fload2
+                | Instruction::Dload2
+                | Instruction::LLoad2 => self
+                    .stack
+                    .push(self.local_variables.get(&2).unwrap().clone()),
+                Instruction::ILoad3
+                | Instruction::ALoad3
+                | Instruction::Fload3
+                | Instruction::Dload3
+                | Instruction::LLoad3 => self
+                    .stack
+                    .push(self.local_variables.get(&3).unwrap().clone()),
                 Instruction::IStore(n) => {
-                    self.local_variables.insert(usize::from(n), StackEntry::Ident(format!("i{}", n)));
-                    write!(buf, "int i{} = {};\n", n, self.stack.pop().unwrap().to_string())?;
+                    self.local_variables
+                        .insert(usize::from(n), StackEntry::Ident(format!("i{}", n)));
+                    write!(
+                        buf,
+                        "int i{} = {};\n",
+                        n,
+                        self.stack.pop().unwrap().to_string()
+                    )?;
                 }
                 Instruction::IStore1 => {
-                    self.local_variables.insert(1, StackEntry::Ident("i1".to_owned()));
+                    self.local_variables
+                        .insert(1, StackEntry::Ident("i1".to_owned()));
                     write!(buf, "int i1 = {};\n", self.stack.pop().unwrap().to_string())?;
                 }
                 Instruction::IStore2 => {
-                    self.local_variables.insert(2, StackEntry::Ident("i2".to_owned()));
+                    self.local_variables
+                        .insert(2, StackEntry::Ident("i2".to_owned()));
                     write!(buf, "int i2 = {};\n", self.stack.pop().unwrap().to_string())?;
                 }
                 Instruction::IStore3 => {
-                    self.local_variables.insert(3, StackEntry::Ident("i3".to_owned()));
+                    self.local_variables
+                        .insert(3, StackEntry::Ident("i3".to_owned()));
                     write!(buf, "int i3 = {};\n", self.stack.pop().unwrap().to_string())?;
                 }
                 Instruction::FStore(n) => {
-                    self.local_variables.insert(usize::from(n), StackEntry::Ident(format!("f{}", n)));
-                    write!(buf, "float f{} = {};\n", n, self.stack.pop().unwrap().to_string())?;
+                    self.local_variables
+                        .insert(usize::from(n), StackEntry::Ident(format!("f{}", n)));
+                    write!(
+                        buf,
+                        "float f{} = {};\n",
+                        n,
+                        self.stack.pop().unwrap().to_string()
+                    )?;
                 }
                 Instruction::FStore1 => {
-                    self.local_variables.insert(1, StackEntry::Ident("f1".to_owned()));
-                    write!(buf, "float f1 = {};\n", self.stack.pop().unwrap().to_string())?;
+                    self.local_variables
+                        .insert(1, StackEntry::Ident("f1".to_owned()));
+                    write!(
+                        buf,
+                        "float f1 = {};\n",
+                        self.stack.pop().unwrap().to_string()
+                    )?;
                 }
                 Instruction::FStore2 => {
-                    self.local_variables.insert(2, StackEntry::Ident("f2".to_owned()));
-                    write!(buf, "float f2 = {};\n", self.stack.pop().unwrap().to_string())?;
+                    self.local_variables
+                        .insert(2, StackEntry::Ident("f2".to_owned()));
+                    write!(
+                        buf,
+                        "float f2 = {};\n",
+                        self.stack.pop().unwrap().to_string()
+                    )?;
                 }
                 Instruction::FStore3 => {
-                    self.local_variables.insert(3, StackEntry::Ident("f3".to_owned()));
-                    write!(buf, "float f3 = {};\n", self.stack.pop().unwrap().to_string())?;
+                    self.local_variables
+                        .insert(3, StackEntry::Ident("f3".to_owned()));
+                    write!(
+                        buf,
+                        "float f3 = {};\n",
+                        self.stack.pop().unwrap().to_string()
+                    )?;
                 }
-                Instruction::Iadd |
-                Instruction::Fadd => {
+                Instruction::DStore(n) => {
+                    self.local_variables
+                        .insert(usize::from(n), StackEntry::Ident(format!("d{}", n)));
+                    write!(
+                        buf,
+                        "double d{} = {};\n",
+                        n,
+                        self.stack.pop().unwrap().to_string()
+                    )?;
+                }
+                Instruction::DStore1 => {
+                    self.local_variables
+                        .insert(1, StackEntry::Ident("d1".to_owned()));
+                    write!(
+                        buf,
+                        "double d1 = {};\n",
+                        self.stack.pop().unwrap().to_string()
+                    )?;
+                }
+                Instruction::DStore2 => {
+                    self.local_variables
+                        .insert(2, StackEntry::Ident("d2".to_owned()));
+                    write!(
+                        buf,
+                        "double d2 = {};\n",
+                        self.stack.pop().unwrap().to_string()
+                    )?;
+                }
+                Instruction::DStore3 => {
+                    self.local_variables
+                        .insert(3, StackEntry::Ident("d3".to_owned()));
+                    write!(
+                        buf,
+                        "double d3 = {};\n",
+                        self.stack.pop().unwrap().to_string()
+                    )?;
+                }
+                Instruction::LStore(n) => {
+                    self.local_variables
+                        .insert(usize::from(n), StackEntry::Ident(format!("l{}", n)));
+                    write!(
+                        buf,
+                        "long l{} = {};\n",
+                        n,
+                        self.stack.pop().unwrap().to_string()
+                    )?;
+                }
+                Instruction::LStore1 => {
+                    self.local_variables
+                        .insert(1, StackEntry::Ident("l1".to_owned()));
+                    write!(
+                        buf,
+                        "long l1 = {};\n",
+                        self.stack.pop().unwrap().to_string()
+                    )?;
+                }
+                Instruction::LStore2 => {
+                    self.local_variables
+                        .insert(2, StackEntry::Ident("l2".to_owned()));
+                    write!(
+                        buf,
+                        "long l2 = {};\n",
+                        self.stack.pop().unwrap().to_string()
+                    )?;
+                }
+                Instruction::LStore3 => {
+                    self.local_variables
+                        .insert(3, StackEntry::Ident("l3".to_owned()));
+                    write!(
+                        buf,
+                        "long l3 = {};\n",
+                        self.stack.pop().unwrap().to_string()
+                    )?;
+                }
+                Instruction::IAdd | Instruction::FAdd | Instruction::DAdd | Instruction::LAdd => {
                     let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Add(Box::new(val1), Box::new(val2)));
+                    self.stack
+                        .push(StackEntry::Add(Box::new(val1), Box::new(val2)));
                 }
-                Instruction::Isub |
-                Instruction::Fsub => {
+                Instruction::Isub | Instruction::Fsub | Instruction::Dsub | Instruction::Lsub => {
                     let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Sub(Box::new(val1), Box::new(val2)));
+                    self.stack
+                        .push(StackEntry::Sub(Box::new(val1), Box::new(val2)));
                 }
-                Instruction::Imul |
-                Instruction::Fmul => {
+                Instruction::Imul | Instruction::Fmul | Instruction::Dmul | Instruction::Lmul => {
                     let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Mul(Box::new(val1), Box::new(val2)));
+                    self.stack
+                        .push(StackEntry::Mul(Box::new(val1), Box::new(val2)));
                 }
-                Instruction::Idiv |
-                Instruction::Fdiv => {
+                Instruction::Idiv | Instruction::Fdiv | Instruction::Ddiv | Instruction::Ldiv => {
                     let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Div(Box::new(val1), Box::new(val2)));
+                    self.stack
+                        .push(StackEntry::Div(Box::new(val1), Box::new(val2)));
                 }
                 Instruction::Return => break,
 
@@ -523,7 +685,10 @@ impl Codegen {
                         args.push(self.stack.pop().expect("expected value to be on stack"));
                     }
                     let object = self.stack.pop().expect("expected value to be on stack");
-                    let f = StackEntry::Function(format!("{}.{}", object.to_string(), name), Box::new(args));
+                    let f = StackEntry::Function(
+                        format!("{}.{}", object.to_string(), name),
+                        Box::new(args),
+                    );
                     if descriptor.return_type == Type::Void {
                         write!(buf, "{};\n", f.clone().to_string())?;
                     }
@@ -532,11 +697,13 @@ impl Codegen {
 
                 Instruction::GetStatic(index) => {
                     let (class, name, _) = self.class.read_fieldref_from_index(index)?;
-                    self.stack.push(StackEntry::Field(format!("{}.{}", class, name)));
+                    self.stack
+                        .push(StackEntry::Field(format!("{}.{}", class, name)));
                 }
                 Instruction::AStore1 => {
                     let val = self.stack.pop().unwrap();
-                    self.local_variables.insert(1, StackEntry::Ident("a1".to_owned()));
+                    self.local_variables
+                        .insert(1, StackEntry::Ident("a1".to_owned()));
                     match val {
                         StackEntry::Reference(_) => unimplemented!(),
                         StackEntry::String(s) => {
@@ -551,12 +718,33 @@ impl Codegen {
                     let _offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
                     let left = self.stack.pop().unwrap();
                     let right = self.stack.pop().unwrap();
-                    write!(buf, "{}", StackEntry::If(Box::new(left), Comparison::NotEqual, Box::new(right)).to_string())?;
+                    write!(
+                        buf,
+                        "{}",
+                        StackEntry::If(Box::new(left), Comparison::NotEqual, Box::new(right))
+                            .to_string()
+                    )?;
                 }
 
                 Instruction::Goto(branchbyte1, branchbyte2) => {
                     let _offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
                     unimplemented!()
+                }
+
+                Instruction::D2i => {
+                    if let StackEntry::Double(f) = self.stack.pop().unwrap() {
+                        self.stack.push(StackEntry::Int(f as i32));
+                    } else { unimplemented!() }
+                }
+                Instruction::D2f => {
+                    if let StackEntry::Double(f) = self.stack.pop().unwrap() {
+                        self.stack.push(StackEntry::Float(f as f32));
+                    } else { unimplemented!() }
+                }
+                Instruction::D2l => {
+                    if let StackEntry::Double(f) = self.stack.pop().unwrap() {
+                        self.stack.push(StackEntry::Float(f as f32));
+                    } else { unimplemented!() }
                 }
                 _ => unimplemented!(),
             };
@@ -605,7 +793,13 @@ impl ClassFile {
         buf.write(self.class_signature()?.as_bytes())?;
         buf.write(method.signature().as_bytes())?;
         let tokens = method.code().unwrap().lex().into_iter();
-        Codegen { class: self, stack: Vec::new(), local_variables: HashMap::new(), tokens }.codegen(buf)
+        Codegen {
+            class: self,
+            stack: Vec::new(),
+            local_variables: HashMap::new(),
+            tokens,
+        }
+        .codegen(buf)
     }
 }
 

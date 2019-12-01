@@ -60,11 +60,11 @@ impl Code {
                 0x77 => Instruction::Dneg,
                 0x73 => Instruction::Drem,
                 0xaf => Instruction::Dreturn,
-                0x39 => Instruction::Dstore(next()),
-                0x47 => Instruction::Dstore0,
-                0x48 => Instruction::Dstore1,
-                0x49 => Instruction::Dstore2,
-                0x4a => Instruction::Dstore3,
+                0x39 => Instruction::DStore(next()),
+                0x47 => Instruction::DStore0,
+                0x48 => Instruction::DStore1,
+                0x49 => Instruction::DStore2,
+                0x4a => Instruction::DStore3,
                 0x67 => Instruction::Dsub,
                 0x59 => Instruction::Dup,
                 0x5a => Instruction::DupX1,
@@ -75,7 +75,7 @@ impl Code {
                 0x8d => Instruction::F2d,
                 0x8b => Instruction::F2i,
                 0x8c => Instruction::F2l,
-                0x62 => Instruction::Fadd,
+                0x62 => Instruction::FAdd,
                 0x30 => Instruction::FALoad,
                 0x51 => Instruction::FAStore,
                 0x96 => Instruction::Fcmpg,
@@ -109,7 +109,7 @@ impl Code {
                 0x86 => Instruction::I2f,
                 0x85 => Instruction::I2l,
                 0x93 => Instruction::I2s,
-                0x60 => Instruction::Iadd,
+                0x60 => Instruction::IAdd,
                 0x2e => Instruction::IALoad,
                 0x7e => Instruction::Iand,
                 0x4f => Instruction::IAStore,
@@ -171,18 +171,18 @@ impl Code {
                 0x8a => Instruction::L2d,
                 0x89 => Instruction::L2f,
                 0x88 => Instruction::L2i,
-                0x61 => Instruction::Ladd,
+                0x61 => Instruction::LAdd,
                 0x2f => Instruction::Laload,
                 0x7f => Instruction::Land,
                 0x50 => Instruction::Lastore,
                 0x94 => Instruction::Lcmp,
                 0x09 => Instruction::LConst0,
                 0x0a => Instruction::LConst1,
-                0x12 => Instruction::Ldc(next()),
-                0x13 => Instruction::LdcW(next(), next()),
-                0x14 => Instruction::Ldc2W(next(), next()),
+                0x12 => Instruction::Ldc(u16::from(next())),
+                0x13 => Instruction::LdcW(u16::from_be_bytes([next(), next()])),
+                0x14 => Instruction::Ldc2W(u16::from_be_bytes([next(), next()])),
                 0x6d => Instruction::Ldiv,
-                0x16 => Instruction::Lload(next()),
+                0x16 => Instruction::LLoad(next()),
                 0x1e => Instruction::LLoad0,
                 0x1f => Instruction::LLoad1,
                 0x20 => Instruction::LLoad2,
@@ -195,7 +195,7 @@ impl Code {
                 0xad => Instruction::Lreturn,
                 0x79 => Instruction::Lshl,
                 0x7b => Instruction::Lshr,
-                0x37 => Instruction::Lstore(next()),
+                0x37 => Instruction::LStore(next()),
                 0x3f => Instruction::LStore0,
                 0x40 => Instruction::LStore1,
                 0x41 => Instruction::LStore2,
@@ -341,15 +341,15 @@ pub enum Instruction {
     /// return a double from a method
     Dreturn,
     /// store a double value into a local variable #index
-    Dstore(u8),
+    DStore(u8),
     /// store a double into local variable 0
-    Dstore0,
+    DStore0,
     /// store a double into local variable 1
-    Dstore1,
+    DStore1,
     /// store a double into local variable 2
-    Dstore2,
+    DStore2,
     /// store a double into local variable 3
-    Dstore3,
+    DStore3,
     /// subtract a double from another
     Dsub,
     /// duplicate the value on top of the stack
@@ -371,7 +371,7 @@ pub enum Instruction {
     /// convert a float to a long
     F2l,
     /// add two floats
-    Fadd,
+    FAdd,
     /// load a float from an array
     FALoad,
     /// store a float in an array
@@ -439,7 +439,7 @@ pub enum Instruction {
     /// convert an int into a short
     I2s,
     /// add two ints
-    Iadd,
+    IAdd,
     /// load an int from an array
     IALoad,
     /// perform a bitwise AND on two integers
@@ -563,7 +563,7 @@ pub enum Instruction {
     /// convert a long to a int
     L2i,
     /// add two longs
-    Ladd,
+    LAdd,
     /// load a long from an array
     Laload,
     /// bitwise AND of two longs
@@ -577,15 +577,15 @@ pub enum Instruction {
     /// push 1L (the number one with type long) onto the stack
     LConst1,
     /// push a constant #index from a constant pool (String, int, float, Class, java.lang.invoke.MethodType, java.lang.invoke.MethodHandle, or a dynamically-computed constant) onto the stack
-    Ldc(u8),
+    Ldc(u16),
     /// push a constant #index from a constant pool (String, int, float, Class, java.lang.invoke.MethodType, java.lang.invoke.MethodHandle, or a dynamically-computed constant) onto the stack (wide index is constructed as indexbyte1 << 8 + indexbyte2)
-    LdcW(u8, u8),
+    LdcW(u16),
     /// push a constant #index from a constant pool (double, long, or a dynamically-computed constant) onto the stack (wide index is constructed as indexbyte1 << 8 + indexbyte2)
-    Ldc2W(u8, u8),
+    Ldc2W(u16),
     /// divide two longs
     Ldiv,
     /// load a long value from a local variable #index
-    Lload(u8),
+    LLoad(u8),
     /// load a long value from a local variable 0
     LLoad0,
     /// load a long value from a local variable 1
@@ -611,7 +611,7 @@ pub enum Instruction {
     /// bitwise shift right of a long value1 by int value2 positions
     Lshr,
     /// store a long value in a local variable #index
-    Lstore(u8),
+    LStore(u8),
     /// store a long value in a local variable 0
     LStore0,
     /// store a long value in a local variable 1
@@ -668,6 +668,7 @@ pub enum Instruction {
 }
 
 impl Instruction {
+    // todo: some have u16 so should count for 3
     pub(crate) fn len(&self) -> u8 {
         match self {
             Instruction::AALoad => 1,
@@ -714,11 +715,11 @@ impl Instruction {
             Instruction::Dneg => 1,
             Instruction::Drem => 1,
             Instruction::Dreturn => 1,
-            Instruction::Dstore(_) => 2,
-            Instruction::Dstore0 => 1,
-            Instruction::Dstore1 => 1,
-            Instruction::Dstore2 => 1,
-            Instruction::Dstore3 => 1,
+            Instruction::DStore(_) => 2,
+            Instruction::DStore0 => 1,
+            Instruction::DStore1 => 1,
+            Instruction::DStore2 => 1,
+            Instruction::DStore3 => 1,
             Instruction::Dsub => 1,
             Instruction::Dup => 1,
             Instruction::DupX1 => 1,
@@ -729,7 +730,7 @@ impl Instruction {
             Instruction::F2d => 1,
             Instruction::F2i => 1,
             Instruction::F2l => 1,
-            Instruction::Fadd => 1,
+            Instruction::FAdd => 1,
             Instruction::FALoad => 1,
             Instruction::FAStore => 1,
             Instruction::Fcmpg => 1,
@@ -763,7 +764,7 @@ impl Instruction {
             Instruction::I2f => 1,
             Instruction::I2l => 1,
             Instruction::I2s => 1,
-            Instruction::Iadd => 1,
+            Instruction::IAdd => 1,
             Instruction::IALoad => 1,
             Instruction::Iand => 1,
             Instruction::IAStore => 1,
@@ -825,7 +826,7 @@ impl Instruction {
             Instruction::L2d => 1,
             Instruction::L2f => 1,
             Instruction::L2i => 1,
-            Instruction::Ladd => 1,
+            Instruction::LAdd => 1,
             Instruction::Laload => 1,
             Instruction::Land => 1,
             Instruction::Lastore => 1,
@@ -833,23 +834,25 @@ impl Instruction {
             Instruction::LConst0 => 1,
             Instruction::LConst1 => 1,
             Instruction::Ldc(_) => 2,
-            Instruction::LdcW(_, _) => 3,
-            Instruction::Ldc2W(_, _) => 3,
+            Instruction::LdcW(_) => 3,
+            Instruction::Ldc2W(_) => 3,
             Instruction::Ldiv => 1,
-            Instruction::Lload(_) => 2,
+            Instruction::LLoad(_) => 2,
             Instruction::LLoad0 => 1,
             Instruction::LLoad1 => 1,
             Instruction::LLoad2 => 1,
             Instruction::LLoad3 => 1,
             Instruction::Lmul => 1,
             Instruction::Lneg => 1,
-            Instruction::Lookupswitch => unimplemented!("instruction `LookupSwitch` not yet implemented"), //Instruction::Lookupswitch,
+            Instruction::Lookupswitch => {
+                unimplemented!("instruction `LookupSwitch` not yet implemented")
+            } //Instruction::Lookupswitch,
             Instruction::Lor => 1,
             Instruction::Lrem => 1,
             Instruction::Lreturn => 1,
             Instruction::Lshl => 1,
             Instruction::Lshr => 1,
-            Instruction::Lstore(_) => 2,
+            Instruction::LStore(_) => 2,
             Instruction::LStore0 => 1,
             Instruction::LStore1 => 1,
             Instruction::LStore2 => 1,
@@ -873,11 +876,12 @@ impl Instruction {
             Instruction::SAstore => 1,
             Instruction::SIPush(_) => 2,
             Instruction::Swap => 1,
-            Instruction::TableSwitch => unimplemented!("instruction `TableSwitch` not yet implemented"),
+            Instruction::TableSwitch => {
+                unimplemented!("instruction `TableSwitch` not yet implemented")
+            }
             Instruction::Wide3(_, _, _) => 4,
             Instruction::Wide5(_, _, _, _, _) => 6,
             Instruction::NoName => 1,
         }
     }
-
 }

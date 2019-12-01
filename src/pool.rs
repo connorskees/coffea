@@ -18,10 +18,7 @@ pub enum PoolKind {
     Float {
         bytes: u32,
     },
-    Long {
-        high_bytes: u32,
-        low_bytes: u32,
-    },
+    Long(i64),
     Double {
         high_bytes: u32,
         low_bytes: u32,
@@ -82,11 +79,8 @@ impl PoolKind {
         PoolKind::Float { bytes }
     }
 
-    pub fn long(high_bytes: u32, low_bytes: u32) -> PoolKind {
-        PoolKind::Long {
-            high_bytes,
-            low_bytes,
-        }
+    pub fn long(val: i64) -> PoolKind {
+        PoolKind::Long(val)
     }
 
     pub fn double(high_bytes: u32, low_bytes: u32) -> PoolKind {
