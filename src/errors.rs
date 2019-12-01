@@ -1,9 +1,11 @@
 use std::io;
 
+pub type JResult<T> = Result<T, ParseError>;
+
 #[derive(Debug)]
 pub enum ParseError {
     IoError(io::Error),
-    IndexError,
+    IndexError(u32),
     MethodNotFound,
 }
 
