@@ -1,4 +1,5 @@
 use crate::attributes::Attribute;
+use crate::common::Type;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FieldAccessFlags {
@@ -11,6 +12,57 @@ pub struct FieldAccessFlags {
     is_transient: bool,
     is_synthetic: bool,
     is_enum: bool,
+}
+
+#[derive(Debug)]
+pub struct FieldDescriptor {
+    ty: Type,
+}
+
+impl FieldDescriptor {
+    pub fn from_str<S: AsRef<str>>(s: S) -> FieldDescriptor {
+        let mut chars = s.as_ref().chars();
+        let ty = FieldDescriptor::eat_type(&mut chars).expect("found no field descriptor type");
+
+        FieldDescriptor { ty }
+    }
+
+    fn eat_type<'a>(cc: &mut std::str::Chars<'a>) -> Option<Type> {
+        if let Some(c) = cc.next() {
+            Some(match c {
+                ')' => return None,
+                'B' => Type::Byte,
+                'C' => Type::Char,
+                'D' => Type::Double,
+                'F' => Type::Float,
+                'I' => Type::Int,
+                'J' => Type::Long,
+                'L' => {
+                    let mut name = String::new();
+                    while let Some(c) = cc.next() {
+                        if c == ';' {
+                            break;
+                        }
+                        name.push(c);
+                    }
+                    Type::ClassName(name)
+                }
+                'S' => Type::Short,
+                'Z' => Type::Boolean,
+                'V' => Type::Void,
+                '[' => {
+                    let t = match FieldDescriptor::eat_type(cc) {
+                        Some(t) => t.clone(),
+                        None => unimplemented!(),
+                    };
+                    Type::Reference(Box::new(t))
+                }
+                _ => unimplemented!("unknown character"),
+            })
+        } else {
+            None
+        }
+    }
 }
 
 impl FieldAccessFlags {
