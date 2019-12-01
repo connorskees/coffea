@@ -356,7 +356,7 @@ impl StackEntry {
             StackEntry::Div(a, b) => format!("{} / {}", b.to_string(), a.to_string()),
             StackEntry::Ident(s) => s,
             StackEntry::String(s) => format!("\"{}\"", s),
-            StackEntry::Reference(s) => unimplemented!(),
+            StackEntry::Reference(_) => unimplemented!(),
             StackEntry::If(if_, cmp, else_) => {
                 format!("if ({} {} {}) {{\n", if_.to_string(), cmp.to_string(), else_.to_string())
             },
@@ -495,7 +495,7 @@ impl Codegen {
                     let val = self.stack.pop().unwrap();
                     self.local_variables.insert(1, StackEntry::Ident("a1".to_owned()));
                     match val {
-                        StackEntry::Reference(n) => unimplemented!(),
+                        StackEntry::Reference(_) => unimplemented!(),
                         StackEntry::String(s) => {
                             write!(buf, "String s1 = \"{}\";\n", s)?;
                         }
@@ -505,14 +505,14 @@ impl Codegen {
                 Instruction::Pop => write!(buf, "{};\n", self.stack.pop().unwrap().to_string())?,
 
                 Instruction::IfIcmpne(branchbyte1, branchbyte2) => {
-                    let offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
+                    let _offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
                     let left = self.stack.pop().unwrap();
                     let right = self.stack.pop().unwrap();
                     write!(buf, "{}", StackEntry::If(Box::new(left), Comparison::NotEqual, Box::new(right)).to_string())?;
                 }
 
                 Instruction::Goto(branchbyte1, branchbyte2) => {
-                    let offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
+                    let _offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
                     unimplemented!()
                 }
                 _ => unimplemented!(),
