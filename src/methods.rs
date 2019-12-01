@@ -1,5 +1,6 @@
 use crate::attributes::Attribute;
 use crate::code::Code;
+use crate::common::Type;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MethodInfo {
@@ -10,92 +11,14 @@ pub struct MethodInfo {
 }
 
 #[derive(Debug, Clone)]
-enum Type {
-    /// signed byte
-    Byte,
-    /// Unicode character code point in the Basic Multilingual Plane, encoded with UTF-16
-    Char,
-    /// double-precision floating-point value
-    Double,
-    /// single-precision floating-point value
-    Float,
-    /// integer
-    Int,
-    /// long integer
-    Long,
-    /// an instance of class ClassName
-    ClassName(String),
-    /// signed short
-    Short,
-    /// true or false
-    Boolean,
-    /// one array dimension
-    Reference(Box<Type>),
-    /// void
-    Void,
+pub struct MethodSignature {
+    pub args: Vec<Type>,
+    pub return_type: Type,
 }
 
-impl Type {
-    fn as_string(self) -> String {
-        match self {
-            Type::Byte => String::from("byte"),
-            Type::Char => String::from("char"),
-            Type::Double => String::from("double"),
-            Type::Float => String::from("float"),
-            Type::Int => String::from("int"),
-            Type::Long => String::from("long"),
-            // we can be certain that the classname will be ASCII
-            Type::ClassName(s) => unsafe {
-                String::from_utf8_unchecked(s.as_bytes()[10..].to_owned())
-            },
-            Type::Short => String::from("short"),
-            Type::Boolean => String::from("boolean"),
-            Type::Reference(t) => format!("{}[]", t.as_string()),
-            Type::Void => String::from("void"),
-        }
-    }
-}
-
-fn eat_type<'a>(cc: &mut std::str::Chars<'a>) -> Option<Type> {
-    if let Some(c) = cc.next() {
-        Some(match c {
-            ')' => return None,
-            'B' => Type::Byte,
-            'C' => Type::Char,
-            'D' => Type::Double,
-            'F' => Type::Float,
-            'I' => Type::Int,
-            'J' => Type::Long,
-            'L' => {
-                let mut name = String::new();
-                while let Some(c) = cc.next() {
-                    if c == ';' {
-                        break;
-                    }
-                    name.push(c);
-                }
-                Type::ClassName(name)
-            }
-            'S' => Type::Short,
-            'Z' => Type::Boolean,
-            'V' => Type::Void,
-            '[' => {
-                let t = match eat_type(cc) {
-                    Some(t) => t.clone(),
-                    None => unimplemented!(),
-                };
-                Type::Reference(Box::new(t))
-            }
-            _ => unimplemented!("unknown character"),
-        })
-    } else {
-        None
-    }
-}
-
-impl MethodInfo {
-    fn parse_return_type(&self) -> (Vec<Type>, Type) {
-        let mut chars = self.return_type.chars();
+impl MethodSignature {
+    pub fn from_descriptor<S: AsRef<str>>(s: S) -> MethodSignature {
+        let mut chars = s.as_ref().chars();
         let mut args: Vec<Type> = Vec::new();
 
         if let Some(c) = chars.next() {
@@ -104,17 +27,59 @@ impl MethodInfo {
             }
         }
 
-        while let Some(c) = eat_type(&mut chars) {
+        while let Some(c) = MethodSignature::eat_type(&mut chars) {
             args.push(c);
         }
 
-        let ret = match eat_type(&mut chars) {
+        let ret = match MethodSignature::eat_type(&mut chars) {
             Some(t) => t,
             None => unimplemented!("no return type given"),
         };
-        (args, ret)
+        MethodSignature {
+            return_type: ret,
+            args,
+        }
     }
 
+    fn eat_type<'a>(cc: &mut std::str::Chars<'a>) -> Option<Type> {
+        if let Some(c) = cc.next() {
+            Some(match c {
+                ')' => return None,
+                'B' => Type::Byte,
+                'C' => Type::Char,
+                'D' => Type::Double,
+                'F' => Type::Float,
+                'I' => Type::Int,
+                'J' => Type::Long,
+                'L' => {
+                    let mut name = String::new();
+                    while let Some(c) = cc.next() {
+                        if c == ';' {
+                            break;
+                        }
+                        name.push(c);
+                    }
+                    Type::ClassName(name)
+                }
+                'S' => Type::Short,
+                'Z' => Type::Boolean,
+                'V' => Type::Void,
+                '[' => {
+                    let t = match MethodSignature::eat_type(cc) {
+                        Some(t) => t.clone(),
+                        None => unimplemented!(),
+                    };
+                    Type::Reference(Box::new(t))
+                }
+                _ => unimplemented!("unknown character"),
+            })
+        } else {
+            None
+        }
+    }
+}
+
+impl MethodInfo {
     pub fn signature(&self) -> String {
         let mut string = String::with_capacity(100);
         let flags = self.access_flags;
@@ -128,15 +93,16 @@ impl MethodInfo {
         if flags.is_final {
             attrs.push("final");
         }
-        let (args, return_type) = self.parse_return_type();
-        let r = return_type.as_string();
-        attrs.push(&r);
-        let str_args = args
+        let signature = MethodSignature::from_descriptor(&self.return_type);
+        let return_type = signature.return_type.as_string();
+        let args = signature
+            .args
             .iter()
             .map(|a| a.clone().as_string())
             .collect::<Vec<String>>()
             .join(", ");
-        let s: &str = &format!("{}({}) {{\n", &self.name, str_args);
+        attrs.push(&return_type);
+        let s: &str = &format!("{}({}) {{\n", &self.name, args);
         attrs.push(s);
         string.push_str(&attrs.join(" "));
         string
