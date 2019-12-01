@@ -237,11 +237,80 @@ impl ClassFile {
         None
     }
 
+    pub fn class_name_from_index(&self, index: u16) -> JResult<String> {
+        if let PoolKind::Class(i) = &self.const_pool[usize::from(index - 1)] {
+            Ok(self.utf_from_index(*i)?)
+        } else {
+            Err(ParseError::IndexError(line!()))
+        }
+    }
+
     pub fn utf_from_index(&self, index: u16) -> JResult<String> {
-        if let PoolKind::Utf8(s) = &self.const_pool[usize::from(index-1)] {
+        if let PoolKind::Utf8(s) = &self.const_pool[usize::from(index - 1)] {
             Ok(s.clone())
         } else {
-            Err(ParseError::IndexError)
+            Err(ParseError::IndexError(line!()))
+        }
+    }
+
+    pub fn read_methodref_from_index(&self, index: u16) -> JResult<(String, MethodSignature)> {
+        match &self.const_pool[usize::from(index - 1)] {
+            PoolKind::MethodRef {
+                name_and_type_index,
+                class_index,
+            } => {
+                let (name, sig): (String, MethodSignature) =
+                    match &self.const_pool[usize::from(name_and_type_index - 1)] {
+                        PoolKind::NameAndType {
+                            name_index,
+                            descriptor_index,
+                        } => {
+                            let name = self.utf_from_index(*name_index)?;
+                            let ty =
+                                MethodSignature::from_descriptor(self.utf_from_index(*descriptor_index)?);
+                            (name, ty)
+                        }
+                        _ => return Err(ParseError::IndexError(line!())),
+                    };
+                let class = unsafe {
+                    String::from_utf8_unchecked(
+                        self.class_name_from_index(*class_index)?.as_bytes()[10..].to_owned(),
+                    )
+                };
+                Ok((format!("{}.{}", class, name), sig))
+            }
+            _ => return Err(ParseError::IndexError(line!())),
+        }
+    }
+
+    pub fn read_fieldref_from_index(&self, index: u16) -> JResult<(String, MethodSignature)> {
+        match &self.const_pool[usize::from(index - 1)] {
+            PoolKind::FieldRef {
+                name_and_type_index,
+                class_index,
+            } => {
+                let (name, sig): (String, MethodSignature) =
+                    match &self.const_pool[usize::from(name_and_type_index - 1)] {
+                        PoolKind::NameAndType {
+                            name_index,
+                            descriptor_index,
+                        } => {
+                            let name = self.utf_from_index(*name_index)?;
+                            dbg!(self.utf_from_index(*descriptor_index)?);
+                            let ty =
+                                MethodSignature::from_descriptor(self.utf_from_index(*descriptor_index)?);
+                            (name, ty)
+                        }
+                        _ => return Err(ParseError::IndexError(line!())),
+                    };
+                let class = unsafe {
+                    String::from_utf8_unchecked(
+                        self.class_name_from_index(*class_index)?.as_bytes()[10..].to_owned(),
+                    )
+                };
+                Ok((format!("{}.{}", class, name), sig))
+            }
+            _ => return Err(ParseError::IndexError(line!())),
         }
     }
 }
@@ -255,8 +324,8 @@ enum StackEntry {
     Div(Box<StackEntry>, Box<StackEntry>),
     Ident(String),
     Reference(usize),
+    Function(String, Box<Vec<StackEntry>>),
     String(String),
-    Uninitialized,
 }
 
 impl StackEntry {
@@ -270,7 +339,15 @@ impl StackEntry {
             StackEntry::Ident(s) => s,
             StackEntry::String(s) => s,
             StackEntry::Reference(s) => unimplemented!(),
-            StackEntry::Uninitialized => unimplemented!(),
+            StackEntry::Function(name, args) => format!(
+                "{}({})",
+                name,
+                args.iter()
+                    .rev()
+                    .map(|a| a.clone().to_string())
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
         }
     }
 }
@@ -344,32 +421,55 @@ impl ClassFile {
                 Instruction::IStore1 => {
                     local_variables.insert(1, StackEntry::Ident("i1".to_owned()));
                     write!(buf, "int i1 = {};\n", stack.pop().unwrap().to_string())?;
-                },
+                }
                 Instruction::IStore2 => {
                     local_variables.insert(2, StackEntry::Ident("i2".to_owned()));
                     write!(buf, "int i2 = {};\n", stack.pop().unwrap().to_string())?;
-                },
+                }
                 Instruction::Iadd => {
                     let val1 = stack.pop().unwrap();
                     let val2 = stack.pop().unwrap();
                     stack.push(StackEntry::Add(Box::new(val1), Box::new(val2)));
-                },
+                }
                 Instruction::Isub => {
                     let val1 = stack.pop().unwrap();
                     let val2 = stack.pop().unwrap();
                     stack.push(StackEntry::Sub(Box::new(val1), Box::new(val2)));
-                },
+                }
                 Instruction::Imul => {
                     let val1 = stack.pop().unwrap();
                     let val2 = stack.pop().unwrap();
                     stack.push(StackEntry::Mul(Box::new(val1), Box::new(val2)));
-                },
+                }
                 Instruction::Idiv => {
                     let val1 = stack.pop().unwrap();
                     let val2 = stack.pop().unwrap();
                     stack.push(StackEntry::Div(Box::new(val1), Box::new(val2)));
-                },
+                }
                 Instruction::Return => break,
+
+                Instruction::InvokeStatic(index) => {
+                    let (name, signature) = self.read_methodref_from_index(index)?;
+                    let mut args: Vec<StackEntry> = Vec::new();
+                    for _ in 0..signature.args.len() {
+                        args.push(stack.pop().unwrap());
+                    }
+                    stack.push(StackEntry::Function(name, Box::new(args)));
+                }
+
+                Instruction::InvokeVirtual(index) => {
+                    let (name, signature) = self.read_methodref_from_index(index)?;
+                    let mut args: Vec<StackEntry> = Vec::new();
+                    for _ in 0..signature.args.len() {
+                        args.push(stack.pop().unwrap());
+                    }
+                    stack.push(StackEntry::Function(name, Box::new(args)));
+                }
+
+                Instruction::GetStatic(index) => {
+                    let (name, signature) = self.read_fieldref_from_index(index)?;
+                    dbg!(name, signature);
+                }
 
                 Instruction::AStore1 => {
                     let val = stack.pop().unwrap();
