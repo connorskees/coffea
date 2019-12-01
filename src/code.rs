@@ -99,8 +99,8 @@ impl Code {
                 0x45 => Instruction::Fstore2,
                 0x46 => Instruction::Fstore3,
                 0x66 => Instruction::Fsub,
-                0xb4 => Instruction::Getfield(next(), next()),
-                0xb2 => Instruction::Getstatic(next(), next()),
+                0xb4 => Instruction::GetField(u16::from_be_bytes([next(), next()])),
+                0xb2 => Instruction::GetStatic(u16::from_be_bytes([next(), next()])),
                 0xa7 => Instruction::Goto(next(), next()),
                 0xc8 => Instruction::GotoW(next(), next(), next(), next()),
                 0x91 => Instruction::I2b,
@@ -151,8 +151,8 @@ impl Code {
                 0xba => Instruction::InvokeDynamic(next(), next(), next(), next()),
                 0xb9 => Instruction::InvokeInterface(next(), next(), next(), next()),
                 0xb7 => Instruction::InvokeSpecial(next(), next()),
-                0xb8 => Instruction::InvokeStatic(next(), next()),
-                0xb6 => Instruction::InvokeVirtual(next(), next()),
+                0xb8 => Instruction::InvokeStatic(u16::from_be_bytes([next(), next()])),
+                0xb6 => Instruction::InvokeVirtual(u16::from_be_bytes([next(), next()])),
                 0x80 => Instruction::Ior,
                 0x70 => Instruction::Irem,
                 0xac => Instruction::Ireturn,
@@ -419,9 +419,9 @@ pub enum Instruction {
     /// subtract two floats
     Fsub,
     /// get a field value of an object objectref, where the field is identified by field reference in the constant pool index (indexbyte1 << 8 + indexbyte2)
-    Getfield(u8, u8),
+    GetField(u16),
     /// get a static field value of a class, where the field is identified by field reference in the constant pool index (indexbyte1 << 8 + indexbyte2)
-    Getstatic(u8, u8),
+    GetStatic(u16),
     /// goes to another instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
     Goto(u8, u8),
     /// goes to another instruction at branchoffset (signed int constructed from unsigned bytes branchbyte1 << 24 + branchbyte2 << 16 + branchbyte3 << 8 + branchbyte4)
@@ -523,9 +523,9 @@ pub enum Instruction {
     /// invoke instance method on object objectref and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     InvokeSpecial(u8, u8),
     /// invoke a static method and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
-    InvokeStatic(u8, u8),
+    InvokeStatic(u16),
     /// invoke virtual method on object objectref and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
-    InvokeVirtual(u8, u8),
+    InvokeVirtual(u16),
     /// bitwise int OR
     Ior,
     /// logical int remainder
