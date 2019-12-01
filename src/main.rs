@@ -9,8 +9,8 @@ use crate::builder::ClassFileBuilder;
 use crate::code::Instruction;
 pub use crate::common::Type;
 use crate::errors::{ParseError, JResult};
-pub use crate::fields::{FieldAccessFlags, FieldInfo};
-use crate::methods::{MethodInfo, MethodSignature};
+pub use crate::fields::{FieldAccessFlags, FieldInfo, FieldDescriptor};
+use crate::methods::{MethodInfo, MethodDescriptor};
 pub use crate::pool::PoolKind;
 pub use crate::version::MajorVersion;
 
@@ -253,13 +253,13 @@ impl ClassFile {
         }
     }
 
-    pub fn read_methodref_from_index(&self, index: u16) -> JResult<(String, MethodSignature)> {
+    pub fn read_methodref_from_index(&self, index: u16) -> JResult<(String, String, MethodDescriptor)> {
         match &self.const_pool[usize::from(index - 1)] {
             PoolKind::MethodRef {
                 name_and_type_index,
                 class_index,
             } => {
-                let (name, sig): (String, MethodSignature) =
+                let (name, sig): (String, MethodDescriptor) =
                     match &self.const_pool[usize::from(name_and_type_index - 1)] {
                         PoolKind::NameAndType {
                             name_index,
@@ -267,53 +267,69 @@ impl ClassFile {
                         } => {
                             let name = self.utf_from_index(*name_index)?;
                             let ty =
-                                MethodSignature::from_descriptor(self.utf_from_index(*descriptor_index)?);
+                                MethodDescriptor::from_str(self.utf_from_index(*descriptor_index)?);
                             (name, ty)
                         }
                         _ => return Err(ParseError::IndexError(line!())),
                     };
-                let class = unsafe {
-                    String::from_utf8_unchecked(
-                        self.class_name_from_index(*class_index)?.as_bytes()[10..].to_owned(),
-                    )
-                };
-                Ok((format!("{}.{}", class, name), sig))
+                let class = self.class_name_from_index(*class_index)?.split("/").last().unwrap().to_owned();
+                Ok((class, name, sig))
             }
             _ => return Err(ParseError::IndexError(line!())),
         }
     }
 
-    pub fn read_fieldref_from_index(&self, index: u16) -> JResult<(String, MethodSignature)> {
+    pub fn read_fieldref_from_index(&self, index: u16) -> JResult<(String, String, FieldDescriptor)> {
         match &self.const_pool[usize::from(index - 1)] {
             PoolKind::FieldRef {
                 name_and_type_index,
                 class_index,
             } => {
-                let (name, sig): (String, MethodSignature) =
+                let (name, sig): (String, FieldDescriptor) =
                     match &self.const_pool[usize::from(name_and_type_index - 1)] {
                         PoolKind::NameAndType {
                             name_index,
                             descriptor_index,
                         } => {
                             let name = self.utf_from_index(*name_index)?;
-                            dbg!(self.utf_from_index(*descriptor_index)?);
                             let ty =
-                                MethodSignature::from_descriptor(self.utf_from_index(*descriptor_index)?);
+                                FieldDescriptor::from_str(self.utf_from_index(*descriptor_index)?);
                             (name, ty)
                         }
                         _ => return Err(ParseError::IndexError(line!())),
                     };
-                let class = unsafe {
-                    String::from_utf8_unchecked(
-                        self.class_name_from_index(*class_index)?.as_bytes()[10..].to_owned(),
-                    )
-                };
-                Ok((format!("{}.{}", class, name), sig))
+                let class = self.class_name_from_index(*class_index)?.split("/").last().unwrap().to_owned();
+                Ok((class, name, sig))
             }
             _ => return Err(ParseError::IndexError(line!())),
         }
     }
 }
+
+
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+enum Comparison {
+    Equal,
+    NotEqual,
+    GreaterThan,
+    LessThan,
+    GreaterEqualThan,
+    LessEqualThan,
+}
+
+impl Comparison {
+    fn to_string(self) -> &'static str {
+        match self {
+            Comparison::Equal => "==",
+            Comparison::NotEqual => "!=",
+            Comparison::GreaterThan => ">",
+            Comparison::LessThan => "<",
+            Comparison::GreaterEqualThan => ">=",
+            Comparison::LessEqualThan => "<=",
+        }
+    }
+}
+
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 enum StackEntry {
@@ -323,8 +339,10 @@ enum StackEntry {
     Mul(Box<StackEntry>, Box<StackEntry>),
     Div(Box<StackEntry>, Box<StackEntry>),
     Ident(String),
+    If(Box<StackEntry>, Comparison, Box<StackEntry>),
     Reference(usize),
     Function(String, Box<Vec<StackEntry>>),
+    Field(String),
     String(String),
 }
 
@@ -337,8 +355,11 @@ impl StackEntry {
             StackEntry::Mul(a, b) => format!("{} * {}", b.to_string(), a.to_string()),
             StackEntry::Div(a, b) => format!("{} / {}", b.to_string(), a.to_string()),
             StackEntry::Ident(s) => s,
-            StackEntry::String(s) => s,
+            StackEntry::String(s) => format!("\"{}\"", s),
             StackEntry::Reference(s) => unimplemented!(),
+            StackEntry::If(left, cmp, right) => {
+                format!("if ({} {} {}) {{\n", left.to_string(), cmp.to_string(), right.to_string())
+            },
             StackEntry::Function(name, args) => format!(
                 "{}({})",
                 name,
@@ -347,6 +368,10 @@ impl StackEntry {
                     .map(|a| a.clone().to_string())
                     .collect::<Vec<String>>()
                     .join(", ")
+            ),
+            StackEntry::Field(name) => format!(
+                "{}",
+                name
             ),
         }
     }
@@ -417,7 +442,23 @@ impl ClassFile {
                 Instruction::IConst3 => stack.push(StackEntry::Int(3)),
                 Instruction::IConst4 => stack.push(StackEntry::Int(4)),
                 Instruction::IConst5 => stack.push(StackEntry::Int(5)),
-                Instruction::ILoad1 => stack.push(local_variables.get(&1).unwrap().clone()),
+                Instruction::ILoad0 |
+                Instruction::Aload0 => {
+                    let val = local_variables.get(&0);
+                    match val {
+                        Some(v) => stack.push(v.clone()),
+                        None => stack.push(StackEntry::Ident("this".to_owned())),
+                    };
+                },
+                Instruction::ILoad1 |
+                Instruction::Aload1 => stack.push(local_variables.get(&1).unwrap().clone()),
+                Instruction::ILoad2 |
+                Instruction::Aload2 => stack.push(local_variables.get(&2).unwrap().clone()),
+                Instruction::ILoad3 => stack.push(local_variables.get(&3).unwrap().clone()),
+                Instruction::IStore(n) => {
+                    local_variables.insert(usize::from(n), StackEntry::Ident(format!("i{}", n)));
+                    write!(buf, "int i{} = {};\n", n, stack.pop().unwrap().to_string())?;
+                }
                 Instruction::IStore1 => {
                     local_variables.insert(1, StackEntry::Ident("i1".to_owned()));
                     write!(buf, "int i1 = {};\n", stack.pop().unwrap().to_string())?;
@@ -425,6 +466,10 @@ impl ClassFile {
                 Instruction::IStore2 => {
                     local_variables.insert(2, StackEntry::Ident("i2".to_owned()));
                     write!(buf, "int i2 = {};\n", stack.pop().unwrap().to_string())?;
+                }
+                Instruction::IStore3 => {
+                    local_variables.insert(3, StackEntry::Ident("i3".to_owned()));
+                    write!(buf, "int i3 = {};\n", stack.pop().unwrap().to_string())?;
                 }
                 Instruction::Iadd => {
                     let val1 = stack.pop().unwrap();
@@ -449,28 +494,36 @@ impl ClassFile {
                 Instruction::Return => break,
 
                 Instruction::InvokeStatic(index) => {
-                    let (name, signature) = self.read_methodref_from_index(index)?;
+                    let (class, name, descriptor) = self.read_methodref_from_index(index)?;
                     let mut args: Vec<StackEntry> = Vec::new();
-                    for _ in 0..signature.args.len() {
+                    for _ in 0..descriptor.args.len() {
                         args.push(stack.pop().unwrap());
                     }
-                    stack.push(StackEntry::Function(name, Box::new(args)));
+                    let f = StackEntry::Function(format!("{}.{}", class, name), Box::new(args));
+                    if descriptor.return_type == Type::Void {
+                        write!(buf, "{};\n", f.clone().to_string())?;
+                    }
+                    stack.push(f);
                 }
 
                 Instruction::InvokeVirtual(index) => {
-                    let (name, signature) = self.read_methodref_from_index(index)?;
+                    let (_, name, descriptor) = self.read_methodref_from_index(index)?;
                     let mut args: Vec<StackEntry> = Vec::new();
-                    for _ in 0..signature.args.len() {
-                        args.push(stack.pop().unwrap());
+                    for _ in 0..descriptor.args.len() {
+                        args.push(stack.pop().expect("expected value to be on stack"));
                     }
-                    stack.push(StackEntry::Function(name, Box::new(args)));
+                    let object = stack.pop().expect("expected value to be on stack");
+                    let f = StackEntry::Function(format!("{}.{}", object.to_string(), name), Box::new(args));
+                    if descriptor.return_type == Type::Void {
+                        write!(buf, "{};\n", f.clone().to_string())?;
+                    }
+                    stack.push(f);
                 }
 
                 Instruction::GetStatic(index) => {
-                    let (name, signature) = self.read_fieldref_from_index(index)?;
-                    dbg!(name, signature);
+                    let (class, name, _) = self.read_fieldref_from_index(index)?;
+                    stack.push(StackEntry::Field(format!("{}.{}", class, name)));
                 }
-
                 Instruction::AStore1 => {
                     let val = stack.pop().unwrap();
                     local_variables.insert(1, StackEntry::Ident("a1".to_owned()));
@@ -481,6 +534,15 @@ impl ClassFile {
                         }
                         _ => unimplemented!(),
                     }
+                }
+                Instruction::Pop => write!(buf, "{};\n", stack.pop().unwrap().to_string())?,
+
+                Instruction::IfIcmpne(a, b,) => {
+                    let index = u16::from_be_bytes([a, b]);
+                    let left = stack.pop().unwrap();
+                    let right = stack.pop().unwrap();
+                    dbg!();
+                    // dbg!(&self.const_pool[16]);
                 }
                 _ => unimplemented!(),
             };
