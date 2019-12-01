@@ -331,9 +331,10 @@ impl Comparison {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 enum StackEntry {
     Int(i32),
+    Float(f32),
     Add(Box<StackEntry>, Box<StackEntry>),
     Sub(Box<StackEntry>, Box<StackEntry>),
     Mul(Box<StackEntry>, Box<StackEntry>),
@@ -350,6 +351,7 @@ impl StackEntry {
     fn to_string(self) -> String {
         match self {
             StackEntry::Int(a) => format!("{}", a),
+            StackEntry::Float(a) => format!("{}f", a),
             StackEntry::Add(a, b) => format!("({} + {})", b.to_string(), a.to_string()),
             StackEntry::Sub(a, b) => format!("({} - {})", b.to_string(), a.to_string()),
             StackEntry::Mul(a, b) => format!("{} * {}", b.to_string(), a.to_string()),
@@ -399,6 +401,24 @@ impl Codegen {
                             self.stack.push(StackEntry::String(self.class.utf_from_index(*idx)?))
                         }
                         PoolKind::Integer(i) => self.stack.push(StackEntry::Int(*i as i32)),
+                        PoolKind::Float{ bytes } => self.stack.push(StackEntry::Float(
+                            match bytes {
+                            0x7f800000 => std::f32::INFINITY,
+                            0xff800000 => std::f32::NEG_INFINITY,
+                            0x7f800001..=0x7fffffff | 0xff800001..=0xffffffff => std::f32::NAN, 
+                            _ => {
+                                f32::from_be_bytes(bytes.to_be_bytes())
+                                // let s: i32 = if (bytes >> 31) == 0 { 1 } else { -1i32 };
+                                // let e: i32 = (bytes >> 23) & 0xff;
+                                // let m: i32 = if e == 0 {
+                                //         (bytes & 0x7fffff) << 1
+                                //     } else {
+                                //         (bytes & 0x7fffff) | 0x800000
+                                //     };
+                                // ((s*m*i32::pow(2, e-150i32)) as f32)
+                            }
+                            }
+                        )),
                         _ => unimplemented!(),
                     }
                 }
@@ -409,6 +429,9 @@ impl Codegen {
                 Instruction::IConst3 => self.stack.push(StackEntry::Int(3)),
                 Instruction::IConst4 => self.stack.push(StackEntry::Int(4)),
                 Instruction::IConst5 => self.stack.push(StackEntry::Int(5)),
+                Instruction::FConst0 => self.stack.push(StackEntry::Float(0.0)),
+                Instruction::FConst1 => self.stack.push(StackEntry::Float(1.0)),
+                Instruction::FConst2 => self.stack.push(StackEntry::Float(2.0)),
                 Instruction::ILoad0 |
                 Instruction::Aload0 => {
                     let val = self.local_variables.get(&0);
@@ -438,22 +461,42 @@ impl Codegen {
                     self.local_variables.insert(3, StackEntry::Ident("i3".to_owned()));
                     write!(buf, "int i3 = {};\n", self.stack.pop().unwrap().to_string())?;
                 }
-                Instruction::Iadd => {
+                Instruction::FStore(n) => {
+                    self.local_variables.insert(usize::from(n), StackEntry::Ident(format!("f{}", n)));
+                    write!(buf, "float f{} = {};\n", n, self.stack.pop().unwrap().to_string())?;
+                }
+                Instruction::FStore1 => {
+                    self.local_variables.insert(1, StackEntry::Ident("f1".to_owned()));
+                    write!(buf, "float f1 = {};\n", self.stack.pop().unwrap().to_string())?;
+                }
+                Instruction::FStore2 => {
+                    self.local_variables.insert(2, StackEntry::Ident("f2".to_owned()));
+                    write!(buf, "float f2 = {};\n", self.stack.pop().unwrap().to_string())?;
+                }
+                Instruction::FStore3 => {
+                    self.local_variables.insert(3, StackEntry::Ident("f3".to_owned()));
+                    write!(buf, "float f3 = {};\n", self.stack.pop().unwrap().to_string())?;
+                }
+                Instruction::Iadd |
+                Instruction::Fadd => {
                     let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
                     self.stack.push(StackEntry::Add(Box::new(val1), Box::new(val2)));
                 }
-                Instruction::Isub => {
+                Instruction::Isub |
+                Instruction::Fsub => {
                     let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
                     self.stack.push(StackEntry::Sub(Box::new(val1), Box::new(val2)));
                 }
-                Instruction::Imul => {
+                Instruction::Imul |
+                Instruction::Fmul => {
                     let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
                     self.stack.push(StackEntry::Mul(Box::new(val1), Box::new(val2)));
                 }
-                Instruction::Idiv => {
+                Instruction::Idiv |
+                Instruction::Fdiv => {
                     let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
                     self.stack.push(StackEntry::Div(Box::new(val1), Box::new(val2)));

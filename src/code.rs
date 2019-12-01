@@ -93,11 +93,11 @@ impl Code {
                 0x76 => Instruction::Fneg,
                 0x72 => Instruction::Frem,
                 0xae => Instruction::Freturn,
-                0x38 => Instruction::Fstore(next()),
-                0x43 => Instruction::Fstore0,
-                0x44 => Instruction::Fstore1,
-                0x45 => Instruction::Fstore2,
-                0x46 => Instruction::Fstore3,
+                0x38 => Instruction::FStore(next()),
+                0x43 => Instruction::FStore0,
+                0x44 => Instruction::FStore1,
+                0x45 => Instruction::FStore2,
+                0x46 => Instruction::FStore3,
                 0x66 => Instruction::Fsub,
                 0xb4 => Instruction::GetField(u16::from_be_bytes([next(), next()])),
                 0xb2 => Instruction::GetStatic(u16::from_be_bytes([next(), next()])),
@@ -407,15 +407,15 @@ pub enum Instruction {
     /// return a float
     Freturn,
     /// store a float value into a local variable #index
-    Fstore(u8),
+    FStore(u8),
     /// store a float value into local variable 0
-    Fstore0,
+    FStore0,
     /// store a float value into local variable 1
-    Fstore1,
+    FStore1,
     /// store a float value into local variable 2
-    Fstore2,
+    FStore2,
     /// store a float value into local variable 3
-    Fstore3,
+    FStore3,
     /// subtract two floats
     Fsub,
     /// get a field value of an object objectref, where the field is identified by field reference in the constant pool index (indexbyte1 << 8 + indexbyte2)
@@ -747,11 +747,11 @@ impl Instruction {
             Instruction::Fneg => 1,
             Instruction::Frem => 1,
             Instruction::Freturn => 1,
-            Instruction::Fstore(_) => 2,
-            Instruction::Fstore0 => 1,
-            Instruction::Fstore1 => 1,
-            Instruction::Fstore2 => 1,
-            Instruction::Fstore3 => 1,
+            Instruction::FStore(_) => 2,
+            Instruction::FStore0 => 1,
+            Instruction::FStore1 => 1,
+            Instruction::FStore2 => 1,
+            Instruction::FStore3 => 1,
             Instruction::Fsub => 1,
             Instruction::GetField(_) => 2,
             Instruction::GetStatic(_) => 2,
