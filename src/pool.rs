@@ -1,8 +1,6 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PoolKind {
-    Class {
-        name_index: u16,
-    },
+    Class(u16),
     FieldRef {
         class_index: u16,
         name_and_type_index: u16,
@@ -15,12 +13,8 @@ pub enum PoolKind {
         class_index: u16,
         name_and_type_index: u16,
     },
-    String {
-        string_index: u16,
-    },
-    Integer {
-        bytes: u32,
-    },
+    String(u16),
+    Integer(u32),
     Float {
         bytes: u32,
     },
@@ -52,7 +46,7 @@ pub enum PoolKind {
 
 impl PoolKind {
     pub fn class(name_index: u16) -> PoolKind {
-        PoolKind::Class { name_index }
+        PoolKind::Class(name_index)
     }
 
     pub fn field_ref(class_index: u16, name_and_type_index: u16) -> PoolKind {
@@ -77,11 +71,11 @@ impl PoolKind {
     }
 
     pub fn string(string_index: u16) -> PoolKind {
-        PoolKind::String { string_index }
+        PoolKind::String(string_index)
     }
 
     pub fn integer(bytes: u32) -> PoolKind {
-        PoolKind::Integer { bytes }
+        PoolKind::Integer(bytes)
     }
 
     pub fn float(bytes: u32) -> PoolKind {
