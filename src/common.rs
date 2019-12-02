@@ -37,6 +37,7 @@ impl fmt::Display for Type {
             Type::Int => write!(f, "int"),
             Type::Long => write!(f, "long"),
             // we can be certain that the classname will be ASCII
+            // todo: dont just automatically strip the first 10 chars (java.lang.)
             Type::ClassName(s) => write!(f, "{}", unsafe {
                 String::from_utf8_unchecked(s.as_bytes()[10..].to_owned())
             }),

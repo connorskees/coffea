@@ -25,7 +25,7 @@ impl Code {
                 0x2b => Instruction::Aload1,
                 0x2c => Instruction::Aload2,
                 0x2d => Instruction::ALoad3,
-                0xbd => Instruction::ANewArray(next(), next()),
+                0xbd => Instruction::ANewArray(u16::from_be_bytes([next(), next()])),
                 0xb0 => Instruction::AReturn,
                 0xbe => Instruction::ArrayLength,
                 0x3a => Instruction::AStore(next()),
@@ -173,9 +173,9 @@ impl Code {
                 0x89 => Instruction::L2f,
                 0x88 => Instruction::L2i,
                 0x61 => Instruction::LAdd,
-                0x2f => Instruction::Laload,
+                0x2f => Instruction::LALoad,
                 0x7f => Instruction::Land,
-                0x50 => Instruction::Lastore,
+                0x50 => Instruction::LAStore,
                 0x94 => Instruction::Lcmp,
                 0x09 => Instruction::LConst0,
                 0x0a => Instruction::LConst1,
@@ -216,8 +216,8 @@ impl Code {
                 0xb3 => Instruction::PutStatic(next(), next()),
                 0xa9 => Instruction::Ret(next()),
                 0xb1 => Instruction::Return,
-                0x35 => Instruction::SAload,
-                0x56 => Instruction::SAstore,
+                0x35 => Instruction::SALoad,
+                0x56 => Instruction::SAStore,
                 0x11 => Instruction::SIPush(u16::from_be_bytes([next(), next()])),
                 0x5f => Instruction::Swap,
                 0xaa => unimplemented!("instruction `TableSwitch` not yet implemented"), //Instruction::TableSwitch,
@@ -270,7 +270,7 @@ pub enum Instruction {
     ///	load a reference onto the stack from local variable 3
     ALoad3,
     /// create a new array of references of length count and component type identified by the class reference index (indexbyte1 << 8 + indexbyte2) in the constant pool
-    ANewArray(u8, u8),
+    ANewArray(u16),
     /// return a reference from a method
     AReturn,
     ///	get the length of an array
@@ -566,11 +566,11 @@ pub enum Instruction {
     /// add two longs
     LAdd,
     /// load a long from an array
-    Laload,
+    LALoad,
     /// bitwise AND of two longs
     Land,
     /// store a long to an array
-    Lastore,
+    LAStore,
     /// push 0 if the two longs are the same, 1 if value1 is greater than value2, -1 otherwise
     Lcmp,
     /// push 0L (the number zero with type long) onto the stack
@@ -652,9 +652,9 @@ pub enum Instruction {
     /// return void from method
     Return,
     /// load short from array
-    SAload,
+    SALoad,
     /// store short to array
-    SAstore,
+    SAStore,
     /// push a short onto the stack as an integer value
     SIPush(u16),
     /// swaps two top words on the stack (note that value1 and value2 must not be double or long)
@@ -789,9 +789,9 @@ impl Instruction {
             | Instruction::L2f
             | Instruction::L2i
             | Instruction::LAdd
-            | Instruction::Laload
+            | Instruction::LALoad
             | Instruction::Land
-            | Instruction::Lastore
+            | Instruction::LAStore
             | Instruction::Lcmp
             | Instruction::LConst0
             | Instruction::LConst1
@@ -820,8 +820,8 @@ impl Instruction {
             | Instruction::Pop
             | Instruction::Pop2
             | Instruction::Return
-            | Instruction::SAload
-            | Instruction::SAstore
+            | Instruction::SALoad
+            | Instruction::SAStore
             | Instruction::Swap
             | Instruction::NoName => 1,
             Instruction::ALoad(_)
@@ -843,7 +843,7 @@ impl Instruction {
             | Instruction::SIPush(_)
             | Instruction::Ldc(_)
             | Instruction::LLoad(_) => 2,
-            Instruction::ANewArray(_, _)
+            Instruction::ANewArray(_)
             | Instruction::Checkcast(_, _)
             | Instruction::Goto(_, _)
             | Instruction::InvokeSpecial(_, _)

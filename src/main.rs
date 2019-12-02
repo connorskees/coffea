@@ -358,14 +358,13 @@ impl fmt::Display for Comparison {
 
 #[derive(Debug, Clone, PartialEq)]
 enum StackEntry {
-    // Char(u8),
-    // Byte(i8),
     Int(i32),
     Float(f32),
     Double(f64),
     Long(i64),
     Array(Type, usize, Vec<StackEntry>),
     Index(Box<StackEntry>, Box<StackEntry>),
+    Class(String),
     Cast(Type, Box<StackEntry>),
     Add(Box<StackEntry>, Box<StackEntry>),
     Sub(Box<StackEntry>, Box<StackEntry>),
@@ -373,10 +372,10 @@ enum StackEntry {
     Div(Box<StackEntry>, Box<StackEntry>),
     Ident(String),
     If(Box<StackEntry>, Comparison, Box<StackEntry>),
-    Reference(usize),
     Function(String, Vec<StackEntry>, Type),
     Field(String),
     String(String),
+    Unitialized,
 }
 
 impl fmt::Display for StackEntry {
@@ -396,6 +395,7 @@ impl fmt::Display for StackEntry {
                     .join(", ")
             ),
             StackEntry::Index(arr, idx) => write!(f, "{}[{}]", arr, idx),
+            StackEntry::Class(name) => write!(f, "{}", name),
             StackEntry::Cast(ty, val) => write!(f, "({}) {}", ty, val),
             StackEntry::Add(a, b) => write!(f, "({} + {})", b, a),
             StackEntry::Sub(a, b) => write!(f, "({} - {})", b, a),
@@ -403,7 +403,6 @@ impl fmt::Display for StackEntry {
             StackEntry::Div(a, b) => write!(f, "{} / {}", b, a),
             StackEntry::Ident(s) => write!(f, "{}", s),
             StackEntry::String(s) => write!(f, "\"{}\"", s),
-            StackEntry::Reference(_) => unimplemented!(),
             StackEntry::If(if_, cmp, else_) => writeln!(f, "if ({} {} {}) {{", if_, cmp, else_),
             StackEntry::Function(name, args, _) => write!(
                 f,
@@ -416,6 +415,7 @@ impl fmt::Display for StackEntry {
                     .join(", ")
             ),
             StackEntry::Field(name) => write!(f, "{}", name),
+            StackEntry::Unitialized => panic!("attempted to render unitialized entry"),
         }
     }
 }
@@ -531,7 +531,14 @@ impl Codegen {
                 | Instruction::LLoad3 => self
                     .stack
                     .push(self.local_variables.get(&3).unwrap().clone()),
-                Instruction::BALoad => {
+                Instruction::AALoad
+                | Instruction::BALoad
+                | Instruction::CALoad
+                | Instruction::DALoad
+                | Instruction::FALoad
+                | Instruction::IALoad
+                | Instruction::LALoad
+                | Instruction::SALoad => {
                     let index = self.stack.pop().unwrap();
                     let array = self.stack.pop().unwrap();
                     self.stack.push(StackEntry::Index(Box::new(array), Box::new(index)))
@@ -617,13 +624,19 @@ impl Codegen {
                         .insert(3, StackEntry::Ident("l3".to_owned()));
                     writeln!(buf, "long l3 = {};", self.stack.pop().unwrap())?;
                 }
-                Instruction::BAStore => {
+                Instruction::AAStore
+                | Instruction::BAStore
+                | Instruction::CAStore
+                | Instruction::DAStore
+                | Instruction::FAStore
+                | Instruction::IAStore
+                | Instruction::LAStore
+                | Instruction::SAStore => {
                     let val = self.stack.pop().unwrap();
-                    let index = if let StackEntry::Int(i) = self.stack.pop().unwrap() {
-                        i
-                    } else {
-                        unimplemented!("non-int array index")
-                    }.try_into()?;
+                    let index: usize = match self.stack.pop().unwrap() {
+                        StackEntry::Int(i) => i.try_into()?,
+                        _ => unimplemented!("non-int array index"),
+                    };
                     let array = self.stack.pop().unwrap();
                     match array {
                         StackEntry::Array(ty, count, mut els) => {
@@ -715,11 +728,10 @@ impl Codegen {
                     self.local_variables
                         .insert(1, StackEntry::Ident("a1".to_owned()));
                     match val {
-                        StackEntry::Reference(_) => unimplemented!(),
                         StackEntry::Array(ty, _, els) => {
                             writeln!(
                                 buf,
-                                "{}[] a2 = {{ {} }}",
+                                "{}[] a2 = {{ {} }};",
                                 ty,
                                 els.iter()
                                     .rev()
@@ -739,11 +751,10 @@ impl Codegen {
                     self.local_variables
                         .insert(2, StackEntry::Ident("a2".to_owned()));
                     match val {
-                        StackEntry::Reference(_) => unimplemented!(),
                         StackEntry::Array(ty, _, els) => {
                             writeln!(
                                 buf,
-                                "{}[] a2 = {{ {} }}",
+                                "{}[] a2 = {{ {} }};",
                                 ty,
                                 els.iter()
                                     .rev()
@@ -758,6 +769,7 @@ impl Codegen {
                         _ => unimplemented!(),
                     }
                 }
+                
                 Instruction::NewArray(ty) => {
                     let ty = match ty {
                         4 => Type::Boolean, //int
@@ -770,7 +782,7 @@ impl Codegen {
                         11 => Type::Long,   //long
                         _ => unimplemented!("unexpected NewArray type"),
                     };
-                    let count = match self.stack.pop().unwrap() {
+                    let count: usize = match self.stack.pop().unwrap() {
                         StackEntry::Int(i) => i,
                         _ => unimplemented!("NewArray count is non-integer value"),
                     }
@@ -785,6 +797,16 @@ impl Codegen {
                         Type::Double => vec![StackEntry::Double(0.0); count],
                         _ => unreachable!("this can not occur ]")
                     };
+                    self.stack.push(StackEntry::Array(ty, count, v))
+                }
+                Instruction::ANewArray(index) => {
+                    let ty = Type::ClassName(self.class.class_name_from_index(index)?.replace('/', "."));
+                    let count: usize = match self.stack.pop().unwrap() {
+                        StackEntry::Int(i) => i,
+                        _ => unimplemented!("NewArray count is non-integer value"),
+                    }
+                    .try_into()?;
+                    let v = vec![StackEntry::Unitialized; count];
                     self.stack.push(StackEntry::Array(ty, count, v))
                 }
                 Instruction::Nop => {}
