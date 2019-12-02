@@ -3,6 +3,8 @@
 // todo: heuristic for byte and friends being converted to int (e.g. indexing into array)
 // todo: heuristic for generics
 // todo: not necessary to have field descriptor (can just be type)
+// todo: stringbuilder syntactic sugar
+// todo: heuristic for variables initially declared as null
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt;
@@ -356,14 +358,13 @@ impl fmt::Display for Comparison {
     }
 }
 
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum BinaryOp {
     Add,
     Sub,
     Mul,
     Div,
-    InstanceOf
+    InstanceOf,
 }
 
 impl fmt::Display for BinaryOp {
@@ -377,7 +378,6 @@ impl fmt::Display for BinaryOp {
         }
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq)]
 enum UnaryOp {
@@ -396,6 +396,7 @@ impl fmt::Display for UnaryOp {
 
 #[derive(Debug, Clone, PartialEq)]
 enum StackEntry {
+    Null,
     Int(i32),
     Float(f32),
     Double(f64),
@@ -418,6 +419,7 @@ enum StackEntry {
 impl fmt::Display for StackEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            StackEntry::Null => write!(f, "null"),
             StackEntry::Int(a) => write!(f, "{}", a),
             StackEntry::Long(a) => write!(f, "{}l", a),
             StackEntry::Float(a) => write!(f, "{}f", a),
@@ -426,7 +428,6 @@ impl fmt::Display for StackEntry {
                 f,
                 "{{ {} }}",
                 els.iter()
-                    .rev()
                     .map(|a| format!("{}", a))
                     .collect::<Vec<String>>()
                     .join(", ")
@@ -517,7 +518,8 @@ impl<W: Write> Codegen<W> {
                         PoolKind::Long(long) => self.stack.push(StackEntry::Long(*long)),
                         _ => unimplemented!("Ldc2w should only encounter doubles and longs"),
                     }
-                }                
+                }
+                Instruction::AConstNull => self.stack.push(StackEntry::Null),
                 Instruction::IConstM1 => self.stack.push(StackEntry::Int(-1)),
                 Instruction::IConst0 => self.stack.push(StackEntry::Int(0)),
                 Instruction::IConst1 => self.stack.push(StackEntry::Int(1)),
@@ -634,35 +636,52 @@ impl<W: Write> Codegen<W> {
                 Instruction::IAdd | Instruction::FAdd | Instruction::DAdd | Instruction::LAdd => {
                     let val2 = self.stack.pop().unwrap();
                     let val1 = self.stack.pop().unwrap();
-                    self.stack
-                        .push(StackEntry::BinaryOp(Box::new(val1), BinaryOp::Add, Box::new(val2)));
+                    self.stack.push(StackEntry::BinaryOp(
+                        Box::new(val1),
+                        BinaryOp::Add,
+                        Box::new(val2),
+                    ));
                 }
                 Instruction::Isub | Instruction::Fsub | Instruction::Dsub | Instruction::Lsub => {
                     let val2 = self.stack.pop().unwrap();
                     let val1 = self.stack.pop().unwrap();
-                    self.stack
-                        .push(StackEntry::BinaryOp(Box::new(val1), BinaryOp::Sub, Box::new(val2)));
+                    self.stack.push(StackEntry::BinaryOp(
+                        Box::new(val1),
+                        BinaryOp::Sub,
+                        Box::new(val2),
+                    ));
                 }
                 Instruction::Imul | Instruction::Fmul | Instruction::Dmul | Instruction::Lmul => {
                     let val2 = self.stack.pop().unwrap();
                     let val1 = self.stack.pop().unwrap();
-                    self.stack
-                        .push(StackEntry::BinaryOp(Box::new(val1), BinaryOp::Mul, Box::new(val2)));
+                    self.stack.push(StackEntry::BinaryOp(
+                        Box::new(val1),
+                        BinaryOp::Mul,
+                        Box::new(val2),
+                    ));
                 }
                 Instruction::Idiv | Instruction::Fdiv | Instruction::Ddiv | Instruction::Ldiv => {
                     let val2 = self.stack.pop().unwrap();
                     let val1 = self.stack.pop().unwrap();
-                    self.stack
-                        .push(StackEntry::BinaryOp(Box::new(val1), BinaryOp::Div, Box::new(val2)));
+                    self.stack.push(StackEntry::BinaryOp(
+                        Box::new(val1),
+                        BinaryOp::Div,
+                        Box::new(val2),
+                    ));
                 }
                 Instruction::Ineg | Instruction::Fneg | Instruction::Dneg | Instruction::Lneg => {
                     let val = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::UnaryOp(Box::new(UnaryOp::Neg(val))));
+                    self.stack
+                        .push(StackEntry::UnaryOp(Box::new(UnaryOp::Neg(val))));
                 }
                 Instruction::InstanceOf(idx) => {
                     let obj1 = self.stack.pop().unwrap();
                     let obj2 = self.class.class_name_from_index(idx)?;
-                    self.stack.push(StackEntry::BinaryOp(Box::new(obj1), BinaryOp::InstanceOf, Box::new(StackEntry::Class(obj2))));
+                    self.stack.push(StackEntry::BinaryOp(
+                        Box::new(obj1),
+                        BinaryOp::InstanceOf,
+                        Box::new(StackEntry::Class(obj2)),
+                    ));
                 }
 
                 Instruction::Return => break,
@@ -779,7 +798,8 @@ impl<W: Write> Codegen<W> {
                 }
                 Instruction::ArrayLength => {
                     let val = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::UnaryOp(Box::new(UnaryOp::ArrayLength(val))));
+                    self.stack
+                        .push(StackEntry::UnaryOp(Box::new(UnaryOp::ArrayLength(val))));
                 }
 
                 Instruction::Nop => {}
@@ -851,6 +871,8 @@ impl<W: Write> Codegen<W> {
                     self.stack.push(val2);
                     self.stack.push(val1);
                 }
+
+                Instruction::Breakpoint | Instruction::Impdep1 | Instruction::Impdep2 => {}
                 _ => unimplemented!("instruction not yet implemented"),
             };
         }
@@ -861,83 +883,70 @@ impl<W: Write> Codegen<W> {
     fn astore(&mut self, idx: u8) -> JResult<()> {
         let val = self.stack.pop().unwrap();
         let idx = usize::from(idx);
-        dbg!(&val);
-        match &val {
-            StackEntry::Array(ty, _, _) => {
-                writeln!(self.buf, "{}[] a{} = {{ {} }};", ty, idx, val)?;
-                self.local_variables.insert(
-                    idx,
-                    StackEntry::Ident(format!("a{}", idx), Type::Reference(Box::new(ty.clone()))),
-                );
-            }
-            StackEntry::String(s) => {
-                writeln!(self.buf, "String s{} = \"{}\";", idx, s)?;
-                self.local_variables.insert(
-                    idx,
-                    StackEntry::Ident(
-                        format!("s{}", idx),
-                        Type::ClassName("java/lang/String".to_owned()),
-                    ),
-                );
-            }
-            StackEntry::Field(ty, f) => {
-                writeln!(self.buf, "{} f{} = {};", &ty, idx, f)?;
-                self.local_variables
-                    .insert(idx, StackEntry::Ident(format!("f{}", idx), ty.clone()));
-            }
-            StackEntry::Index(_, _, ty) => {
-                writeln!(self.buf, "{} i{} = {};", ty, idx, val)?;
-                self.local_variables
-                    .insert(idx, StackEntry::Ident(format!("i{}", idx), ty.clone()));
-            }
-            StackEntry::New(s) => {
-                writeln!(self.buf, "{} n{} = {};", &s, idx, val)?;
-                self.local_variables
-                    .insert(idx, StackEntry::Ident(format!("n{}", idx), Type::ClassName(s.clone())));
-            }
-            StackEntry::Function(_, _, return_type) => {
-                writeln!(self.buf, "{} n{} = {};", &return_type, idx, val)?;
-                self.local_variables
-                    .insert(idx, StackEntry::Ident(format!("n{}", idx), return_type.clone()));
-            }
+        let (ty, s) = match val.clone() {
+            StackEntry::Array(ty, _, _) => (Type::Reference(Box::new(ty)), val.to_string()),
+            StackEntry::String(s) => (Type::ClassName("String".to_owned()), format!("\"{}\"", s)),
+            StackEntry::Field(ty, f) => (ty, f),
+            StackEntry::Index(_, _, ty) => (ty, val.to_string()),
+            StackEntry::New(s) => (Type::ClassName(s.clone()), s),
+            StackEntry::Function(_, _, return_type) => (return_type, val.to_string()),
+            StackEntry::Null => (Type::Void, String::from("null")),
             _ => unimplemented!(),
-        }
+        };
+        match self.local_variables.insert(
+            idx,
+            StackEntry::Ident(
+                format!("v{}", idx),
+                ty.clone(),
+            ),
+        ) {
+            Some(..) => writeln!(self.buf, "v{} = {};", idx, s)?,
+            None => writeln!(self.buf, "{} v{} = {};", ty, idx, s)?
+        };
         Ok(())
     }
 
     fn istore(&mut self, idx: u8) -> JResult<()> {
-        self.local_variables.insert(
+        match self.local_variables.insert(
             usize::from(idx),
             StackEntry::Ident(format!("i{}", idx), Type::Int),
-        );
-        writeln!(self.buf, "int i{} = {};", idx, self.stack.pop().unwrap())?;
+        ) {
+            Some(..) => writeln!(self.buf, "i{} = {};", idx, self.stack.pop().unwrap())?,
+            None => writeln!(self.buf, "int i{} = {};", idx, self.stack.pop().unwrap())?,
+        };
         Ok(())
     }
 
     fn fstore(&mut self, idx: u8) -> JResult<()> {
-        self.local_variables.insert(
+        match self.local_variables.insert(
             usize::from(idx),
             StackEntry::Ident(format!("f{}", idx), Type::Float),
-        );
-        writeln!(self.buf, "float f{} = {};", idx, self.stack.pop().unwrap())?;
+        ) {
+            Some(..) => writeln!(self.buf, "f{} = {};", idx, self.stack.pop().unwrap())?,
+            None => writeln!(self.buf, "float f{} = {};", idx, self.stack.pop().unwrap())?,
+        };
         Ok(())
     }
 
     fn dstore(&mut self, idx: u8) -> JResult<()> {
-        self.local_variables.insert(
+        match self.local_variables.insert(
             usize::from(idx),
             StackEntry::Ident(format!("d{}", idx), Type::Double),
-        );
-        writeln!(self.buf, "double d{} = {};", idx, self.stack.pop().unwrap())?;
+        ) {
+            Some(..) => writeln!(self.buf, "d{} = {};", idx, self.stack.pop().unwrap())?,
+            None => writeln!(self.buf, "double d{} = {};", idx, self.stack.pop().unwrap())?,
+        };
         Ok(())
     }
 
     fn lstore(&mut self, idx: u8) -> JResult<()> {
-        self.local_variables.insert(
+        match self.local_variables.insert(
             usize::from(idx),
             StackEntry::Ident(format!("l{}", idx), Type::Long),
-        );
-        writeln!(self.buf, "long l{} = {};", idx, self.stack.pop().unwrap())?;
+        ) {
+            Some(..) => writeln!(self.buf, "l{} = {};", idx, self.stack.pop().unwrap())?,
+            None => writeln!(self.buf, "long l{} = {};", idx, self.stack.pop().unwrap())?,
+        };
         Ok(())
     }
 
