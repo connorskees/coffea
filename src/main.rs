@@ -1,6 +1,7 @@
 #![deny(missing_debug_implementations)]
 #![allow(dead_code, clippy::use_self, clippy::module_name_repetitions)]
 // todo: heuristic for byte and friends being converted to int (e.g. indexing into array)
+// todo: heuristic for generics
 // todo: not necessary to have field descriptor (can just be type)
 use std::collections::HashMap;
 use std::convert::TryInto;
@@ -362,6 +363,7 @@ enum BinaryOp {
     Sub,
     Mul,
     Div,
+    InstanceOf
 }
 
 impl fmt::Display for BinaryOp {
@@ -371,6 +373,7 @@ impl fmt::Display for BinaryOp {
             BinaryOp::Sub => write!(f, "-"),
             BinaryOp::Mul => write!(f, "*"),
             BinaryOp::Div => write!(f, "/"),
+            BinaryOp::InstanceOf => write!(f, "instanceof"),
         }
     }
 }
@@ -398,7 +401,7 @@ enum StackEntry {
     Double(f64),
     Long(i64),
     Array(Type, usize, Vec<StackEntry>),
-    New(Box<StackEntry>),
+    New(String),
     Index(Box<StackEntry>, Box<StackEntry>, Type),
     Class(String),
     Cast(Type, Box<StackEntry>),
@@ -652,7 +655,6 @@ impl<W: Write> Codegen<W> {
                     self.stack
                         .push(StackEntry::BinaryOp(Box::new(val1), BinaryOp::Div, Box::new(val2)));
                 }
-
                 Instruction::Ineg | Instruction::Fneg | Instruction::Dneg | Instruction::Lneg => {
                     let val = self.stack.pop().unwrap();
                     self.stack.push(StackEntry::UnaryOp(Box::new(UnaryOp::Neg(val))));
@@ -668,21 +670,20 @@ impl<W: Write> Codegen<W> {
                 }
 
                 Instruction::InvokeSpecial(index) => {
-                    let (_, name, descriptor) = self.class.read_methodref_from_index(index)?;
+                    let (class, name, descriptor) = self.class.read_methodref_from_index(index)?;
                     let mut args: Vec<StackEntry> = Vec::new();
                     for _ in 0..descriptor.args.len() {
                         args.push(self.stack.pop().expect("expected value to be on stack"));
                     }
                     let object = self.stack.pop().expect("expected value to be on stack");
                     let f = StackEntry::Function(
-                        format!("{}.{}", object, name),
+                        match name.as_str() {
+                            "<init>" => object.to_string(),
+                            _ => format!("{}.{}", object, name),
+                        },
                         args,
-                        descriptor.return_type.clone(),
+                        Type::ClassName(class),
                     );
-                    if descriptor.return_type == Type::Void {
-                        writeln!(self.buf, "{};", f.clone())?;
-                    }
-                    write!(self.buf, "{};\n", f)?;
                     self.stack.push(f);
                 }
 
@@ -813,11 +814,17 @@ impl<W: Write> Codegen<W> {
                 Instruction::F2i | Instruction::D2i | Instruction::L2i => self.cast(Type::Int),
                 Instruction::I2f | Instruction::D2f | Instruction::L2f => self.cast(Type::Float),
 
+                Instruction::New(idx) => {
+                    let obj = self.class.class_name_from_index(idx)?;
+                    self.stack.push(StackEntry::New(obj));
+                }
+
                 Instruction::Dup => {
                     // todo: figure out initialization with `dup`
                     let val = self.stack.pop().unwrap();
                     match val {
                         StackEntry::Array(..) => self.stack.push(val),
+                        StackEntry::New(..) => self.stack.push(val),
                         _ => {
                             self.stack.push(val.clone());
                             self.stack.push(val);
@@ -849,6 +856,7 @@ impl<W: Write> Codegen<W> {
     fn astore(&mut self, idx: u8) -> JResult<()> {
         let val = self.stack.pop().unwrap();
         let idx = usize::from(idx);
+        dbg!(&val);
         match &val {
             StackEntry::Array(ty, _, _) => {
                 writeln!(self.buf, "{}[] a{} = {{ {} }};", ty, idx, val)?;
@@ -876,6 +884,16 @@ impl<W: Write> Codegen<W> {
                 writeln!(self.buf, "{} i{} = {};", ty, idx, val)?;
                 self.local_variables
                     .insert(idx, StackEntry::Ident(format!("i{}", idx), ty.clone()));
+            }
+            StackEntry::New(s) => {
+                writeln!(self.buf, "{} n{} = {};", &s, idx, val)?;
+                self.local_variables
+                    .insert(idx, StackEntry::Ident(format!("n{}", idx), Type::ClassName(s.clone())));
+            }
+            StackEntry::Function(_, _, return_type) => {
+                writeln!(self.buf, "{} n{} = {};", &return_type, idx, val)?;
+                self.local_variables
+                    .insert(idx, StackEntry::Ident(format!("n{}", idx), return_type.clone()));
             }
             _ => unimplemented!(),
         }

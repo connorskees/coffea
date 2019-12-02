@@ -207,7 +207,7 @@ impl Code {
                 0xc2 => Instruction::MonitorEnter,
                 0xc3 => Instruction::MonitorExit,
                 0xc5 => Instruction::MultiANewArray(next(), next(), next()),
-                0xbb => Instruction::New(next(), next()),
+                0xbb => Instruction::New(u16::from_be_bytes([next(), next()])),
                 0xbc => Instruction::NewArray(next()),
                 0x00 => Instruction::Nop,
                 0x57 => Instruction::Pop,
@@ -634,7 +634,7 @@ pub enum Instruction {
     /// create a new array of dimensions dimensions of type identified by class reference in constant pool index (indexbyte1 << 8 + indexbyte2); the sizes of each dimension is identified by count1, [count2, etc.]
     MultiANewArray(u8, u8, u8),
     /// create new object of type identified by class reference in constant pool index (indexbyte1 << 8 + indexbyte2)
-    New(u8, u8),
+    New(u16),
     /// create new array with count elements of primitive type identified by atype
     NewArray(u8),
     /// perform no operation
@@ -868,7 +868,7 @@ impl Instruction {
             | Instruction::Jsr(_, _)
             | Instruction::LdcW(_)
             | Instruction::Ldc2W(_)
-            | Instruction::New(_, _)
+            | Instruction::New(_)
             | Instruction::PutField(_, _)
             | Instruction::PutStatic(_, _) => 3,
             Instruction::Wide3(_, _, _) | Instruction::MultiANewArray(_, _, _) => 4,
