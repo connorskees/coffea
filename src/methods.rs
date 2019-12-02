@@ -6,7 +6,8 @@ use crate::common::Type;
 pub struct MethodInfo {
     pub access_flags: MethodAccessFlags,
     pub name: String,
-    pub return_type: String,
+    pub args: Vec<Type>,
+    pub return_type: Type,
     pub attributes: Vec<Attribute>,
 }
 
@@ -95,9 +96,9 @@ impl MethodInfo {
         if flags.is_final {
             attrs.push("final");
         }
-        let signature = MethodDescriptor::new(&self.return_type);
-        let return_type = signature.return_type.to_string();
-        let args = signature
+
+        let return_type = self.return_type.to_string();
+        let args = self
             .args
             .iter()
             .map(|a| format!("{}", a))
