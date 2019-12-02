@@ -335,36 +335,20 @@ impl ClassFile {
     }
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-enum Comparison {
-    Equal,
-    NotEqual,
-    GreaterThan,
-    LessThan,
-    GreaterEqualThan,
-    LessEqualThan,
-}
-
-impl fmt::Display for Comparison {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Comparison::Equal => write!(f, "=="),
-            Comparison::NotEqual => write!(f, "!="),
-            Comparison::GreaterThan => write!(f, ">"),
-            Comparison::LessThan => write!(f, "<"),
-            Comparison::GreaterEqualThan => write!(f, ">="),
-            Comparison::LessEqualThan => write!(f, "<="),
-        }
-    }
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum BinaryOp {
     Add,
     Sub,
     Mul,
     Div,
+    Rem,
     InstanceOf,
+    Equal,
+    NotEqual,
+    GreaterThan,
+    LessThan,
+    GreaterEqualThan,
+    LessEqualThan,
 }
 
 impl fmt::Display for BinaryOp {
@@ -374,7 +358,14 @@ impl fmt::Display for BinaryOp {
             BinaryOp::Sub => write!(f, "-"),
             BinaryOp::Mul => write!(f, "*"),
             BinaryOp::Div => write!(f, "/"),
+            BinaryOp::Rem => write!(f, "%"),
             BinaryOp::InstanceOf => write!(f, "instanceof"),
+            BinaryOp::Equal => write!(f, "=="),
+            BinaryOp::NotEqual => write!(f, "!="),
+            BinaryOp::GreaterThan => write!(f, ">"),
+            BinaryOp::LessThan => write!(f, "<"),
+            BinaryOp::GreaterEqualThan => write!(f, ">="),
+            BinaryOp::LessEqualThan => write!(f, "<="),
         }
     }
 }
@@ -409,7 +400,7 @@ enum StackEntry {
     UnaryOp(Box<UnaryOp>),
     BinaryOp(Box<StackEntry>, BinaryOp, Box<StackEntry>),
     Ident(String, Type),
-    If(Box<StackEntry>, Comparison, Box<StackEntry>),
+    If(Box<StackEntry>, BinaryOp, Box<StackEntry>),
     Function(String, Vec<StackEntry>, Type),
     Field(Type, String),
     String(String),
@@ -633,42 +624,13 @@ impl<W: Write> Codegen<W> {
                     }
                 }
 
-                Instruction::IAdd | Instruction::FAdd | Instruction::DAdd | Instruction::LAdd => {
-                    let val2 = self.stack.pop().unwrap();
-                    let val1 = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::BinaryOp(
-                        Box::new(val1),
-                        BinaryOp::Add,
-                        Box::new(val2),
-                    ));
-                }
-                Instruction::Isub | Instruction::Fsub | Instruction::Dsub | Instruction::Lsub => {
-                    let val2 = self.stack.pop().unwrap();
-                    let val1 = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::BinaryOp(
-                        Box::new(val1),
-                        BinaryOp::Sub,
-                        Box::new(val2),
-                    ));
-                }
-                Instruction::Imul | Instruction::Fmul | Instruction::Dmul | Instruction::Lmul => {
-                    let val2 = self.stack.pop().unwrap();
-                    let val1 = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::BinaryOp(
-                        Box::new(val1),
-                        BinaryOp::Mul,
-                        Box::new(val2),
-                    ));
-                }
-                Instruction::Idiv | Instruction::Fdiv | Instruction::Ddiv | Instruction::Ldiv => {
-                    let val2 = self.stack.pop().unwrap();
-                    let val1 = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::BinaryOp(
-                        Box::new(val1),
-                        BinaryOp::Div,
-                        Box::new(val2),
-                    ));
-                }
+                Instruction::IAdd | Instruction::FAdd | Instruction::DAdd | Instruction::LAdd => self.binary_op(BinaryOp::Add),
+                Instruction::Isub | Instruction::Fsub | Instruction::Dsub | Instruction::Lsub => self.binary_op(BinaryOp::Sub),
+                Instruction::Imul | Instruction::Fmul | Instruction::Dmul | Instruction::Lmul => self.binary_op(BinaryOp::Mul),
+                Instruction::Idiv | Instruction::Fdiv | Instruction::Ddiv | Instruction::Ldiv => self.binary_op(BinaryOp::Div),
+                Instruction::Irem | Instruction::Frem | Instruction::Drem | Instruction::Lrem => self.binary_op(BinaryOp::Rem),
+                Instruction::Fcmpg | Instruction::Dcmpg => self.binary_op(BinaryOp::GreaterThan),
+                Instruction::Fcmpl | Instruction::Dcmpl => self.binary_op(BinaryOp::LessThan),
                 Instruction::Ineg | Instruction::Fneg | Instruction::Dneg | Instruction::Lneg => {
                     let val = self.stack.pop().unwrap();
                     self.stack
@@ -822,7 +784,7 @@ impl<W: Write> Codegen<W> {
                     write!(
                         self.buf,
                         "{}",
-                        StackEntry::If(Box::new(left), Comparison::NotEqual, Box::new(right))
+                        StackEntry::If(Box::new(left), BinaryOp::NotEqual, Box::new(right))
                     )?;
                 }
 
@@ -962,6 +924,16 @@ impl<W: Write> Codegen<W> {
                 .expect("expected local variable to exist")
                 .clone(),
         );
+    }
+
+    fn binary_op(&mut self, op: BinaryOp) {
+        let val2 = self.stack.pop().unwrap();
+        let val1 = self.stack.pop().unwrap();
+        self.stack.push(StackEntry::BinaryOp(
+            Box::new(val1),
+            op,
+            Box::new(val2),
+        ));
     }
 }
 

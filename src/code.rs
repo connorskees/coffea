@@ -149,7 +149,7 @@ impl Code {
                 0x68 => Instruction::Imul,
                 0x74 => Instruction::Ineg,
                 0xc1 => Instruction::InstanceOf(u16::from_be_bytes([next(), next()])),
-                0xba => Instruction::InvokeDynamic(next(), next(), next(), next()),
+                0xba => Instruction::InvokeDynamic(u16::from_be_bytes([next(), next()])),
                 0xb9 => Instruction::InvokeInterface(next(), next(), next(), next()),
                 0xb7 => Instruction::InvokeSpecial(u16::from_be_bytes([next(), next()])),
                 0xb8 => Instruction::InvokeStatic(u16::from_be_bytes([next(), next()])),
@@ -518,7 +518,7 @@ pub enum Instruction {
     /// determines if an object objectref is of a given type, identified by class reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     InstanceOf(u16),
     /// invokes a dynamic method and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
-    InvokeDynamic(u8, u8, u8, u8),
+    InvokeDynamic(u16),
     /// invokes an interface method on object objectref and puts the result on the stack (might be void); the interface method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     InvokeInterface(u8, u8, u8, u8),
     /// invoke instance method on object objectref and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
@@ -873,7 +873,7 @@ impl Instruction {
             | Instruction::PutStatic(_, _) => 3,
             Instruction::Wide3(_, _, _) | Instruction::MultiANewArray(_, _, _) => 4,
             Instruction::GotoW(_, _, _, _)
-            | Instruction::InvokeDynamic(_, _, _, _)
+            | Instruction::InvokeDynamic(_)
             | Instruction::InvokeInterface(_, _, _, _)
             | Instruction::JsrW(_, _, _, _) => 5,
             Instruction::Wide5(_, _, _, _, _) => 6,
