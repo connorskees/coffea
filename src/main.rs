@@ -1,6 +1,7 @@
 #![deny(missing_debug_implementations)]
 #![allow(dead_code, clippy::use_self, clippy::module_name_repetitions)]
 // todo: heuristic for byte and friends being converted to int (e.g. indexing into array)
+// todo: not necessary to have field descriptor (can just be type)
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt;
@@ -354,6 +355,42 @@ impl fmt::Display for Comparison {
     }
 }
 
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum BinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}
+
+impl fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BinaryOp::Add => write!(f, "+"),
+            BinaryOp::Sub => write!(f, "-"),
+            BinaryOp::Mul => write!(f, "*"),
+            BinaryOp::Div => write!(f, "/"),
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, PartialEq)]
+enum UnaryOp {
+    Neg(StackEntry),
+    ArrayLength(StackEntry),
+}
+
+impl fmt::Display for UnaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            UnaryOp::Neg(v) => write!(f, "-{}", v),
+            UnaryOp::ArrayLength(v) => write!(f, "{}.length", v),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 enum StackEntry {
     Int(i32),
@@ -365,10 +402,8 @@ enum StackEntry {
     Index(Box<StackEntry>, Box<StackEntry>, Type),
     Class(String),
     Cast(Type, Box<StackEntry>),
-    Add(Box<StackEntry>, Box<StackEntry>),
-    Sub(Box<StackEntry>, Box<StackEntry>),
-    Mul(Box<StackEntry>, Box<StackEntry>),
-    Div(Box<StackEntry>, Box<StackEntry>),
+    UnaryOp(Box<UnaryOp>),
+    BinaryOp(Box<StackEntry>, BinaryOp, Box<StackEntry>),
     Ident(String, Type),
     If(Box<StackEntry>, Comparison, Box<StackEntry>),
     Function(String, Vec<StackEntry>, Type),
@@ -397,10 +432,8 @@ impl fmt::Display for StackEntry {
             StackEntry::Index(arr, idx, _ty) => write!(f, "{}[{}]", arr, idx),
             StackEntry::Class(name) => write!(f, "{}", name),
             StackEntry::Cast(ty, val) => write!(f, "({}) {}", ty, val),
-            StackEntry::Add(a, b) => write!(f, "({} + {})", b, a),
-            StackEntry::Sub(a, b) => write!(f, "({} - {})", b, a),
-            StackEntry::Mul(a, b) => write!(f, "{} * {}", b, a),
-            StackEntry::Div(a, b) => write!(f, "{} / {}", b, a),
+            StackEntry::UnaryOp(op) => write!(f, "{}", op),
+            StackEntry::BinaryOp(a, op, b) => write!(f, "({} {} {})", a, op, b),
             StackEntry::Ident(s, _ty) => write!(f, "{}", s),
             StackEntry::String(s) => write!(f, "\"{}\"", s),
             StackEntry::If(if_, cmp, else_) => writeln!(f, "if ({} {} {}) {{", if_, cmp, else_),
@@ -481,8 +514,7 @@ impl<W: Write> Codegen<W> {
                         PoolKind::Long(long) => self.stack.push(StackEntry::Long(*long)),
                         _ => unimplemented!("Ldc2w should only encounter doubles and longs"),
                     }
-                }
-
+                }                
                 Instruction::IConstM1 => self.stack.push(StackEntry::Int(-1)),
                 Instruction::IConst0 => self.stack.push(StackEntry::Int(0)),
                 Instruction::IConst1 => self.stack.push(StackEntry::Int(1)),
@@ -597,28 +629,33 @@ impl<W: Write> Codegen<W> {
                 }
 
                 Instruction::IAdd | Instruction::FAdd | Instruction::DAdd | Instruction::LAdd => {
-                    let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
+                    let val1 = self.stack.pop().unwrap();
                     self.stack
-                        .push(StackEntry::Add(Box::new(val1), Box::new(val2)));
+                        .push(StackEntry::BinaryOp(Box::new(val1), BinaryOp::Add, Box::new(val2)));
                 }
                 Instruction::Isub | Instruction::Fsub | Instruction::Dsub | Instruction::Lsub => {
-                    let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
+                    let val1 = self.stack.pop().unwrap();
                     self.stack
-                        .push(StackEntry::Sub(Box::new(val1), Box::new(val2)));
+                        .push(StackEntry::BinaryOp(Box::new(val1), BinaryOp::Sub, Box::new(val2)));
                 }
                 Instruction::Imul | Instruction::Fmul | Instruction::Dmul | Instruction::Lmul => {
-                    let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
+                    let val1 = self.stack.pop().unwrap();
                     self.stack
-                        .push(StackEntry::Mul(Box::new(val1), Box::new(val2)));
+                        .push(StackEntry::BinaryOp(Box::new(val1), BinaryOp::Mul, Box::new(val2)));
                 }
                 Instruction::Idiv | Instruction::Fdiv | Instruction::Ddiv | Instruction::Ldiv => {
-                    let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
+                    let val1 = self.stack.pop().unwrap();
                     self.stack
-                        .push(StackEntry::Div(Box::new(val1), Box::new(val2)));
+                        .push(StackEntry::BinaryOp(Box::new(val1), BinaryOp::Div, Box::new(val2)));
+                }
+
+                Instruction::Ineg | Instruction::Fneg | Instruction::Dneg | Instruction::Lneg => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack.push(StackEntry::UnaryOp(Box::new(UnaryOp::Neg(val))));
                 }
 
                 Instruction::Return => break,
@@ -686,6 +723,7 @@ impl<W: Write> Codegen<W> {
 
                 Instruction::GetStatic(index) => {
                     let (class, name, ty) = self.class.read_fieldref_from_index(index)?;
+                    dbg!(&class, &name, &ty);
                     self.stack
                         .push(StackEntry::Field(ty, format!("{}.{}", &class, name)));
                 }
@@ -732,6 +770,10 @@ impl<W: Write> Codegen<W> {
                     .try_into()?;
                     let v = vec![StackEntry::Unitialized; count];
                     self.stack.push(StackEntry::Array(ty, count, v))
+                }
+                Instruction::ArrayLength => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack.push(StackEntry::UnaryOp(Box::new(UnaryOp::ArrayLength(val))));
                 }
 
                 Instruction::Nop => {}
