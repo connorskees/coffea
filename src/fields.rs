@@ -57,13 +57,7 @@ impl FieldDescriptor {
                     };
                     Type::Reference(Box::new(t))
                 }
-                _ => {
-                    let mut name = String::new();
-                    while let Some(c2) = cc.next() {
-                        name.push(c2);
-                    }
-                    Type::ClassName(name)
-                },
+                _ => Type::ClassName(cc.collect()),
             })
         } else {
             None

@@ -541,7 +541,8 @@ impl Codegen {
                 | Instruction::SALoad => {
                     let index = self.stack.pop().unwrap();
                     let array = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Index(Box::new(array), Box::new(index)))
+                    self.stack
+                        .push(StackEntry::Index(Box::new(array), Box::new(index)))
                 }
 
                 Instruction::IStore(n) => {
@@ -647,7 +648,7 @@ impl Codegen {
                         StackEntry::Ident(s) => {
                             writeln!(buf, "{}[{}] = {};", s, index, val)?;
                         }
-                        _ => unimplemented!()
+                        _ => unimplemented!(),
                     }
                 }
 
