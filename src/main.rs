@@ -363,6 +363,7 @@ enum StackEntry {
     Double(f64),
     Long(i64),
     Array(Type, usize, Vec<StackEntry>),
+    New(Box<StackEntry>),
     Index(Box<StackEntry>, Box<StackEntry>),
     Class(String),
     Cast(Type, Box<StackEntry>),
@@ -394,6 +395,7 @@ impl fmt::Display for StackEntry {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
+            StackEntry::New(val) => write!(f, "new {}", val),
             StackEntry::Index(arr, idx) => write!(f, "{}[{}]", arr, idx),
             StackEntry::Class(name) => write!(f, "{}", name),
             StackEntry::Cast(ty, val) => write!(f, "({}) {}", ty, val),
@@ -497,40 +499,34 @@ impl Codegen {
                 Instruction::LConst0 => self.stack.push(StackEntry::Long(0)),
                 Instruction::LConst1 => self.stack.push(StackEntry::Long(1)),
 
-                Instruction::ILoad0
+                Instruction::Aload0
                 | Instruction::Fload0
                 | Instruction::Dload0
+                | Instruction::ILoad0
                 | Instruction::LLoad0 => self
                     .stack
-                    .push(self.local_variables.get(&0).unwrap().clone()),
-                Instruction::Aload0 => {
-                    let val = self.local_variables.get(&0);
-                    match val {
-                        Some(v) => self.stack.push(v.clone()),
-                        None => self.stack.push(StackEntry::Ident("this".to_owned())),
-                    };
-                }
-                Instruction::ILoad1
-                | Instruction::Aload1
+                    .push(self.local_variables.get(&0).expect("expected local variable to exist: 0").clone()),
+                Instruction::Aload1
                 | Instruction::Fload1
                 | Instruction::Dload1
+                | Instruction::ILoad1
                 | Instruction::LLoad1 => self
                     .stack
-                    .push(self.local_variables.get(&1).unwrap().clone()),
-                Instruction::ILoad2
-                | Instruction::Aload2
+                    .push(self.local_variables.get(&1).expect("expected local variable to exist: 1").clone()),
+                Instruction::Aload2
                 | Instruction::Fload2
                 | Instruction::Dload2
+                | Instruction::ILoad2
                 | Instruction::LLoad2 => self
                     .stack
-                    .push(self.local_variables.get(&2).unwrap().clone()),
-                Instruction::ILoad3
-                | Instruction::ALoad3
+                    .push(self.local_variables.get(&2).expect("expected local variable to exist: 2").clone()),
+                Instruction::ALoad3
                 | Instruction::Fload3
                 | Instruction::Dload3
+                | Instruction::ILoad3
                 | Instruction::LLoad3 => self
                     .stack
-                    .push(self.local_variables.get(&3).unwrap().clone()),
+                    .push(self.local_variables.get(&3).expect("expected local variable to exist: 3").clone()),
                 Instruction::AALoad
                 | Instruction::BALoad
                 | Instruction::CALoad
@@ -539,8 +535,8 @@ impl Codegen {
                 | Instruction::IALoad
                 | Instruction::LALoad
                 | Instruction::SALoad => {
-                    let index = self.stack.pop().unwrap();
-                    let array = self.stack.pop().unwrap();
+                    let index = self.stack.pop().expect("expected local variable at index to exist");
+                    let array = self.stack.pop().expect("expected local variable at index to exist");
                     self.stack
                         .push(StackEntry::Index(Box::new(array), Box::new(index)))
                 }
@@ -879,6 +875,14 @@ impl Codegen {
                     self.stack.push(val2);
                     self.stack.push(val1);
                 }
+                Instruction::Dup2 => {
+                    let val1 = self.stack.pop().unwrap();
+                    let val2 = self.stack.pop().unwrap();
+                    self.stack.push(val2.clone());
+                    self.stack.push(val1.clone());
+                    self.stack.push(val2);
+                    self.stack.push(val1);
+                }
                 _ => unimplemented!("instruction not yet implemented"),
             };
         }
@@ -924,12 +928,22 @@ impl ClassFile {
     pub fn codegen<N: AsRef<str>, W: Write>(self, method_name: N, buf: &mut W) -> JResult<()> {
         let method = self.method_by_name(method_name)?;
         // buf.write_all(self.class_signature()?.as_bytes())?;
-        // buf.write_all(method.signature().as_bytes())?;
+        buf.write_all(method.signature().as_bytes())?;
         let tokens = method.code().unwrap().lex().into_iter();
+        let mut local_variables = HashMap::new();
+        // when the method is not static, the first argument is an implicit `this`
+        let mut arg_offset = 0_usize;
+        if !method.access_flags.is_static() {
+            local_variables.insert(0, StackEntry::Ident("this".to_owned()));
+            arg_offset = 1;
+        }
+        for idx in 0..method.args.len() {
+            local_variables.insert(idx+arg_offset, StackEntry::Ident(format!("arg{}", idx+arg_offset)));
+        }
         Codegen {
             class: self,
             stack: Vec::new(),
-            local_variables: HashMap::new(),
+            local_variables,
             tokens,
         }
         .codegen(buf)
@@ -949,6 +963,8 @@ fn main() -> JResult<()> {
     let file = ClassFile::from_bufreader(reader)?;
     // let mut outfile = File::create("testout.java")?;
     let mut outfile = std::io::stdout();
+
+    // dbg!(&file.method_by_name("main"));
 
     dbg!(file.method_by_name("main").unwrap().code().unwrap().lex());
     file.codegen("main", &mut outfile)?;

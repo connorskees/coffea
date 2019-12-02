@@ -87,11 +87,14 @@ impl MethodInfo {
         let mut string = String::with_capacity(100);
         let flags = self.access_flags;
         let mut attrs: Vec<&str> = Vec::new();
+        // when the method is not static, the first argument is an implicit `this`
+        let mut arg_offset = 1_usize;
         if flags.is_public {
             attrs.push("public");
         }
         if flags.is_static {
             attrs.push("static");
+            arg_offset = 0;
         }
         if flags.is_final {
             attrs.push("final");
@@ -101,7 +104,8 @@ impl MethodInfo {
         let args = self
             .args
             .iter()
-            .map(|a| format!("{}", a))
+            .enumerate()
+            .map(|(i, a)| format!("{} arg{}", a, i+arg_offset))
             .collect::<Vec<String>>()
             .join(", ");
         attrs.push(&return_type);
