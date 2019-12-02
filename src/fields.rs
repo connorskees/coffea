@@ -16,12 +16,12 @@ pub struct FieldAccessFlags {
 
 #[derive(Debug)]
 pub struct FieldDescriptor {
-    ty: Type,
+    pub ty: Type,
 }
 
 impl FieldDescriptor {
     /// Parse field descriptor from str
-    pub fn new<S: AsRef<str>>(s: S) -> FieldDescriptor {
+    pub fn new<S: std::fmt::Debug + AsRef<str>>(s: S) -> FieldDescriptor {
         let mut chars = s.as_ref().chars();
         let ty = FieldDescriptor::eat_type(&mut chars).expect("found no field descriptor type");
 
@@ -31,7 +31,6 @@ impl FieldDescriptor {
     fn eat_type<'a>(cc: &mut std::str::Chars<'a>) -> Option<Type> {
         if let Some(c) = cc.next() {
             Some(match c {
-                ')' => return None,
                 'B' => Type::Byte,
                 'C' => Type::Char,
                 'D' => Type::Double,
@@ -40,11 +39,11 @@ impl FieldDescriptor {
                 'J' => Type::Long,
                 'L' => {
                     let mut name = String::new();
-                    while let Some(c) = cc.next() {
-                        if c == ';' {
+                    while let Some(c2) = cc.next() {
+                        if c2 == ';' {
                             break;
                         }
-                        name.push(c);
+                        name.push(c2);
                     }
                     Type::ClassName(name)
                 }
@@ -58,7 +57,13 @@ impl FieldDescriptor {
                     };
                     Type::Reference(Box::new(t))
                 }
-                _ => unimplemented!("unknown character"),
+                _ => {
+                    let mut name = String::new();
+                    while let Some(c2) = cc.next() {
+                        name.push(c2);
+                    }
+                    Type::ClassName(name)
+                },
             })
         } else {
             None

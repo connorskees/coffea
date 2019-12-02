@@ -481,7 +481,7 @@ impl Codegen {
                         _ => unimplemented!("Ldc2w should only encounter doubles and longs"),
                     }
                 }
-                
+
                 Instruction::IConstM1 => self.stack.push(StackEntry::Int(-1)),
                 Instruction::IConst0 => self.stack.push(StackEntry::Int(0)),
                 Instruction::IConst1 => self.stack.push(StackEntry::Int(1)),
@@ -734,7 +734,6 @@ impl Codegen {
                                 "{}[] a2 = {{ {} }};",
                                 ty,
                                 els.iter()
-                                    .rev()
                                     .map(|a| format!("{}", a))
                                     .collect::<Vec<String>>()
                                     .join(", ")
@@ -757,7 +756,6 @@ impl Codegen {
                                 "{}[] a2 = {{ {} }};",
                                 ty,
                                 els.iter()
-                                    .rev()
                                     .map(|a| format!("{}", a))
                                     .collect::<Vec<String>>()
                                     .join(", ")
@@ -769,7 +767,7 @@ impl Codegen {
                         _ => unimplemented!(),
                     }
                 }
-                
+
                 Instruction::NewArray(ty) => {
                     let ty = match ty {
                         4 => Type::Boolean, //int
@@ -787,28 +785,20 @@ impl Codegen {
                         _ => unimplemented!("NewArray count is non-integer value"),
                     }
                     .try_into()?;
-                    let v = match ty {
-                        Type::Boolean
-                        | Type::Char
-                        | Type::Byte
-                        | Type::Short
-                        | Type::Int => vec![StackEntry::Int(0); count],
-                        Type::Float => vec![StackEntry::Float(0.0); count],
-                        Type::Double => vec![StackEntry::Double(0.0); count],
-                        _ => unreachable!("this can not occur ]")
-                    };
+                    let v = vec![StackEntry::Unitialized; count];
                     self.stack.push(StackEntry::Array(ty, count, v))
                 }
                 Instruction::ANewArray(index) => {
-                    let ty = Type::ClassName(self.class.class_name_from_index(index)?.replace('/', "."));
+                    let ty = FieldDescriptor::new(self.class.class_name_from_index(index)?).ty;
                     let count: usize = match self.stack.pop().unwrap() {
                         StackEntry::Int(i) => i,
-                        _ => unimplemented!("NewArray count is non-integer value"),
+                        _ => unimplemented!("ANewArray count is non-integer value"),
                     }
                     .try_into()?;
                     let v = vec![StackEntry::Unitialized; count];
                     self.stack.push(StackEntry::Array(ty, count, v))
                 }
+
                 Instruction::Nop => {}
                 Instruction::Pop => writeln!(buf, "{};", self.stack.pop().unwrap())?,
                 Instruction::Pop2 => {
@@ -871,9 +861,15 @@ impl Codegen {
                 }
 
                 Instruction::Dup => {
+                    // todo: figure out initialization with `dup`
                     let val = self.stack.pop().unwrap();
-                    self.stack.push(val.clone());
-                    self.stack.push(val);
+                    match val {
+                        StackEntry::Array(..) => self.stack.push(val),
+                        _ => {
+                            self.stack.push(val.clone());
+                            self.stack.push(val);
+                        }
+                    };
                 }
                 Instruction::DupX1 => {
                     let val1 = self.stack.pop().unwrap();
@@ -885,7 +881,7 @@ impl Codegen {
                 _ => unimplemented!("instruction not yet implemented"),
             };
         }
-        buf.write_all("}\n}\n".as_bytes())?;
+        // buf.write_all(b"}\n}\n")?;
         Ok(())
     }
 }
@@ -926,8 +922,8 @@ impl ClassFile {
 
     pub fn codegen<N: AsRef<str>, W: Write>(self, method_name: N, buf: &mut W) -> JResult<()> {
         let method = self.method_by_name(method_name)?;
-        buf.write_all(self.class_signature()?.as_bytes())?;
-        buf.write_all(method.signature().as_bytes())?;
+        // buf.write_all(self.class_signature()?.as_bytes())?;
+        // buf.write_all(method.signature().as_bytes())?;
         let tokens = method.code().unwrap().lex().into_iter();
         Codegen {
             class: self,
