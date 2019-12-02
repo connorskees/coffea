@@ -27,7 +27,6 @@ pub enum Type {
 }
 
 impl fmt::Display for Type {
-    #[must_use]
     /// Convert Type to string representation
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

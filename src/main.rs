@@ -1,7 +1,8 @@
 #![deny(missing_debug_implementations)]
 #![allow(dead_code, clippy::use_self, clippy::module_name_repetitions)]
-
+// todo: heuristic for byte and friends being converted to int (e.g. indexing into array)
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::fmt;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -363,6 +364,8 @@ enum StackEntry {
     Float(f32),
     Double(f64),
     Long(i64),
+    Array(Type, usize, Vec<StackEntry>),
+    Index(Box<StackEntry>, Box<StackEntry>),
     Cast(Type, Box<StackEntry>),
     Add(Box<StackEntry>, Box<StackEntry>),
     Sub(Box<StackEntry>, Box<StackEntry>),
@@ -371,7 +374,7 @@ enum StackEntry {
     Ident(String),
     If(Box<StackEntry>, Comparison, Box<StackEntry>),
     Reference(usize),
-    Function(String, Vec<StackEntry>),
+    Function(String, Vec<StackEntry>, Type),
     Field(String),
     String(String),
 }
@@ -383,6 +386,16 @@ impl fmt::Display for StackEntry {
             StackEntry::Long(a) => write!(f, "{}l", a),
             StackEntry::Float(a) => write!(f, "{}f", a),
             StackEntry::Double(a) => write!(f, "{}d", a),
+            StackEntry::Array(_, _, els) => write!(
+                f,
+                "{{ {} }}",
+                els.iter()
+                    .rev()
+                    .map(|a| format!("{}", a))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+            StackEntry::Index(arr, idx) => write!(f, "{}[{}]", arr, idx),
             StackEntry::Cast(ty, val) => write!(f, "({}) {}", ty, val),
             StackEntry::Add(a, b) => write!(f, "({} + {})", b, a),
             StackEntry::Sub(a, b) => write!(f, "({} - {})", b, a),
@@ -392,7 +405,7 @@ impl fmt::Display for StackEntry {
             StackEntry::String(s) => write!(f, "\"{}\"", s),
             StackEntry::Reference(_) => unimplemented!(),
             StackEntry::If(if_, cmp, else_) => writeln!(f, "if ({} {} {}) {{", if_, cmp, else_),
-            StackEntry::Function(name, args) => write!(
+            StackEntry::Function(name, args, _) => write!(
                 f,
                 "{}({})",
                 name,
@@ -468,6 +481,7 @@ impl Codegen {
                         _ => unimplemented!("Ldc2w should only encounter doubles and longs"),
                     }
                 }
+                
                 Instruction::IConstM1 => self.stack.push(StackEntry::Int(-1)),
                 Instruction::IConst0 => self.stack.push(StackEntry::Int(0)),
                 Instruction::IConst1 => self.stack.push(StackEntry::Int(1)),
@@ -517,6 +531,12 @@ impl Codegen {
                 | Instruction::LLoad3 => self
                     .stack
                     .push(self.local_variables.get(&3).unwrap().clone()),
+                Instruction::BALoad => {
+                    let index = self.stack.pop().unwrap();
+                    let array = self.stack.pop().unwrap();
+                    self.stack.push(StackEntry::Index(Box::new(array), Box::new(index)))
+                }
+
                 Instruction::IStore(n) => {
                     self.local_variables
                         .insert(usize::from(n), StackEntry::Ident(format!("i{}", n)));
@@ -597,6 +617,27 @@ impl Codegen {
                         .insert(3, StackEntry::Ident("l3".to_owned()));
                     writeln!(buf, "long l3 = {};", self.stack.pop().unwrap())?;
                 }
+                Instruction::BAStore => {
+                    let val = self.stack.pop().unwrap();
+                    let index = if let StackEntry::Int(i) = self.stack.pop().unwrap() {
+                        i
+                    } else {
+                        unimplemented!("non-int array index")
+                    }.try_into()?;
+                    let array = self.stack.pop().unwrap();
+                    match array {
+                        StackEntry::Array(ty, count, mut els) => {
+                            els.push(val);
+                            els.swap_remove(index);
+                            self.stack.push(StackEntry::Array(ty, count, els));
+                        }
+                        StackEntry::Ident(s) => {
+                            writeln!(buf, "{}[{}] = {};", s, index, val)?;
+                        }
+                        _ => unimplemented!()
+                    }
+                }
+
                 Instruction::IAdd | Instruction::FAdd | Instruction::DAdd | Instruction::LAdd => {
                     let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
@@ -621,7 +662,13 @@ impl Codegen {
                     self.stack
                         .push(StackEntry::Div(Box::new(val1), Box::new(val2)));
                 }
+
                 Instruction::Return => break,
+                Instruction::AReturn
+                | Instruction::Ireturn
+                | Instruction::Freturn
+                | Instruction::Dreturn
+                | Instruction::Lreturn => writeln!(buf, "return {};", self.stack.pop().unwrap())?,
 
                 Instruction::InvokeStatic(index) => {
                     let (class, name, descriptor) = self.class.read_methodref_from_index(index)?;
@@ -629,7 +676,11 @@ impl Codegen {
                     for _ in 0..descriptor.args.len() {
                         args.push(self.stack.pop().unwrap());
                     }
-                    let f = StackEntry::Function(format!("{}.{}", class, name), args);
+                    let f = StackEntry::Function(
+                        format!("{}.{}", class, name),
+                        args,
+                        descriptor.return_type.clone(),
+                    );
                     if descriptor.return_type == Type::Void {
                         writeln!(buf, "{};", f.clone())?;
                     }
@@ -643,7 +694,11 @@ impl Codegen {
                         args.push(self.stack.pop().expect("expected value to be on stack"));
                     }
                     let object = self.stack.pop().expect("expected value to be on stack");
-                    let f = StackEntry::Function(format!("{}.{}", object, name), args);
+                    let f = StackEntry::Function(
+                        format!("{}.{}", object, name),
+                        args,
+                        descriptor.return_type.clone(),
+                    );
                     if descriptor.return_type == Type::Void {
                         writeln!(buf, "{};", f.clone())?;
                     }
@@ -661,13 +716,89 @@ impl Codegen {
                         .insert(1, StackEntry::Ident("a1".to_owned()));
                     match val {
                         StackEntry::Reference(_) => unimplemented!(),
+                        StackEntry::Array(ty, _, els) => {
+                            writeln!(
+                                buf,
+                                "{}[] a2 = {{ {} }}",
+                                ty,
+                                els.iter()
+                                    .rev()
+                                    .map(|a| format!("{}", a))
+                                    .collect::<Vec<String>>()
+                                    .join(", ")
+                            )?;
+                        }
                         StackEntry::String(s) => {
                             writeln!(buf, "String s1 = \"{}\";", s)?;
                         }
                         _ => unimplemented!(),
                     }
                 }
+                Instruction::AStore2 => {
+                    let val = self.stack.pop().unwrap();
+                    self.local_variables
+                        .insert(2, StackEntry::Ident("a2".to_owned()));
+                    match val {
+                        StackEntry::Reference(_) => unimplemented!(),
+                        StackEntry::Array(ty, _, els) => {
+                            writeln!(
+                                buf,
+                                "{}[] a2 = {{ {} }}",
+                                ty,
+                                els.iter()
+                                    .rev()
+                                    .map(|a| format!("{}", a))
+                                    .collect::<Vec<String>>()
+                                    .join(", ")
+                            )?;
+                        }
+                        StackEntry::String(s) => {
+                            writeln!(buf, "String s1 = \"{}\";", s)?;
+                        }
+                        _ => unimplemented!(),
+                    }
+                }
+                Instruction::NewArray(ty) => {
+                    let ty = match ty {
+                        4 => Type::Boolean, //int
+                        5 => Type::Char,    //int
+                        6 => Type::Float,   //float
+                        7 => Type::Double,  //double
+                        8 => Type::Byte,    //int
+                        9 => Type::Short,   //int
+                        10 => Type::Int,    //int
+                        11 => Type::Long,   //long
+                        _ => unimplemented!("unexpected NewArray type"),
+                    };
+                    let count = match self.stack.pop().unwrap() {
+                        StackEntry::Int(i) => i,
+                        _ => unimplemented!("NewArray count is non-integer value"),
+                    }
+                    .try_into()?;
+                    let v = match ty {
+                        Type::Boolean
+                        | Type::Char
+                        | Type::Byte
+                        | Type::Short
+                        | Type::Int => vec![StackEntry::Int(0); count],
+                        Type::Float => vec![StackEntry::Float(0.0); count],
+                        Type::Double => vec![StackEntry::Double(0.0); count],
+                        _ => unreachable!("this can not occur ]")
+                    };
+                    self.stack.push(StackEntry::Array(ty, count, v))
+                }
+                Instruction::Nop => {}
                 Instruction::Pop => writeln!(buf, "{};", self.stack.pop().unwrap())?,
+                Instruction::Pop2 => {
+                    let val1 = self.stack.pop().unwrap();
+                    match val1 {
+                        StackEntry::Long(_) | StackEntry::Double(_) => {}
+                        StackEntry::Function(_, _, Type::Double)
+                        | StackEntry::Function(_, _, Type::Long) => {}
+                        _ => writeln!(buf, "{};", self.stack.pop().unwrap())?,
+                    }
+                    writeln!(buf, "{};", val1)?
+                }
 
                 Instruction::IfIcmpne(branchbyte1, branchbyte2) => {
                     let _offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
@@ -688,40 +819,48 @@ impl Codegen {
                 Instruction::I2b => {
                     let val = self.stack.pop().unwrap();
                     self.stack.push(StackEntry::Cast(Type::Byte, Box::new(val)));
-                },
+                }
                 Instruction::I2c => {
                     let val = self.stack.pop().unwrap();
                     self.stack.push(StackEntry::Cast(Type::Char, Box::new(val)));
-                },
-                Instruction::I2d
-                | Instruction::F2d
-                | Instruction::L2d => {
+                }
+                Instruction::I2d | Instruction::F2d | Instruction::L2d => {
                     let val = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Cast(Type::Double, Box::new(val)));
-                },
-                Instruction::I2l
-                | Instruction::F2l
-                | Instruction::D2l => {
+                    self.stack
+                        .push(StackEntry::Cast(Type::Double, Box::new(val)));
+                }
+                Instruction::I2l | Instruction::F2l | Instruction::D2l => {
                     let val = self.stack.pop().unwrap();
                     self.stack.push(StackEntry::Cast(Type::Long, Box::new(val)));
-                },
+                }
                 Instruction::I2s => {
                     let val = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Cast(Type::Short, Box::new(val)));
-                },
-                Instruction::F2i
-                | Instruction::D2i
-                | Instruction::L2i => {
+                    self.stack
+                        .push(StackEntry::Cast(Type::Short, Box::new(val)));
+                }
+                Instruction::F2i | Instruction::D2i | Instruction::L2i => {
                     let val = self.stack.pop().unwrap();
                     self.stack.push(StackEntry::Cast(Type::Int, Box::new(val)));
-                },
-                Instruction::I2f
-                | Instruction::D2f
-                | Instruction::L2f => {
-                    let val = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Cast(Type::Float, Box::new(val)));
                 }
-                _ => unimplemented!(),
+                Instruction::I2f | Instruction::D2f | Instruction::L2f => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack
+                        .push(StackEntry::Cast(Type::Float, Box::new(val)));
+                }
+
+                Instruction::Dup => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack.push(val.clone());
+                    self.stack.push(val);
+                }
+                Instruction::DupX1 => {
+                    let val1 = self.stack.pop().unwrap();
+                    let val2 = self.stack.pop().unwrap();
+                    self.stack.push(val1.clone());
+                    self.stack.push(val2);
+                    self.stack.push(val1);
+                }
+                _ => unimplemented!("instruction not yet implemented"),
             };
         }
         buf.write_all("}\n}\n".as_bytes())?;
