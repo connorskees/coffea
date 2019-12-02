@@ -5,6 +5,7 @@
 // todo: not necessary to have field descriptor (can just be type)
 // todo: stringbuilder syntactic sugar
 // todo: heuristic for variables initially declared as null
+// todo: method calls as their own stack entry
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt;
@@ -775,6 +776,16 @@ impl<W: Write> Codegen<W> {
                         _ => writeln!(self.buf, "{};", self.stack.pop().unwrap())?,
                     }
                     writeln!(self.buf, "{};", val1)?
+                }
+
+                Instruction::Iinc(idx, b) => {
+                    let count = self.local_variables.entry(usize::from(idx)).or_insert(StackEntry::Int(-1));
+                    match count {
+                        StackEntry::Int(u) => {
+                            *count = StackEntry::Int(*u+i32::from(b));
+                        },
+                        _ => unimplemented!("iinc non-int variable")
+                    }
                 }
 
                 Instruction::IfIcmpne(branchbyte1, branchbyte2) => {
