@@ -502,42 +502,22 @@ impl<W: Write> Codegen<W> {
                 | Instruction::Fload0
                 | Instruction::Dload0
                 | Instruction::ILoad0
-                | Instruction::LLoad0 => self.stack.push(
-                    self.local_variables
-                        .get(&0)
-                        .expect("expected local variable to exist: 0")
-                        .clone(),
-                ),
+                | Instruction::LLoad0 => self.load(0),
                 Instruction::Aload1
                 | Instruction::Fload1
                 | Instruction::Dload1
                 | Instruction::ILoad1
-                | Instruction::LLoad1 => self.stack.push(
-                    self.local_variables
-                        .get(&1)
-                        .expect("expected local variable to exist: 1")
-                        .clone(),
-                ),
+                | Instruction::LLoad1 => self.load(1),
                 Instruction::Aload2
                 | Instruction::Fload2
                 | Instruction::Dload2
                 | Instruction::ILoad2
-                | Instruction::LLoad2 => self.stack.push(
-                    self.local_variables
-                        .get(&2)
-                        .expect("expected local variable to exist: 2")
-                        .clone(),
-                ),
+                | Instruction::LLoad2 => self.load(2),
                 Instruction::ALoad3
                 | Instruction::Fload3
                 | Instruction::Dload3
                 | Instruction::ILoad3
-                | Instruction::LLoad3 => self.stack.push(
-                    self.local_variables
-                        .get(&3)
-                        .expect("expected local variable to exist: 3")
-                        .clone(),
-                ),
+                | Instruction::LLoad3 => self.load(3),
                 Instruction::AALoad
                 | Instruction::BALoad
                 | Instruction::CALoad
@@ -881,6 +861,15 @@ impl<W: Write> Codegen<W> {
         let val = self.stack.pop().unwrap();
         self.stack.push(StackEntry::Cast(ty, Box::new(val)));
     }
+
+    fn load(&mut self, idx: u8) {
+        self.stack.push(
+            self.local_variables
+                .get(&usize::from(idx))
+                .expect("expected local variable to exist")
+                .clone(),
+        );
+    }
 }
 
 impl ClassFile {
@@ -924,8 +913,7 @@ impl ClassFile {
         let tokens = method.code().unwrap().lex().into_iter();
         let mut local_variables = HashMap::new();
         // when the method is not static, the first argument is an implicit `this`
-        let mut arg_offset = 0_usize;
-        if !method.access_flags.is_static() {
+        let arg_offset = if !method.access_flags.is_static() {
             local_variables.insert(
                 0,
                 StackEntry::Ident(
@@ -933,8 +921,10 @@ impl ClassFile {
                     Type::ClassName(self.class_name()?.to_owned()),
                 ),
             );
-            arg_offset = 1;
-        }
+            1
+        } else {
+            0
+        };
         for (idx, arg) in method.args.iter().enumerate() {
             local_variables.insert(
                 idx + arg_offset,
