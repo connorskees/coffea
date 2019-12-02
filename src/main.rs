@@ -357,10 +357,13 @@ impl fmt::Display for Comparison {
 
 #[derive(Debug, Clone, PartialEq)]
 enum StackEntry {
+    // Char(u8),
+    // Byte(i8),
     Int(i32),
     Float(f32),
     Double(f64),
     Long(i64),
+    Cast(Type, Box<StackEntry>),
     Add(Box<StackEntry>, Box<StackEntry>),
     Sub(Box<StackEntry>, Box<StackEntry>),
     Mul(Box<StackEntry>, Box<StackEntry>),
@@ -380,6 +383,7 @@ impl fmt::Display for StackEntry {
             StackEntry::Long(a) => write!(f, "{}l", a),
             StackEntry::Float(a) => write!(f, "{}f", a),
             StackEntry::Double(a) => write!(f, "{}d", a),
+            StackEntry::Cast(ty, val) => write!(f, "({}) {}", ty, val),
             StackEntry::Add(a, b) => write!(f, "({} + {})", b, a),
             StackEntry::Sub(a, b) => write!(f, "({} - {})", b, a),
             StackEntry::Mul(a, b) => write!(f, "{} * {}", b, a),
@@ -394,7 +398,7 @@ impl fmt::Display for StackEntry {
                 name,
                 args.iter()
                     .rev()
-                    .map(|a| a.clone().to_string())
+                    .map(|a| format!("{}", a))
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
@@ -681,26 +685,41 @@ impl Codegen {
                     unimplemented!()
                 }
 
-                Instruction::D2i => {
-                    if let StackEntry::Double(f) = self.stack.pop().unwrap() {
-                        self.stack.push(StackEntry::Int(f as i32));
-                    } else {
-                        unimplemented!()
-                    }
-                }
-                Instruction::D2f => {
-                    if let StackEntry::Double(f) = self.stack.pop().unwrap() {
-                        self.stack.push(StackEntry::Float(f as f32));
-                    } else {
-                        unimplemented!()
-                    }
-                }
-                Instruction::D2l => {
-                    if let StackEntry::Double(f) = self.stack.pop().unwrap() {
-                        self.stack.push(StackEntry::Float(f as f32));
-                    } else {
-                        unimplemented!()
-                    }
+                Instruction::I2b => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack.push(StackEntry::Cast(Type::Byte, Box::new(val)));
+                },
+                Instruction::I2c => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack.push(StackEntry::Cast(Type::Char, Box::new(val)));
+                },
+                Instruction::I2d
+                | Instruction::F2d
+                | Instruction::L2d => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack.push(StackEntry::Cast(Type::Double, Box::new(val)));
+                },
+                Instruction::I2l
+                | Instruction::F2l
+                | Instruction::D2l => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack.push(StackEntry::Cast(Type::Long, Box::new(val)));
+                },
+                Instruction::I2s => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack.push(StackEntry::Cast(Type::Short, Box::new(val)));
+                },
+                Instruction::F2i
+                | Instruction::D2i
+                | Instruction::L2i => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack.push(StackEntry::Cast(Type::Int, Box::new(val)));
+                },
+                Instruction::I2f
+                | Instruction::D2f
+                | Instruction::L2f => {
+                    let val = self.stack.pop().unwrap();
+                    self.stack.push(StackEntry::Cast(Type::Float, Box::new(val)));
                 }
                 _ => unimplemented!(),
             };

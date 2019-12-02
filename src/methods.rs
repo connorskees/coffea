@@ -96,11 +96,11 @@ impl MethodInfo {
             attrs.push("final");
         }
         let signature = MethodDescriptor::new(&self.return_type);
-        let return_type = signature.return_type.as_string();
+        let return_type = signature.return_type.to_string();
         let args = signature
             .args
             .iter()
-            .map(|a| a.clone().as_string())
+            .map(|a| format!("{}", a))
             .collect::<Vec<String>>()
             .join(", ");
         attrs.push(&return_type);

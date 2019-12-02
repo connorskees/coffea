@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     /// signed byte
@@ -24,25 +26,25 @@ pub enum Type {
     Void,
 }
 
-impl Type {
+impl fmt::Display for Type {
     #[must_use]
     /// Convert Type to string representation
-    pub fn as_string(&self) -> String {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Type::Byte => String::from("byte"),
-            Type::Char => String::from("char"),
-            Type::Double => String::from("double"),
-            Type::Float => String::from("float"),
-            Type::Int => String::from("int"),
-            Type::Long => String::from("long"),
+            Type::Byte => write!(f, "byte"),
+            Type::Char => write!(f, "char"),
+            Type::Double => write!(f, "double"),
+            Type::Float => write!(f, "float"),
+            Type::Int => write!(f, "int"),
+            Type::Long => write!(f, "long"),
             // we can be certain that the classname will be ASCII
-            Type::ClassName(s) => unsafe {
+            Type::ClassName(s) => write!(f, "{}", unsafe {
                 String::from_utf8_unchecked(s.as_bytes()[10..].to_owned())
-            },
-            Type::Short => String::from("short"),
-            Type::Boolean => String::from("boolean"),
-            Type::Reference(t) => format!("{}[]", t.as_string()),
-            Type::Void => String::from("void"),
+            }),
+            Type::Short => write!(f, "short"),
+            Type::Boolean => write!(f, "boolean"),
+            Type::Reference(t) => write!(f, "{}[]", t),
+            Type::Void => write!(f, "void"),
         }
     }
 }
