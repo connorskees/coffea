@@ -105,7 +105,7 @@ impl MethodInfo {
             .args
             .iter()
             .enumerate()
-            .map(|(i, a)| format!("{} arg{}", a, i+arg_offset))
+            .map(|(i, a)| format!("{} arg{}", a, i + arg_offset))
             .collect::<Vec<String>>()
             .join(", ");
         attrs.push(&return_type);

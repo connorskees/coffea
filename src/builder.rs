@@ -5,7 +5,7 @@ use crate::code::Code;
 pub use crate::common::Type;
 use crate::errors::{JResult, ParseError};
 pub use crate::fields::{FieldAccessFlags, FieldInfo};
-use crate::methods::{MethodAccessFlags, MethodInfo, MethodDescriptor};
+use crate::methods::{MethodAccessFlags, MethodDescriptor, MethodInfo};
 use crate::pool::PoolKind;
 pub use crate::version::MajorVersion;
 use crate::{ClassAccessFlags, ClassFile};
@@ -209,7 +209,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                 return Err(ParseError::IndexError(line!()));
             };
             let descriptor_index = self.read_u16()?;
-            let MethodDescriptor { args, return_type} =
+            let MethodDescriptor { args, return_type } =
                 if let PoolKind::Utf8(s) = &self.const_pool[usize::from(descriptor_index - 1)] {
                     MethodDescriptor::new(s)
                 } else {
