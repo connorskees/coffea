@@ -299,27 +299,25 @@ impl ClassFile {
         }
     }
 
-    pub fn read_fieldref_from_index(
-        &self,
-        index: u16,
-    ) -> JResult<(String, String, FieldDescriptor)> {
+    pub fn read_fieldref_from_index(&self, index: u16) -> JResult<(String, String, Type)> {
         match &self.const_pool[usize::from(index - 1)] {
             PoolKind::FieldRef {
                 name_and_type_index,
                 class_index,
             } => {
-                let (name, sig): (String, FieldDescriptor) =
-                    match &self.const_pool[usize::from(name_and_type_index - 1)] {
-                        PoolKind::NameAndType {
-                            name_index,
-                            descriptor_index,
-                        } => {
-                            let name = self.utf_from_index(*name_index)?;
-                            let ty = FieldDescriptor::new(self.utf_from_index(*descriptor_index)?);
-                            (name, ty)
-                        }
-                        _ => return Err(ParseError::IndexError(line!())),
-                    };
+                let (name, sig): (String, Type) = match &self.const_pool
+                    [usize::from(name_and_type_index - 1)]
+                {
+                    PoolKind::NameAndType {
+                        name_index,
+                        descriptor_index,
+                    } => {
+                        let name = self.utf_from_index(*name_index)?;
+                        let ty = FieldDescriptor::new(self.utf_from_index(*descriptor_index)?).ty;
+                        (name, ty)
+                    }
+                    _ => return Err(ParseError::IndexError(line!())),
+                };
                 let class = self
                     .class_name_from_index(*class_index)?
                     .split('/')
@@ -503,30 +501,42 @@ impl Codegen {
                 | Instruction::Fload0
                 | Instruction::Dload0
                 | Instruction::ILoad0
-                | Instruction::LLoad0 => self
-                    .stack
-                    .push(self.local_variables.get(&0).expect("expected local variable to exist: 0").clone()),
+                | Instruction::LLoad0 => self.stack.push(
+                    self.local_variables
+                        .get(&0)
+                        .expect("expected local variable to exist: 0")
+                        .clone(),
+                ),
                 Instruction::Aload1
                 | Instruction::Fload1
                 | Instruction::Dload1
                 | Instruction::ILoad1
-                | Instruction::LLoad1 => self
-                    .stack
-                    .push(self.local_variables.get(&1).expect("expected local variable to exist: 1").clone()),
+                | Instruction::LLoad1 => self.stack.push(
+                    self.local_variables
+                        .get(&1)
+                        .expect("expected local variable to exist: 1")
+                        .clone(),
+                ),
                 Instruction::Aload2
                 | Instruction::Fload2
                 | Instruction::Dload2
                 | Instruction::ILoad2
-                | Instruction::LLoad2 => self
-                    .stack
-                    .push(self.local_variables.get(&2).expect("expected local variable to exist: 2").clone()),
+                | Instruction::LLoad2 => self.stack.push(
+                    self.local_variables
+                        .get(&2)
+                        .expect("expected local variable to exist: 2")
+                        .clone(),
+                ),
                 Instruction::ALoad3
                 | Instruction::Fload3
                 | Instruction::Dload3
                 | Instruction::ILoad3
-                | Instruction::LLoad3 => self
-                    .stack
-                    .push(self.local_variables.get(&3).expect("expected local variable to exist: 3").clone()),
+                | Instruction::LLoad3 => self.stack.push(
+                    self.local_variables
+                        .get(&3)
+                        .expect("expected local variable to exist: 3")
+                        .clone(),
+                ),
                 Instruction::AALoad
                 | Instruction::BALoad
                 | Instruction::CALoad
@@ -934,19 +944,29 @@ impl ClassFile {
         // when the method is not static, the first argument is an implicit `this`
         let mut arg_offset = 0_usize;
         if !method.access_flags.is_static() {
-            local_variables.insert(0, StackEntry::Ident("this".to_owned()));
+            local_variables.insert(
+                0,
+                StackEntry::Ident(
+                    "this".to_owned(),
+                    Type::ClassName(self.class_name()?.to_owned()),
+                ),
+            );
             arg_offset = 1;
         }
-        for idx in 0..method.args.len() {
-            local_variables.insert(idx+arg_offset, StackEntry::Ident(format!("arg{}", idx+arg_offset)));
+        for (idx, arg) in method.args.iter().enumerate() {
+            local_variables.insert(
+                idx + arg_offset,
+                StackEntry::Ident(format!("arg{}", idx + arg_offset), arg.clone()),
+            );
         }
         Codegen {
             class: self,
+            buf,
             stack: Vec::new(),
             local_variables,
             tokens,
         }
-        .codegen(buf)
+        .codegen()
     }
 }
 
