@@ -630,6 +630,25 @@ impl<W: Write> Codegen<W> {
                     writeln!(self.buf, "return {};", self.stack.pop().unwrap())?
                 }
 
+                Instruction::InvokeSpecial(index) => {
+                    let (_, name, descriptor) = self.class.read_methodref_from_index(index)?;
+                    let mut args: Vec<StackEntry> = Vec::new();
+                    for _ in 0..descriptor.args.len() {
+                        args.push(self.stack.pop().expect("expected value to be on stack"));
+                    }
+                    let object = self.stack.pop().expect("expected value to be on stack");
+                    let f = StackEntry::Function(
+                        format!("{}.{}", object, name),
+                        args,
+                        descriptor.return_type.clone(),
+                    );
+                    if descriptor.return_type == Type::Void {
+                        writeln!(self.buf, "{};", f.clone())?;
+                    }
+                    write!(self.buf, "{};\n", f)?;
+                    self.stack.push(f);
+                }
+
                 Instruction::InvokeStatic(index) => {
                     let (class, name, descriptor) = self.class.read_methodref_from_index(index)?;
                     let mut args: Vec<StackEntry> = Vec::new();

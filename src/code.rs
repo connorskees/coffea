@@ -151,7 +151,7 @@ impl Code {
                 0xc1 => Instruction::InstanceOf(next(), next()),
                 0xba => Instruction::InvokeDynamic(next(), next(), next(), next()),
                 0xb9 => Instruction::InvokeInterface(next(), next(), next(), next()),
-                0xb7 => Instruction::InvokeSpecial(next(), next()),
+                0xb7 => Instruction::InvokeSpecial(u16::from_be_bytes([next(), next()])),
                 0xb8 => Instruction::InvokeStatic(u16::from_be_bytes([next(), next()])),
                 0xb6 => Instruction::InvokeVirtual(u16::from_be_bytes([next(), next()])),
                 0x80 => Instruction::Ior,
@@ -522,7 +522,7 @@ pub enum Instruction {
     /// invokes an interface method on object objectref and puts the result on the stack (might be void); the interface method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     InvokeInterface(u8, u8, u8, u8),
     /// invoke instance method on object objectref and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
-    InvokeSpecial(u8, u8),
+    InvokeSpecial(u16),
     /// invoke a static method and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     InvokeStatic(u16),
     /// invoke virtual method on object objectref and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
@@ -846,7 +846,7 @@ impl Instruction {
             Instruction::ANewArray(_)
             | Instruction::Checkcast(_, _)
             | Instruction::Goto(_, _)
-            | Instruction::InvokeSpecial(_, _)
+            | Instruction::InvokeSpecial(_)
             | Instruction::IfAcmpeq(_, _)
             | Instruction::IfAcmpne(_, _)
             | Instruction::IfIcmpeq(_, _)
