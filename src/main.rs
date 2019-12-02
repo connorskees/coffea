@@ -659,6 +659,11 @@ impl<W: Write> Codegen<W> {
                     let val = self.stack.pop().unwrap();
                     self.stack.push(StackEntry::UnaryOp(Box::new(UnaryOp::Neg(val))));
                 }
+                Instruction::InstanceOf(idx) => {
+                    let obj1 = self.stack.pop().unwrap();
+                    let obj2 = self.class.class_name_from_index(idx)?;
+                    self.stack.push(StackEntry::BinaryOp(Box::new(obj1), BinaryOp::InstanceOf, Box::new(StackEntry::Class(obj2))));
+                }
 
                 Instruction::Return => break,
                 Instruction::AReturn

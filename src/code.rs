@@ -148,7 +148,7 @@ impl Code {
                 0xff => Instruction::Impdep2,
                 0x68 => Instruction::Imul,
                 0x74 => Instruction::Ineg,
-                0xc1 => Instruction::InstanceOf(next(), next()),
+                0xc1 => Instruction::InstanceOf(u16::from_be_bytes([next(), next()])),
                 0xba => Instruction::InvokeDynamic(next(), next(), next(), next()),
                 0xb9 => Instruction::InvokeInterface(next(), next(), next(), next()),
                 0xb7 => Instruction::InvokeSpecial(u16::from_be_bytes([next(), next()])),
@@ -516,7 +516,7 @@ pub enum Instruction {
     /// negate int
     Ineg,
     /// determines if an object objectref is of a given type, identified by class reference index in constant pool (indexbyte1 << 8 + indexbyte2)
-    InstanceOf(u8, u8),
+    InstanceOf(u16),
     /// invokes a dynamic method and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     InvokeDynamic(u8, u8, u8, u8),
     /// invokes an interface method on object objectref and puts the result on the stack (might be void); the interface method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
@@ -864,7 +864,7 @@ impl Instruction {
             | Instruction::Ifnonnull(_, _)
             | Instruction::Ifnull(_, _)
             | Instruction::Iinc(_, _)
-            | Instruction::InstanceOf(_, _)
+            | Instruction::InstanceOf(_)
             | Instruction::Jsr(_, _)
             | Instruction::LdcW(_)
             | Instruction::Ldc2W(_)
