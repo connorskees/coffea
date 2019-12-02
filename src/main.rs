@@ -414,22 +414,23 @@ impl fmt::Display for StackEntry {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            StackEntry::Field(name) => write!(f, "{}", name),
+            StackEntry::Field(_, name) => write!(f, "{}", name),
             StackEntry::Unitialized => panic!("attempted to render unitialized entry"),
         }
     }
 }
 
 #[derive(Debug)]
-struct Codegen {
+struct Codegen<W: Write> {
     class: ClassFile,
+    buf: W,
     stack: Vec<StackEntry>,
     local_variables: HashMap<usize, StackEntry>,
     tokens: std::vec::IntoIter<Instruction>,
 }
 
-impl Codegen {
-    fn codegen<W: Write>(mut self, mut buf: W) -> JResult<()> {
+impl<W: Write> Codegen<W> {
+    fn codegen(mut self) -> JResult<()> {
         while let Some(tok) = self.tokens.next() {
             // dbg!(tok);
             match tok {
@@ -545,92 +546,49 @@ impl Codegen {
                 | Instruction::IALoad
                 | Instruction::LALoad
                 | Instruction::SALoad => {
-                    let index = self.stack.pop().expect("expected local variable at index to exist");
-                    let array = self.stack.pop().expect("expected local variable at index to exist");
+                    let index = self
+                        .stack
+                        .pop()
+                        .expect("expected local variable at index to exist");
+                    let array = self
+                        .stack
+                        .pop()
+                        .expect("expected local variable at index to exist");
+                    let ty = match &array {
+                        StackEntry::Array(ty, _, _) => ty,
+                        StackEntry::Index(_, _, ty) => ty,
+                        StackEntry::Ident(_, ty) => ty,
+                        _ => unimplemented!(),
+                    }
+                    .clone();
+                    let ty = match ty {
+                        Type::Reference(r) => *r,
+                        _ => ty,
+                    };
                     self.stack
-                        .push(StackEntry::Index(Box::new(array), Box::new(index)))
+                        .push(StackEntry::Index(Box::new(array), Box::new(index), ty))
                 }
 
-                Instruction::IStore(n) => {
-                    self.local_variables
-                        .insert(usize::from(n), StackEntry::Ident(format!("i{}", n)));
-                    writeln!(buf, "int i{} = {};", n, self.stack.pop().unwrap())?;
-                }
-                Instruction::IStore1 => {
-                    self.local_variables
-                        .insert(1, StackEntry::Ident("i1".to_owned()));
-                    writeln!(buf, "int i1 = {};", self.stack.pop().unwrap())?;
-                }
-                Instruction::IStore2 => {
-                    self.local_variables
-                        .insert(2, StackEntry::Ident("i2".to_owned()));
-                    writeln!(buf, "int i2 = {};", self.stack.pop().unwrap())?;
-                }
-                Instruction::IStore3 => {
-                    self.local_variables
-                        .insert(3, StackEntry::Ident("i3".to_owned()));
-                    writeln!(buf, "int i3 = {};", self.stack.pop().unwrap())?;
-                }
-                Instruction::FStore(n) => {
-                    self.local_variables
-                        .insert(usize::from(n), StackEntry::Ident(format!("f{}", n)));
-                    writeln!(buf, "float f{} = {};", n, self.stack.pop().unwrap())?;
-                }
-                Instruction::FStore1 => {
-                    self.local_variables
-                        .insert(1, StackEntry::Ident("f1".to_owned()));
-                    writeln!(buf, "float f1 = {};", self.stack.pop().unwrap())?;
-                }
-                Instruction::FStore2 => {
-                    self.local_variables
-                        .insert(2, StackEntry::Ident("f2".to_owned()));
-                    writeln!(buf, "float f2 = {};", self.stack.pop().unwrap())?;
-                }
-                Instruction::FStore3 => {
-                    self.local_variables
-                        .insert(3, StackEntry::Ident("f3".to_owned()));
-                    writeln!(buf, "float f3 = {};", self.stack.pop().unwrap())?;
-                }
-                Instruction::DStore(n) => {
-                    self.local_variables
-                        .insert(usize::from(n), StackEntry::Ident(format!("d{}", n)));
-                    writeln!(buf, "double d{} = {};", n, self.stack.pop().unwrap())?;
-                }
-                Instruction::DStore1 => {
-                    self.local_variables
-                        .insert(1, StackEntry::Ident("d1".to_owned()));
-                    writeln!(buf, "double d1 = {};", self.stack.pop().unwrap())?;
-                }
-                Instruction::DStore2 => {
-                    self.local_variables
-                        .insert(2, StackEntry::Ident("d2".to_owned()));
-                    writeln!(buf, "double d2 = {};", self.stack.pop().unwrap())?;
-                }
-                Instruction::DStore3 => {
-                    self.local_variables
-                        .insert(3, StackEntry::Ident("d3".to_owned()));
-                    writeln!(buf, "double d3 = {};", self.stack.pop().unwrap())?;
-                }
-                Instruction::LStore(n) => {
-                    self.local_variables
-                        .insert(usize::from(n), StackEntry::Ident(format!("l{}", n)));
-                    writeln!(buf, "long l{} = {};", n, self.stack.pop().unwrap())?;
-                }
-                Instruction::LStore1 => {
-                    self.local_variables
-                        .insert(1, StackEntry::Ident("l1".to_owned()));
-                    writeln!(buf, "long l1 = {};", self.stack.pop().unwrap())?;
-                }
-                Instruction::LStore2 => {
-                    self.local_variables
-                        .insert(2, StackEntry::Ident("l2".to_owned()));
-                    writeln!(buf, "long l2 = {};", self.stack.pop().unwrap())?;
-                }
-                Instruction::LStore3 => {
-                    self.local_variables
-                        .insert(3, StackEntry::Ident("l3".to_owned()));
-                    writeln!(buf, "long l3 = {};", self.stack.pop().unwrap())?;
-                }
+                Instruction::IStore(n) => self.istore(n)?,
+                Instruction::IStore1 => self.istore(1)?,
+                Instruction::IStore2 => self.istore(2)?,
+                Instruction::IStore3 => self.istore(3)?,
+                Instruction::FStore(n) => self.fstore(n)?,
+                Instruction::FStore1 => self.fstore(1)?,
+                Instruction::FStore2 => self.fstore(2)?,
+                Instruction::FStore3 => self.fstore(3)?,
+                Instruction::DStore(n) => self.dstore(n)?,
+                Instruction::DStore1 => self.dstore(1)?,
+                Instruction::DStore2 => self.dstore(2)?,
+                Instruction::DStore3 => self.dstore(3)?,
+                Instruction::LStore(n) => self.lstore(n)?,
+                Instruction::LStore1 => self.lstore(1)?,
+                Instruction::LStore2 => self.lstore(2)?,
+                Instruction::LStore3 => self.lstore(3)?,
+                Instruction::AStore(n) => self.astore(n)?,
+                Instruction::AStore1 => self.astore(1)?,
+                Instruction::AStore2 => self.astore(2)?,
+                Instruction::AStore3 => self.astore(3)?,
                 Instruction::AAStore
                 | Instruction::BAStore
                 | Instruction::CAStore
@@ -651,8 +609,8 @@ impl Codegen {
                             els.swap_remove(index);
                             self.stack.push(StackEntry::Array(ty, count, els));
                         }
-                        StackEntry::Ident(s) => {
-                            writeln!(buf, "{}[{}] = {};", s, index, val)?;
+                        StackEntry::Ident(s, _) => {
+                            writeln!(self.buf, "{}[{}] = {};", s, index, val)?;
                         }
                         _ => unimplemented!(),
                     }
@@ -688,7 +646,9 @@ impl Codegen {
                 | Instruction::Ireturn
                 | Instruction::Freturn
                 | Instruction::Dreturn
-                | Instruction::Lreturn => writeln!(buf, "return {};", self.stack.pop().unwrap())?,
+                | Instruction::Lreturn => {
+                    writeln!(self.buf, "return {};", self.stack.pop().unwrap())?
+                }
 
                 Instruction::InvokeStatic(index) => {
                     let (class, name, descriptor) = self.class.read_methodref_from_index(index)?;
@@ -702,7 +662,7 @@ impl Codegen {
                         descriptor.return_type.clone(),
                     );
                     if descriptor.return_type == Type::Void {
-                        writeln!(buf, "{};", f.clone())?;
+                        writeln!(self.buf, "{};", f.clone())?;
                     }
                     self.stack.push(f);
                 }
@@ -720,58 +680,27 @@ impl Codegen {
                         descriptor.return_type.clone(),
                     );
                     if descriptor.return_type == Type::Void {
-                        writeln!(buf, "{};", f.clone())?;
+                        writeln!(self.buf, "{};", f.clone())?;
                     }
                     self.stack.push(f);
                 }
 
                 Instruction::GetStatic(index) => {
-                    let (class, name, _) = self.class.read_fieldref_from_index(index)?;
+                    let (class, name, ty) = self.class.read_fieldref_from_index(index)?;
                     self.stack
-                        .push(StackEntry::Field(format!("{}.{}", class, name)));
+                        .push(StackEntry::Field(ty, format!("{}.{}", &class, name)));
                 }
-                Instruction::AStore1 => {
-                    let val = self.stack.pop().unwrap();
-                    self.local_variables
-                        .insert(1, StackEntry::Ident("a1".to_owned()));
-                    match val {
-                        StackEntry::Array(ty, _, els) => {
-                            writeln!(
-                                buf,
-                                "{}[] a2 = {{ {} }};",
-                                ty,
-                                els.iter()
-                                    .map(|a| format!("{}", a))
-                                    .collect::<Vec<String>>()
-                                    .join(", ")
-                            )?;
+                Instruction::GetField(index) => {
+                    let (class, name, _) = self.class.read_fieldref_from_index(index)?;
+                    let obj = self.stack.pop().expect("expected object on stack");
+                    match obj {
+                        StackEntry::Ident(s, _) => {
+                            self.stack.push(StackEntry::Field(
+                                Type::ClassName(class),
+                                format!("{}.{}", s, name),
+                            ));
                         }
-                        StackEntry::String(s) => {
-                            writeln!(buf, "String s1 = \"{}\";", s)?;
-                        }
-                        _ => unimplemented!(),
-                    }
-                }
-                Instruction::AStore2 => {
-                    let val = self.stack.pop().unwrap();
-                    self.local_variables
-                        .insert(2, StackEntry::Ident("a2".to_owned()));
-                    match val {
-                        StackEntry::Array(ty, _, els) => {
-                            writeln!(
-                                buf,
-                                "{}[] a2 = {{ {} }};",
-                                ty,
-                                els.iter()
-                                    .map(|a| format!("{}", a))
-                                    .collect::<Vec<String>>()
-                                    .join(", ")
-                            )?;
-                        }
-                        StackEntry::String(s) => {
-                            writeln!(buf, "String s1 = \"{}\";", s)?;
-                        }
-                        _ => unimplemented!(),
+                        _ => unimplemented!("non-ident field access"),
                     }
                 }
 
@@ -807,16 +736,16 @@ impl Codegen {
                 }
 
                 Instruction::Nop => {}
-                Instruction::Pop => writeln!(buf, "{};", self.stack.pop().unwrap())?,
+                Instruction::Pop => writeln!(self.buf, "{};", self.stack.pop().unwrap())?,
                 Instruction::Pop2 => {
                     let val1 = self.stack.pop().unwrap();
                     match val1 {
                         StackEntry::Long(_) | StackEntry::Double(_) => {}
                         StackEntry::Function(_, _, Type::Double)
                         | StackEntry::Function(_, _, Type::Long) => {}
-                        _ => writeln!(buf, "{};", self.stack.pop().unwrap())?,
+                        _ => writeln!(self.buf, "{};", self.stack.pop().unwrap())?,
                     }
-                    writeln!(buf, "{};", val1)?
+                    writeln!(self.buf, "{};", val1)?
                 }
 
                 Instruction::IfIcmpne(branchbyte1, branchbyte2) => {
@@ -824,7 +753,7 @@ impl Codegen {
                     let left = self.stack.pop().unwrap();
                     let right = self.stack.pop().unwrap();
                     write!(
-                        buf,
+                        self.buf,
                         "{}",
                         StackEntry::If(Box::new(left), Comparison::NotEqual, Box::new(right))
                     )?;
@@ -835,37 +764,13 @@ impl Codegen {
                     unimplemented!()
                 }
 
-                Instruction::I2b => {
-                    let val = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Cast(Type::Byte, Box::new(val)));
-                }
-                Instruction::I2c => {
-                    let val = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Cast(Type::Char, Box::new(val)));
-                }
-                Instruction::I2d | Instruction::F2d | Instruction::L2d => {
-                    let val = self.stack.pop().unwrap();
-                    self.stack
-                        .push(StackEntry::Cast(Type::Double, Box::new(val)));
-                }
-                Instruction::I2l | Instruction::F2l | Instruction::D2l => {
-                    let val = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Cast(Type::Long, Box::new(val)));
-                }
-                Instruction::I2s => {
-                    let val = self.stack.pop().unwrap();
-                    self.stack
-                        .push(StackEntry::Cast(Type::Short, Box::new(val)));
-                }
-                Instruction::F2i | Instruction::D2i | Instruction::L2i => {
-                    let val = self.stack.pop().unwrap();
-                    self.stack.push(StackEntry::Cast(Type::Int, Box::new(val)));
-                }
-                Instruction::I2f | Instruction::D2f | Instruction::L2f => {
-                    let val = self.stack.pop().unwrap();
-                    self.stack
-                        .push(StackEntry::Cast(Type::Float, Box::new(val)));
-                }
+                Instruction::I2b => self.cast(Type::Byte),
+                Instruction::I2c => self.cast(Type::Char),
+                Instruction::I2d | Instruction::F2d | Instruction::L2d => self.cast(Type::Double),
+                Instruction::I2l | Instruction::F2l | Instruction::D2l => self.cast(Type::Long),
+                Instruction::I2s => self.cast(Type::Short),
+                Instruction::F2i | Instruction::D2i | Instruction::L2i => self.cast(Type::Int),
+                Instruction::I2f | Instruction::D2f | Instruction::L2f => self.cast(Type::Float),
 
                 Instruction::Dup => {
                     // todo: figure out initialization with `dup`
@@ -898,6 +803,83 @@ impl Codegen {
         }
         // buf.write_all(b"}\n}\n")?;
         Ok(())
+    }
+
+    fn astore(&mut self, idx: u8) -> JResult<()> {
+        let val = self.stack.pop().unwrap();
+        let idx = usize::from(idx);
+        match &val {
+            StackEntry::Array(ty, _, _) => {
+                writeln!(self.buf, "{}[] a{} = {{ {} }};", ty, idx, val)?;
+                self.local_variables.insert(
+                    idx,
+                    StackEntry::Ident(format!("a{}", idx), Type::Reference(Box::new(ty.clone()))),
+                );
+            }
+            StackEntry::String(s) => {
+                writeln!(self.buf, "String s{} = \"{}\";", idx, s)?;
+                self.local_variables.insert(
+                    idx,
+                    StackEntry::Ident(
+                        format!("s{}", idx),
+                        Type::ClassName("java/lang/String".to_owned()),
+                    ),
+                );
+            }
+            StackEntry::Field(ty, f) => {
+                writeln!(self.buf, "{} f{} = {};", &ty, idx, f)?;
+                self.local_variables
+                    .insert(idx, StackEntry::Ident(format!("f{}", idx), ty.clone()));
+            }
+            StackEntry::Index(_, _, ty) => {
+                writeln!(self.buf, "{} i{} = {};", ty, idx, val)?;
+                self.local_variables
+                    .insert(idx, StackEntry::Ident(format!("i{}", idx), ty.clone()));
+            }
+            _ => unimplemented!(),
+        }
+        Ok(())
+    }
+
+    fn istore(&mut self, idx: u8) -> JResult<()> {
+        self.local_variables.insert(
+            usize::from(idx),
+            StackEntry::Ident(format!("i{}", idx), Type::Int),
+        );
+        writeln!(self.buf, "int i{} = {};", idx, self.stack.pop().unwrap())?;
+        Ok(())
+    }
+
+    fn fstore(&mut self, idx: u8) -> JResult<()> {
+        self.local_variables.insert(
+            usize::from(idx),
+            StackEntry::Ident(format!("f{}", idx), Type::Float),
+        );
+        writeln!(self.buf, "float f{} = {};", idx, self.stack.pop().unwrap())?;
+        Ok(())
+    }
+
+    fn dstore(&mut self, idx: u8) -> JResult<()> {
+        self.local_variables.insert(
+            usize::from(idx),
+            StackEntry::Ident(format!("d{}", idx), Type::Double),
+        );
+        writeln!(self.buf, "double d{} = {};", idx, self.stack.pop().unwrap())?;
+        Ok(())
+    }
+
+    fn lstore(&mut self, idx: u8) -> JResult<()> {
+        self.local_variables.insert(
+            usize::from(idx),
+            StackEntry::Ident(format!("l{}", idx), Type::Long),
+        );
+        writeln!(self.buf, "long l{} = {};", idx, self.stack.pop().unwrap())?;
+        Ok(())
+    }
+
+    fn cast(&mut self, ty: Type) {
+        let val = self.stack.pop().unwrap();
+        self.stack.push(StackEntry::Cast(ty, Box::new(val)));
     }
 }
 
