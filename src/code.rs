@@ -213,7 +213,7 @@ impl Code {
                 0x57 => Instruction::Pop,
                 0x58 => Instruction::Pop2,
                 0xb5 => Instruction::PutField(u16::from_be_bytes([next(), next()])),
-                0xb3 => Instruction::PutStatic(next(), next()),
+                0xb3 => Instruction::PutStatic(u16::from_be_bytes([next(), next()])),
                 0xa9 => Instruction::Ret(next()),
                 0xb1 => Instruction::Return,
                 0x35 => Instruction::SALoad,
@@ -646,7 +646,7 @@ pub enum Instruction {
     /// set field to value in an object objectref, where the field is identified by a field reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     PutField(u16),
     /// set static field to value in a class, where the field is identified by a field reference index in constant pool (indexbyte1 << 8 + indexbyte2)
-    PutStatic(u8, u8),
+    PutStatic(u16),
     /// continue execution from address taken from a local variable #index (the asymmetry with jsr is intentional)
     Ret(u8),
     /// return void from method
@@ -870,7 +870,7 @@ impl Instruction {
             | Instruction::Ldc2W(_)
             | Instruction::New(_)
             | Instruction::PutField(_)
-            | Instruction::PutStatic(_, _) => 3,
+            | Instruction::PutStatic(_) => 3,
             Instruction::Wide3(_, _, _) | Instruction::MultiANewArray(_, _, _) => 4,
             Instruction::GotoW(_, _, _, _)
             | Instruction::InvokeDynamic(_, _, _)

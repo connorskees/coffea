@@ -336,6 +336,15 @@ impl ClassFile {
     }
 }
 
+/// A higher level representation of StackEntry
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum AST {
+    /// Any expression -- binary + unary ops, assignment, etc.
+    Expr(String),
+    /// IF String { Vec<AST> } [ELSE { Vec<AST> }]
+    If(String, Vec<AST>, Option<Vec<AST>>),
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum BinaryOp {
     Add,
@@ -343,6 +352,15 @@ enum BinaryOp {
     Mul,
     Div,
     Rem,
+    Shl,
+    /// arithmetic shift right
+    Shr,
+    /// logical shift right
+    UShr,
+    /// bitwise and
+    And,
+    Or,
+    Xor,
     InstanceOf,
     Equal,
     NotEqual,
@@ -360,6 +378,12 @@ impl fmt::Display for BinaryOp {
             BinaryOp::Mul => write!(f, "*"),
             BinaryOp::Div => write!(f, "/"),
             BinaryOp::Rem => write!(f, "%"),
+            BinaryOp::Shl => write!(f, "<<"),
+            BinaryOp::Shr => write!(f, ">>"),
+            BinaryOp::UShr => write!(f, ">>>"),
+            BinaryOp::And => write!(f, "&"),
+            BinaryOp::Or => write!(f, "|"),
+            BinaryOp::Xor => write!(f, "^"),
             BinaryOp::InstanceOf => write!(f, "instanceof"),
             BinaryOp::Equal => write!(f, "=="),
             BinaryOp::NotEqual => write!(f, "!="),
@@ -401,7 +425,6 @@ enum StackEntry {
     UnaryOp(Box<UnaryOp>),
     BinaryOp(Box<StackEntry>, BinaryOp, Box<StackEntry>),
     Ident(String, Type),
-    If(Box<StackEntry>, BinaryOp, Box<StackEntry>),
     Function(String, Vec<StackEntry>, Type),
     Field(Type, String),
     String(String),
@@ -432,7 +455,6 @@ impl fmt::Display for StackEntry {
             StackEntry::BinaryOp(a, op, b) => write!(f, "({} {} {})", a, op, b),
             StackEntry::Ident(s, _ty) => write!(f, "{}", s),
             StackEntry::String(s) => write!(f, "\"{}\"", s),
-            StackEntry::If(if_, cmp, else_) => writeln!(f, "if ({} {} {}) {{", if_, cmp, else_),
             StackEntry::Function(name, args, _) => write!(
                 f,
                 "{}({})",
@@ -626,13 +648,19 @@ impl<W: Write> Codegen<W> {
                 }
 
                 Instruction::IAdd | Instruction::FAdd | Instruction::DAdd | Instruction::LAdd => self.binary_op(BinaryOp::Add),
-                Instruction::Isub | Instruction::Fsub | Instruction::Dsub | Instruction::Lsub => self.binary_op(BinaryOp::Sub),
-                Instruction::Imul | Instruction::Fmul | Instruction::Dmul | Instruction::Lmul => self.binary_op(BinaryOp::Mul),
-                Instruction::Idiv | Instruction::Fdiv | Instruction::Ddiv | Instruction::Ldiv => self.binary_op(BinaryOp::Div),
-                Instruction::Irem | Instruction::Frem | Instruction::Drem | Instruction::Lrem => self.binary_op(BinaryOp::Rem),
+                Instruction::ISub | Instruction::FSub | Instruction::DSub | Instruction::LSub => self.binary_op(BinaryOp::Sub),
+                Instruction::IMul | Instruction::FMul | Instruction::DMul | Instruction::LMul => self.binary_op(BinaryOp::Mul),
+                Instruction::IDiv | Instruction::FDiv | Instruction::DDiv | Instruction::LDiv => self.binary_op(BinaryOp::Div),
+                Instruction::IRem | Instruction::FRem | Instruction::DRem | Instruction::LRem => self.binary_op(BinaryOp::Rem),
+                Instruction::IShl | Instruction::LShl => self.binary_op(BinaryOp::Shl),
+                Instruction::IShr | Instruction::LShr => self.binary_op(BinaryOp::Shr),
+                Instruction::IUShr | Instruction::LUShr => self.binary_op(BinaryOp::UShr),
+                Instruction::IXor | Instruction::LXor => self.binary_op(BinaryOp::Xor),
+                Instruction::IAnd | Instruction::LAnd => self.binary_op(BinaryOp::And),
+                Instruction::IOr | Instruction::LOr => self.binary_op(BinaryOp::Or),
                 Instruction::Fcmpg | Instruction::Dcmpg => self.binary_op(BinaryOp::GreaterThan),
                 Instruction::Fcmpl | Instruction::Dcmpl => self.binary_op(BinaryOp::LessThan),
-                Instruction::Ineg | Instruction::Fneg | Instruction::Dneg | Instruction::Lneg => {
+                Instruction::INeg | Instruction::FNeg | Instruction::DNeg | Instruction::LNeg => {
                     let val = self.stack.pop().unwrap();
                     self.stack
                         .push(StackEntry::UnaryOp(Box::new(UnaryOp::Neg(val))));
@@ -729,6 +757,18 @@ impl<W: Write> Codegen<W> {
                     }
                 }
 
+                Instruction::PutStatic(index) => {
+                    let val = self.stack.pop().expect("expected value on stack in putfield");
+                    let (obj, field, _) = self.class.read_fieldref_from_index(index)?;
+                    writeln!(self.buf, "{}.{} = {};", obj, field, val)?;
+                }
+                Instruction::PutField(index) => {
+                    let val = self.stack.pop().expect("expected value on stack in putfield");
+                    let obj = self.stack.pop().expect("expected obj on stack in putfield");
+                    let (_, field, _) = self.class.read_fieldref_from_index(index)?;
+                    writeln!(self.buf, "{}.{} = {};", obj, field, val)?;
+                }
+
                 Instruction::NewArray(ty) => {
                     let ty = match ty {
                         4 => Type::Boolean, //int
@@ -792,11 +832,11 @@ impl<W: Write> Codegen<W> {
                     let _offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
                     let left = self.stack.pop().unwrap();
                     let right = self.stack.pop().unwrap();
-                    write!(
-                        self.buf,
-                        "{}",
-                        StackEntry::If(Box::new(left), BinaryOp::NotEqual, Box::new(right))
-                    )?;
+                    // write!(
+                    //     self.buf,
+                    //     "{}",
+                    //     StackEntry::If(Box::new(left), BinaryOp::NotEqual, Box::new(right))
+                    // )?;
                 }
 
                 Instruction::Goto(branchbyte1, branchbyte2) => {
@@ -1032,10 +1072,31 @@ fn main() -> JResult<()> {
     // let mut outfile = File::create("testout.java")?;
     let mut outfile = std::io::stdout();
 
+    /*
+    "<clinit>",
+    "<init>",
+    "equals",
+    "getNewIDNumber",
+    "getName",
+    "getDateCheckedOut",
+    "setDateCheckedOut",
+    "resetDateCheckedOut",
+    "getUserCheckedOut",
+    "setUserCheckedOut",
+    "resetUserCheckedOut",
+    "getDateDue",
+    "setDateDue",
+    "resetDateDue",
+    "getID",
+    "getAuthorName",
+    */
     // dbg!(&file.method_by_name("main"));
-
+    // dbg!(file.method_names());
+    // let f = "resetDateCheckedOut";
+    // dbg!(file.method_by_name(f).unwrap().code().unwrap().lex());
+    // file.codegen(f, &mut outfile)?;
+    
     dbg!(file.method_by_name("main").unwrap().code().unwrap().lex());
     file.codegen("main", &mut outfile)?;
-    // file.codegen("hi", &mut outfile)?;
     Ok(())
 }
