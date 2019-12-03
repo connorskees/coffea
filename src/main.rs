@@ -647,11 +647,21 @@ impl<W: Write> Codegen<W> {
                     }
                 }
 
-                Instruction::IAdd | Instruction::FAdd | Instruction::DAdd | Instruction::LAdd => self.binary_op(BinaryOp::Add),
-                Instruction::ISub | Instruction::FSub | Instruction::DSub | Instruction::LSub => self.binary_op(BinaryOp::Sub),
-                Instruction::IMul | Instruction::FMul | Instruction::DMul | Instruction::LMul => self.binary_op(BinaryOp::Mul),
-                Instruction::IDiv | Instruction::FDiv | Instruction::DDiv | Instruction::LDiv => self.binary_op(BinaryOp::Div),
-                Instruction::IRem | Instruction::FRem | Instruction::DRem | Instruction::LRem => self.binary_op(BinaryOp::Rem),
+                Instruction::IAdd | Instruction::FAdd | Instruction::DAdd | Instruction::LAdd => {
+                    self.binary_op(BinaryOp::Add)
+                }
+                Instruction::ISub | Instruction::FSub | Instruction::DSub | Instruction::LSub => {
+                    self.binary_op(BinaryOp::Sub)
+                }
+                Instruction::IMul | Instruction::FMul | Instruction::DMul | Instruction::LMul => {
+                    self.binary_op(BinaryOp::Mul)
+                }
+                Instruction::IDiv | Instruction::FDiv | Instruction::DDiv | Instruction::LDiv => {
+                    self.binary_op(BinaryOp::Div)
+                }
+                Instruction::IRem | Instruction::FRem | Instruction::DRem | Instruction::LRem => {
+                    self.binary_op(BinaryOp::Rem)
+                }
                 Instruction::IShl | Instruction::LShl => self.binary_op(BinaryOp::Shl),
                 Instruction::IShr | Instruction::LShr => self.binary_op(BinaryOp::Shr),
                 Instruction::IUShr | Instruction::LUShr => self.binary_op(BinaryOp::UShr),
@@ -739,7 +749,6 @@ impl<W: Write> Codegen<W> {
 
                 Instruction::GetStatic(index) => {
                     let (class, name, ty) = self.class.read_fieldref_from_index(index)?;
-                    dbg!(&class, &name, &ty);
                     self.stack
                         .push(StackEntry::Field(ty, format!("{}.{}", &class, name)));
                 }
@@ -758,12 +767,18 @@ impl<W: Write> Codegen<W> {
                 }
 
                 Instruction::PutStatic(index) => {
-                    let val = self.stack.pop().expect("expected value on stack in putfield");
+                    let val = self
+                        .stack
+                        .pop()
+                        .expect("expected value on stack in putfield");
                     let (obj, field, _) = self.class.read_fieldref_from_index(index)?;
                     writeln!(self.buf, "{}.{} = {};", obj, field, val)?;
                 }
                 Instruction::PutField(index) => {
-                    let val = self.stack.pop().expect("expected value on stack in putfield");
+                    let val = self
+                        .stack
+                        .pop()
+                        .expect("expected value on stack in putfield");
                     let obj = self.stack.pop().expect("expected obj on stack in putfield");
                     let (_, field, _) = self.class.read_fieldref_from_index(index)?;
                     writeln!(self.buf, "{}.{} = {};", obj, field, val)?;
@@ -819,19 +834,25 @@ impl<W: Write> Codegen<W> {
                 }
 
                 Instruction::Iinc(idx, b) => {
-                    let count = self.local_variables.entry(usize::from(idx)).or_insert(StackEntry::Int(-1));
-                    match count {
+                    let val = self
+                        .local_variables
+                        .entry(usize::from(idx))
+                        .or_insert(StackEntry::Int(-1));
+                    match val {
                         StackEntry::Int(u) => {
-                            *count = StackEntry::Int(*u+i32::from(b));
-                        },
-                        _ => unimplemented!("iinc non-int variable")
+                            *val = StackEntry::Int(*u + i32::from(b));
+                        }
+                        StackEntry::Ident(..) => {
+                            writeln!(self.buf, "{}++;", val)?;
+                        }
+                        _ => unimplemented!("iinc unknown variable type"),
                     }
                 }
 
-                Instruction::IfIcmpne(branchbyte1, branchbyte2) => {
-                    let _offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
-                    let left = self.stack.pop().unwrap();
-                    let right = self.stack.pop().unwrap();
+                Instruction::IfIcmpne(_branchbyte1, _branchbyte2) => {
+                    // let _offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
+                    // let left = self.stack.pop().unwrap();
+                    // let right = self.stack.pop().unwrap();
                     // write!(
                     //     self.buf,
                     //     "{}",
@@ -906,15 +927,12 @@ impl<W: Write> Codegen<W> {
             StackEntry::Null => (Type::Void, String::from("null")),
             _ => unimplemented!(),
         };
-        match self.local_variables.insert(
-            idx,
-            StackEntry::Ident(
-                format!("v{}", idx),
-                ty.clone(),
-            ),
-        ) {
+        match self
+            .local_variables
+            .insert(idx, StackEntry::Ident(format!("v{}", idx), ty.clone()))
+        {
             Some(..) => writeln!(self.buf, "v{} = {};", idx, s)?,
-            None => writeln!(self.buf, "{} v{} = {};", ty, idx, s)?
+            None => writeln!(self.buf, "{} v{} = {};", ty, idx, s)?,
         };
         Ok(())
     }
@@ -980,11 +998,8 @@ impl<W: Write> Codegen<W> {
     fn binary_op(&mut self, op: BinaryOp) {
         let val2 = self.stack.pop().unwrap();
         let val1 = self.stack.pop().unwrap();
-        self.stack.push(StackEntry::BinaryOp(
-            Box::new(val1),
-            op,
-            Box::new(val2),
-        ));
+        self.stack
+            .push(StackEntry::BinaryOp(Box::new(val1), op, Box::new(val2)));
     }
 }
 
@@ -1092,10 +1107,10 @@ fn main() -> JResult<()> {
     */
     // dbg!(&file.method_by_name("main"));
     // dbg!(file.method_names());
-    // let f = "resetDateCheckedOut";
+    // let f = "getNewIDNumber";
     // dbg!(file.method_by_name(f).unwrap().code().unwrap().lex());
     // file.codegen(f, &mut outfile)?;
-    
+
     dbg!(file.method_by_name("main").unwrap().code().unwrap().lex());
     file.codegen("main", &mut outfile)?;
     Ok(())
