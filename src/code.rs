@@ -51,22 +51,22 @@ impl Code {
                 0x97 => Instruction::Dcmpl,
                 0x0e => Instruction::DConst0,
                 0x0f => Instruction::DConst1,
-                0x6f => Instruction::Ddiv,
+                0x6f => Instruction::DDiv,
                 0x18 => Instruction::Dload(next()),
                 0x26 => Instruction::Dload0,
                 0x27 => Instruction::Dload1,
                 0x28 => Instruction::Dload2,
                 0x29 => Instruction::Dload3,
-                0x6b => Instruction::Dmul,
-                0x77 => Instruction::Dneg,
-                0x73 => Instruction::Drem,
+                0x6b => Instruction::DMul,
+                0x77 => Instruction::DNeg,
+                0x73 => Instruction::DRem,
                 0xaf => Instruction::Dreturn,
                 0x39 => Instruction::DStore(next()),
                 0x47 => Instruction::DStore0,
                 0x48 => Instruction::DStore1,
                 0x49 => Instruction::DStore2,
                 0x4a => Instruction::DStore3,
-                0x67 => Instruction::Dsub,
+                0x67 => Instruction::DSub,
                 0x59 => Instruction::Dup,
                 0x5a => Instruction::DupX1,
                 0x5b => Instruction::DupX2,
@@ -84,22 +84,22 @@ impl Code {
                 0x0b => Instruction::FConst0,
                 0x0c => Instruction::FConst1,
                 0x0d => Instruction::FConst2,
-                0x6e => Instruction::Fdiv,
+                0x6e => Instruction::FDiv,
                 0x17 => Instruction::Fload(next()),
                 0x22 => Instruction::Fload0,
                 0x23 => Instruction::Fload1,
                 0x24 => Instruction::Fload2,
                 0x25 => Instruction::Fload3,
-                0x6a => Instruction::Fmul,
-                0x76 => Instruction::Fneg,
-                0x72 => Instruction::Frem,
+                0x6a => Instruction::FMul,
+                0x76 => Instruction::FNeg,
+                0x72 => Instruction::FRem,
                 0xae => Instruction::Freturn,
                 0x38 => Instruction::FStore(next()),
                 0x43 => Instruction::FStore0,
                 0x44 => Instruction::FStore1,
                 0x45 => Instruction::FStore2,
                 0x46 => Instruction::FStore3,
-                0x66 => Instruction::Fsub,
+                0x66 => Instruction::FSub,
                 0xb4 => Instruction::GetField(u16::from_be_bytes([next(), next()])),
                 0xb2 => Instruction::GetStatic(u16::from_be_bytes([next(), next()])),
                 0xa7 => Instruction::Goto(next(), next()),
@@ -112,7 +112,7 @@ impl Code {
                 0x93 => Instruction::I2s,
                 0x60 => Instruction::IAdd,
                 0x2e => Instruction::IALoad,
-                0x7e => Instruction::Iand,
+                0x7e => Instruction::IAnd,
                 0x4f => Instruction::IAStore,
                 0x02 => Instruction::IConstM1,
                 0x03 => Instruction::IConst0,
@@ -121,7 +121,7 @@ impl Code {
                 0x06 => Instruction::IConst3,
                 0x07 => Instruction::IConst4,
                 0x08 => Instruction::IConst5,
-                0x6c => Instruction::Idiv,
+                0x6c => Instruction::IDiv,
                 0xa5 => Instruction::IfAcmpeq(next(), next()),
                 0xa6 => Instruction::IfAcmpne(next(), next()),
                 0x9f => Instruction::IfIcmpeq(next(), next()),
@@ -146,27 +146,27 @@ impl Code {
                 0x1d => Instruction::ILoad3,
                 0xfe => Instruction::Impdep1,
                 0xff => Instruction::Impdep2,
-                0x68 => Instruction::Imul,
-                0x74 => Instruction::Ineg,
+                0x68 => Instruction::IMul,
+                0x74 => Instruction::INeg,
                 0xc1 => Instruction::InstanceOf(u16::from_be_bytes([next(), next()])),
                 0xba => Instruction::InvokeDynamic(u16::from_be_bytes([next(), next()]), next(), next()),
                 0xb9 => Instruction::InvokeInterface(next(), next(), next(), next()),
                 0xb7 => Instruction::InvokeSpecial(u16::from_be_bytes([next(), next()])),
                 0xb8 => Instruction::InvokeStatic(u16::from_be_bytes([next(), next()])),
                 0xb6 => Instruction::InvokeVirtual(u16::from_be_bytes([next(), next()])),
-                0x80 => Instruction::Ior,
-                0x70 => Instruction::Irem,
+                0x80 => Instruction::IOr,
+                0x70 => Instruction::IRem,
                 0xac => Instruction::Ireturn,
-                0x78 => Instruction::Ishl,
-                0x7a => Instruction::Ishr,
+                0x78 => Instruction::IShl,
+                0x7a => Instruction::IShr,
                 0x36 => Instruction::IStore(next()),
                 0x3b => Instruction::IStore0,
                 0x3c => Instruction::IStore1,
                 0x3d => Instruction::IStore2,
                 0x3e => Instruction::IStore3,
-                0x64 => Instruction::Isub,
-                0x7c => Instruction::Iushr,
-                0x82 => Instruction::Ixor,
+                0x64 => Instruction::ISub,
+                0x7c => Instruction::IUShr,
+                0x82 => Instruction::IXor,
                 0xa8 => Instruction::Jsr(next(), next()),
                 0xc9 => Instruction::JsrW(next(), next(), next(), next()),
                 0x8a => Instruction::L2d,
@@ -174,7 +174,7 @@ impl Code {
                 0x88 => Instruction::L2i,
                 0x61 => Instruction::LAdd,
                 0x2f => Instruction::LALoad,
-                0x7f => Instruction::Land,
+                0x7f => Instruction::LAnd,
                 0x50 => Instruction::LAStore,
                 0x94 => Instruction::Lcmp,
                 0x09 => Instruction::LConst0,
@@ -182,28 +182,28 @@ impl Code {
                 0x12 => Instruction::Ldc(u16::from(next())),
                 0x13 => Instruction::LdcW(u16::from_be_bytes([next(), next()])),
                 0x14 => Instruction::Ldc2W(u16::from_be_bytes([next(), next()])),
-                0x6d => Instruction::Ldiv,
+                0x6d => Instruction::LDiv,
                 0x16 => Instruction::LLoad(next()),
                 0x1e => Instruction::LLoad0,
                 0x1f => Instruction::LLoad1,
                 0x20 => Instruction::LLoad2,
                 0x21 => Instruction::LLoad3,
-                0x69 => Instruction::Lmul,
-                0x75 => Instruction::Lneg,
+                0x69 => Instruction::LMul,
+                0x75 => Instruction::LNeg,
                 0xab => unimplemented!("instruction `LookupSwitch` not yet implemented"), //Instruction::Lookupswitch,
-                0x81 => Instruction::Lor,
-                0x71 => Instruction::Lrem,
+                0x81 => Instruction::LOr,
+                0x71 => Instruction::LRem,
                 0xad => Instruction::Lreturn,
-                0x79 => Instruction::Lshl,
-                0x7b => Instruction::Lshr,
+                0x79 => Instruction::LShl,
+                0x7b => Instruction::LShr,
                 0x37 => Instruction::LStore(next()),
                 0x3f => Instruction::LStore0,
                 0x40 => Instruction::LStore1,
                 0x41 => Instruction::LStore2,
                 0x42 => Instruction::LStore3,
-                0x65 => Instruction::Lsub,
-                0x7d => Instruction::Lushr,
-                0x83 => Instruction::Lxor,
+                0x65 => Instruction::LSub,
+                0x7d => Instruction::LUShr,
+                0x83 => Instruction::LXor,
                 0xc2 => Instruction::MonitorEnter,
                 0xc3 => Instruction::MonitorExit,
                 0xc5 => Instruction::MultiANewArray(next(), next(), next()),
@@ -212,7 +212,7 @@ impl Code {
                 0x00 => Instruction::Nop,
                 0x57 => Instruction::Pop,
                 0x58 => Instruction::Pop2,
-                0xb5 => Instruction::PutField(next(), next()),
+                0xb5 => Instruction::PutField(u16::from_be_bytes([next(), next()])),
                 0xb3 => Instruction::PutStatic(next(), next()),
                 0xa9 => Instruction::Ret(next()),
                 0xb1 => Instruction::Return,
@@ -322,7 +322,7 @@ pub enum Instruction {
     /// push the constant 1.0 (a double) onto the stack
     DConst1,
     /// divide two doubles
-    Ddiv,
+    DDiv,
     /// load a double value from a local variable #index
     Dload(u8),
     /// load a double from local variable 0
@@ -334,11 +334,11 @@ pub enum Instruction {
     /// load a double from local variable 3
     Dload3,
     /// multiply two doubles
-    Dmul,
+    DMul,
     /// negate a double
-    Dneg,
+    DNeg,
     /// get the remainder from a division between two doubles
-    Drem,
+    DRem,
     /// return a double from a method
     Dreturn,
     /// store a double value into a local variable #index
@@ -352,7 +352,7 @@ pub enum Instruction {
     /// store a double into local variable 3
     DStore3,
     /// subtract a double from another
-    Dsub,
+    DSub,
     /// duplicate the value on top of the stack
     Dup,
     /// insert a copy of the top value into the stack two values from the top. value1 and value2 must not be of the type double or long.
@@ -388,7 +388,7 @@ pub enum Instruction {
     /// push 2.0f on the stack
     FConst2,
     /// divide two floats
-    Fdiv,
+    FDiv,
     /// load a float value from a local variable #index
     Fload(u8),
     /// load a float value from local variable 0
@@ -400,11 +400,11 @@ pub enum Instruction {
     /// load a float value from local variable 3
     Fload3,
     /// multiply two floats
-    Fmul,
+    FMul,
     /// negate a float
-    Fneg,
+    FNeg,
     /// get the remainder from a division between two floats
-    Frem,
+    FRem,
     /// return a float
     Freturn,
     /// store a float value into a local variable #index
@@ -418,7 +418,7 @@ pub enum Instruction {
     /// store a float value into local variable 3
     FStore3,
     /// subtract two floats
-    Fsub,
+    FSub,
     /// get a field value of an object objectref, where the field is identified by field reference in the constant pool index (indexbyte1 << 8 + indexbyte2)
     GetField(u16),
     /// get a static field value of a class, where the field is identified by field reference in the constant pool index (indexbyte1 << 8 + indexbyte2)
@@ -444,7 +444,7 @@ pub enum Instruction {
     /// load an int from an array
     IALoad,
     /// perform a bitwise AND on two integers
-    Iand,
+    IAnd,
     /// store an int into an array
     IAStore,
     /// load the int value −1 onto the stack
@@ -462,7 +462,7 @@ pub enum Instruction {
     /// load the int value 5 onto the stack
     IConst5,
     /// divide two integers
-    Idiv,
+    IDiv,
     /// if references are equal, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
     IfAcmpeq(u8, u8),
     /// if references are not equal, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
@@ -512,9 +512,9 @@ pub enum Instruction {
     /// reserved for implementation-dependent operations within debuggers; should not appear in any class file
     Impdep2,
     /// multiply two integers
-    Imul,
+    IMul,
     /// negate int
-    Ineg,
+    INeg,
     /// determines if an object objectref is of a given type, identified by class reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     InstanceOf(u16),
     /// invokes a dynamic method and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
@@ -528,15 +528,15 @@ pub enum Instruction {
     /// invoke virtual method on object objectref and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     InvokeVirtual(u16),
     /// bitwise int OR
-    Ior,
+    IOr,
     /// logical int remainder
-    Irem,
+    IRem,
     /// return an integer from a method
     Ireturn,
     /// int shift left
-    Ishl,
+    IShl,
     /// int arithmetic shift right
-    Ishr,
+    IShr,
     /// store int value into variable #index
     IStore(u8),
     /// store int value into variable 0
@@ -548,11 +548,11 @@ pub enum Instruction {
     /// store int value into variable 3
     IStore3,
     /// int subtract
-    Isub,
+    ISub,
     /// int logical shift right
-    Iushr,
+    IUShr,
     /// int xor
-    Ixor,
+    IXor,
     /// jump to subroutine at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2) and place the return address on the stack
     Jsr(u8, u8),
     /// jump to subroutine at branchoffset (signed int constructed from unsigned bytes branchbyte1 << 24 + branchbyte2 << 16 + branchbyte3 << 8 + branchbyte4) and place the return address on the stack
@@ -568,7 +568,7 @@ pub enum Instruction {
     /// load a long from an array
     LALoad,
     /// bitwise AND of two longs
-    Land,
+    LAnd,
     /// store a long to an array
     LAStore,
     /// push 0 if the two longs are the same, 1 if value1 is greater than value2, -1 otherwise
@@ -584,7 +584,7 @@ pub enum Instruction {
     /// push a constant #index from a constant pool (double, long, or a dynamically-computed constant) onto the stack (wide index is constructed as indexbyte1 << 8 + indexbyte2)
     Ldc2W(u16),
     /// divide two longs
-    Ldiv,
+    LDiv,
     /// load a long value from a local variable #index
     LLoad(u8),
     /// load a long value from a local variable 0
@@ -596,21 +596,21 @@ pub enum Instruction {
     /// load a long value from a local variable 3
     LLoad3,
     /// multiply two longs
-    Lmul,
+    LMul,
     /// negate a long
-    Lneg,
+    LNeg,
     /// 8+: <0–3 bytes padding>, defaultbyte1, defaultbyte2, defaultbyte3, defaultbyte4, npairs1, npairs2, npairs3, npairs4, match-offset pairs...	key →	a target address is looked up from a table using a key and execution continues from the instruction at that address
     Lookupswitch,
     /// bitwise OR of two longs
-    Lor,
+    LOr,
     /// remainder of division of two longs
-    Lrem,
+    LRem,
     /// return a long value
     Lreturn,
     /// bitwise shift left of a long value1 by int value2 positions
-    Lshl,
+    LShl,
     /// bitwise shift right of a long value1 by int value2 positions
-    Lshr,
+    LShr,
     /// store a long value in a local variable #index
     LStore(u8),
     /// store a long value in a local variable 0
@@ -622,11 +622,11 @@ pub enum Instruction {
     /// store a long value in a local variable 3
     LStore3,
     /// subtract two longs
-    Lsub,
+    LSub,
     /// bitwise shift right of a long value1 by int value2 positions, unsigned
-    Lushr,
+    LUShr,
     /// bitwise XOR of two longs
-    Lxor,
+    LXor,
     /// enter monitor for object ("grab the lock" – start of synchronized() section)
     MonitorEnter,
     /// exit monitor for object ("release the lock" – end of synchronized() section)
@@ -644,7 +644,7 @@ pub enum Instruction {
     /// discard the top two values on the stack (or one value, if it is a double or long)
     Pop2,
     /// set field to value in an object objectref, where the field is identified by a field reference index in constant pool (indexbyte1 << 8 + indexbyte2)
-    PutField(u8, u8),
+    PutField(u16),
     /// set static field to value in a class, where the field is identified by a field reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     PutStatic(u8, u8),
     /// continue execution from address taken from a local variable #index (the asymmetry with jsr is intentional)
@@ -702,20 +702,20 @@ impl Instruction {
             | Instruction::Dcmpl
             | Instruction::DConst0
             | Instruction::DConst1
-            | Instruction::Ddiv
+            | Instruction::DDiv
             | Instruction::Dload0
             | Instruction::Dload1
             | Instruction::Dload2
             | Instruction::Dload3
-            | Instruction::Dmul
-            | Instruction::Dneg
-            | Instruction::Drem
+            | Instruction::DMul
+            | Instruction::DNeg
+            | Instruction::DRem
             | Instruction::Dreturn
             | Instruction::DStore0
             | Instruction::DStore1
             | Instruction::DStore2
             | Instruction::DStore3
-            | Instruction::Dsub
+            | Instruction::DSub
             | Instruction::Dup
             | Instruction::DupX1
             | Instruction::DupX2
@@ -733,20 +733,20 @@ impl Instruction {
             | Instruction::FConst0
             | Instruction::FConst1
             | Instruction::FConst2
-            | Instruction::Fdiv
+            | Instruction::FDiv
             | Instruction::Fload0
             | Instruction::Fload1
             | Instruction::Fload2
             | Instruction::Fload3
-            | Instruction::Fmul
-            | Instruction::Fneg
-            | Instruction::Frem
+            | Instruction::FMul
+            | Instruction::FNeg
+            | Instruction::FRem
             | Instruction::Freturn
             | Instruction::FStore0
             | Instruction::FStore1
             | Instruction::FStore2
             | Instruction::FStore3
-            | Instruction::Fsub
+            | Instruction::FSub
             | Instruction::I2b
             | Instruction::I2c
             | Instruction::I2d
@@ -755,7 +755,7 @@ impl Instruction {
             | Instruction::I2s
             | Instruction::IAdd
             | Instruction::IALoad
-            | Instruction::Iand
+            | Instruction::IAnd
             | Instruction::IAStore
             | Instruction::IConstM1
             | Instruction::IConst0
@@ -764,56 +764,56 @@ impl Instruction {
             | Instruction::IConst3
             | Instruction::IConst4
             | Instruction::IConst5
-            | Instruction::Idiv
+            | Instruction::IDiv
             | Instruction::ILoad0
             | Instruction::ILoad1
             | Instruction::ILoad2
             | Instruction::ILoad3
             | Instruction::Impdep1
             | Instruction::Impdep2
-            | Instruction::Imul
-            | Instruction::Ineg
-            | Instruction::Ior
-            | Instruction::Irem
+            | Instruction::IMul
+            | Instruction::INeg
+            | Instruction::IOr
+            | Instruction::IRem
             | Instruction::Ireturn
-            | Instruction::Ishl
-            | Instruction::Ishr
+            | Instruction::IShl
+            | Instruction::IShr
             | Instruction::IStore0
             | Instruction::IStore1
             | Instruction::IStore2
             | Instruction::IStore3
-            | Instruction::Isub
-            | Instruction::Iushr
-            | Instruction::Ixor
+            | Instruction::ISub
+            | Instruction::IUShr
+            | Instruction::IXor
             | Instruction::L2d
             | Instruction::L2f
             | Instruction::L2i
             | Instruction::LAdd
             | Instruction::LALoad
-            | Instruction::Land
+            | Instruction::LAnd
             | Instruction::LAStore
             | Instruction::Lcmp
             | Instruction::LConst0
             | Instruction::LConst1
-            | Instruction::Ldiv
+            | Instruction::LDiv
             | Instruction::LLoad0
             | Instruction::LLoad1
             | Instruction::LLoad2
             | Instruction::LLoad3
-            | Instruction::Lmul
-            | Instruction::Lneg
-            | Instruction::Lor
-            | Instruction::Lrem
+            | Instruction::LMul
+            | Instruction::LNeg
+            | Instruction::LOr
+            | Instruction::LRem
             | Instruction::Lreturn
-            | Instruction::Lshl
-            | Instruction::Lshr
+            | Instruction::LShl
+            | Instruction::LShr
             | Instruction::LStore0
             | Instruction::LStore1
             | Instruction::LStore2
             | Instruction::LStore3
-            | Instruction::Lsub
-            | Instruction::Lushr
-            | Instruction::Lxor
+            | Instruction::LSub
+            | Instruction::LUShr
+            | Instruction::LXor
             | Instruction::MonitorEnter
             | Instruction::MonitorExit
             | Instruction::Nop
@@ -869,7 +869,7 @@ impl Instruction {
             | Instruction::LdcW(_)
             | Instruction::Ldc2W(_)
             | Instruction::New(_)
-            | Instruction::PutField(_, _)
+            | Instruction::PutField(_)
             | Instruction::PutStatic(_, _) => 3,
             Instruction::Wide3(_, _, _) | Instruction::MultiANewArray(_, _, _) => 4,
             Instruction::GotoW(_, _, _, _)
