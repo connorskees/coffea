@@ -549,24 +549,29 @@ impl<W: Write> Codegen<W> {
                 Instruction::LConst0 => self.stack.push(StackEntry::Long(0)),
                 Instruction::LConst1 => self.stack.push(StackEntry::Long(1)),
 
+                Instruction::ALoad(n)
+                | Instruction::FLoad(n)
+                | Instruction::DLoad(n)
+                | Instruction::ILoad(n)
+                | Instruction::LLoad(n) => self.load(n),
                 Instruction::Aload0
-                | Instruction::Fload0
-                | Instruction::Dload0
+                | Instruction::FLoad0
+                | Instruction::DLoad0
                 | Instruction::ILoad0
                 | Instruction::LLoad0 => self.load(0),
                 Instruction::Aload1
-                | Instruction::Fload1
-                | Instruction::Dload1
+                | Instruction::FLoad1
+                | Instruction::DLoad1
                 | Instruction::ILoad1
                 | Instruction::LLoad1 => self.load(1),
                 Instruction::Aload2
-                | Instruction::Fload2
-                | Instruction::Dload2
+                | Instruction::FLoad2
+                | Instruction::DLoad2
                 | Instruction::ILoad2
                 | Instruction::LLoad2 => self.load(2),
                 Instruction::ALoad3
-                | Instruction::Fload3
-                | Instruction::Dload3
+                | Instruction::FLoad3
+                | Instruction::DLoad3
                 | Instruction::ILoad3
                 | Instruction::LLoad3 => self.load(3),
                 Instruction::AALoad
@@ -601,22 +606,27 @@ impl<W: Write> Codegen<W> {
                 }
 
                 Instruction::IStore(n) => self.istore(n)?,
+                Instruction::IStore0 => self.istore(0)?,
                 Instruction::IStore1 => self.istore(1)?,
                 Instruction::IStore2 => self.istore(2)?,
                 Instruction::IStore3 => self.istore(3)?,
                 Instruction::FStore(n) => self.fstore(n)?,
+                Instruction::FStore0 => self.fstore(0)?,
                 Instruction::FStore1 => self.fstore(1)?,
                 Instruction::FStore2 => self.fstore(2)?,
                 Instruction::FStore3 => self.fstore(3)?,
                 Instruction::DStore(n) => self.dstore(n)?,
+                Instruction::DStore0 => self.dstore(0)?,
                 Instruction::DStore1 => self.dstore(1)?,
                 Instruction::DStore2 => self.dstore(2)?,
                 Instruction::DStore3 => self.dstore(3)?,
                 Instruction::LStore(n) => self.lstore(n)?,
+                Instruction::LStore0 => self.lstore(0)?,
                 Instruction::LStore1 => self.lstore(1)?,
                 Instruction::LStore2 => self.lstore(2)?,
                 Instruction::LStore3 => self.lstore(3)?,
                 Instruction::AStore(n) => self.astore(n)?,
+                Instruction::AStore0 => self.astore(0)?,
                 Instruction::AStore1 => self.astore(1)?,
                 Instruction::AStore2 => self.astore(2)?,
                 Instruction::AStore3 => self.astore(3)?,
@@ -685,6 +695,24 @@ impl<W: Write> Codegen<W> {
                     ));
                 }
 
+                Instruction::Lcmp => {
+                    let val2 = match self.stack.pop().unwrap() {
+                        StackEntry::Long(l) => l,
+                        _ => unimplemented!("Lcmp non-long value"),
+                    };
+                    let val1 = match self.stack.pop().unwrap() {
+                        StackEntry::Long(l) => l,
+                        _ => unimplemented!("Lcmp non-long value"),
+                    };
+                    if val1 == val2 {
+                        self.stack.push(StackEntry::Int(0));
+                    } else if val1 > val2 {
+                        self.stack.push(StackEntry::Int(1));
+                    } else {
+                        self.stack.push(StackEntry::Int(-1));
+                    }
+                }
+
                 Instruction::Return => break,
                 Instruction::AReturn
                 | Instruction::Ireturn
@@ -693,6 +721,9 @@ impl<W: Write> Codegen<W> {
                 | Instruction::Lreturn => {
                     writeln!(self.buf, "return {};", self.stack.pop().unwrap())?
                 }
+
+                Instruction::InvokeDynamic(_, _, _) => unimplemented!("instruction `InvokeDynamic` not yet implemented"), 
+                Instruction::InvokeInterface(_, _, _) => unimplemented!("instruction `InvokeInterface` not yet implemented"), 
 
                 Instruction::InvokeSpecial(index) => {
                     let (class, name, descriptor) = self.class.read_methodref_from_index(index)?;
@@ -814,13 +845,14 @@ impl<W: Write> Codegen<W> {
                     let v = vec![StackEntry::Unitialized; count];
                     self.stack.push(StackEntry::Array(ty, count, v))
                 }
+                Instruction::MultiANewArray(_, _, _) => unimplemented!("instruction `MultiANewArray` not yet implemented"),
                 Instruction::ArrayLength => {
                     let val = self.stack.pop().unwrap();
                     self.stack
                         .push(StackEntry::UnaryOp(Box::new(UnaryOp::ArrayLength(val))));
                 }
 
-                Instruction::Nop => {}
+                Instruction::Nop | Instruction::NoName => {}
                 Instruction::Pop => writeln!(self.buf, "{};", self.stack.pop().unwrap())?,
                 Instruction::Pop2 => {
                     let val1 = self.stack.pop().unwrap();
@@ -849,21 +881,31 @@ impl<W: Write> Codegen<W> {
                     }
                 }
 
-                Instruction::IfIcmpne(_branchbyte1, _branchbyte2) => {
-                    // let _offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
-                    // let left = self.stack.pop().unwrap();
-                    // let right = self.stack.pop().unwrap();
-                    // write!(
-                    //     self.buf,
-                    //     "{}",
-                    //     StackEntry::If(Box::new(left), BinaryOp::NotEqual, Box::new(right))
-                    // )?;
-                }
+                Instruction::IfAcmpeq(_, _) => unimplemented!("instruction `IfAcmpeq` not yet implemented"),
+                Instruction::IfAcmpne(_, _) => unimplemented!("instruction `IfAcmpne` not yet implemented"),
+                Instruction::Ifeq(_, _) => unimplemented!("instruction `Ifeq` not yet implemented"),
+                Instruction::Ifge(_, _) => unimplemented!("instruction `Ifge` not yet implemented"),
+                Instruction::Ifgt(_, _) => unimplemented!("instruction `Ifgt` not yet implemented"),
+                Instruction::IfIcmpeq(_, _) => unimplemented!("instruction `IfIcmpeq` not yet implemented"),
+                Instruction::IfIcmpne(_, _) => unimplemented!("instruction `IfIcmpne` not yet implemented"),
+                Instruction::IfIcmpge(_, _) => unimplemented!("instruction `IfIcmpge` not yet implemented"),
+                Instruction::IfIcmpgt(_, _) => unimplemented!("instruction `IfIcmpgt` not yet implemented"),
+                Instruction::IfIcmple(_, _) => unimplemented!("instruction `IfIcmple` not yet implemented"),
+                Instruction::IfIcmplt(_, _) => unimplemented!("instruction `IfIcmplt` not yet implemented"),
+                Instruction::Ifle(_, _) => unimplemented!("instruction `Ifle` not yet implemented"),
+                Instruction::Iflt(_, _) => unimplemented!("instruction `Iflt` not yet implemented"),
+                Instruction::Ifne(_, _) => unimplemented!("instruction `Ifne` not yet implemented"),
+                Instruction::Ifnonnull(_, _) => unimplemented!("instruction `Ifnonnull` not yet implemented"),
+                Instruction::Ifnull(_, _) => unimplemented!("instruction `Ifnull` not yet implemented"),
 
                 Instruction::Goto(branchbyte1, branchbyte2) => {
                     let _offset: u32 = u32::from(branchbyte1) << 8 | u32::from(branchbyte2);
-                    unimplemented!()
+                    unimplemented!("goto is unimplemented")
                 }
+                Instruction::GotoW(_, _, _, _) => unimplemented!("instruction `GotoW` not yet implemented"),
+                Instruction::Jsr(_, _) => unimplemented!("instruction `Jsr` not yet implemented"),
+                Instruction::JsrW(_, _, _, _) => unimplemented!("instruction `JsrW` not yet implemented"),
+                Instruction::Ret(_) => unimplemented!("instruction `Ret` not yet implemented"),
 
                 Instruction::I2b => self.cast(Type::Byte),
                 Instruction::I2c => self.cast(Type::Char),
@@ -897,6 +939,15 @@ impl<W: Write> Codegen<W> {
                     self.stack.push(val2);
                     self.stack.push(val1);
                 }
+                Instruction::DupX2 => {
+                    let val1 = self.stack.pop().unwrap();
+                    let val2 = self.stack.pop().unwrap();
+                    let val3 = self.stack.pop().unwrap();
+                    self.stack.push(val1.clone());
+                    self.stack.push(val3);
+                    self.stack.push(val2);
+                    self.stack.push(val1);
+                }
                 Instruction::Dup2 => {
                     let val1 = self.stack.pop().unwrap();
                     let val2 = self.stack.pop().unwrap();
@@ -905,9 +956,49 @@ impl<W: Write> Codegen<W> {
                     self.stack.push(val2);
                     self.stack.push(val1);
                 }
+                Instruction::Dup2X1 => {
+                    let val1 = self.stack.pop().unwrap();
+                    let val2 = self.stack.pop().unwrap();
+                    let val3 = self.stack.pop().unwrap();
+                    self.stack.push(val2.clone());
+                    self.stack.push(val1.clone());
+                    self.stack.push(val3);
+                    self.stack.push(val2);
+                    self.stack.push(val1);
+                }
+                Instruction::Dup2X2 => {
+                    let val1 = self.stack.pop().unwrap();
+                    let val2 = self.stack.pop().unwrap();
+                    let val3 = self.stack.pop().unwrap();
+                    let val4 = self.stack.pop().unwrap();
+                    self.stack.push(val2.clone());
+                    self.stack.push(val1.clone());
+                    self.stack.push(val4);
+                    self.stack.push(val3);
+                    self.stack.push(val2);
+                    self.stack.push(val1);
+                }
 
+                Instruction::Swap => {
+                    let val1 = self.stack.pop().unwrap();
+                    let val2 = self.stack.pop().unwrap();
+                    self.stack.push(val1);
+                    self.stack.push(val2);
+                }
+
+                Instruction::Checkcast(_index) => unimplemented!("instruction `Checkcast` not yet implemented"),
+
+                Instruction::Athrow => unimplemented!("instruction `Athrow` not yet implemented"),
+
+                // used only in debugging
                 Instruction::Breakpoint | Instruction::Impdep1 | Instruction::Impdep2 => {}
-                _ => unimplemented!("instruction not yet implemented"),
+                // low priority and complex
+                Instruction::Lookupswitch
+                | Instruction::MonitorEnter
+                | Instruction::MonitorExit
+                | Instruction::Wide3(_, _, _)
+                | Instruction::Wide5(_, _, _, _, _)
+                | Instruction::TableSwitch => unimplemented!("instruction not yet implemented"),
             };
         }
         // buf.write_all(b"}\n}\n")?;
@@ -1087,29 +1178,12 @@ fn main() -> JResult<()> {
     // let mut outfile = File::create("testout.java")?;
     let mut outfile = std::io::stdout();
 
-    /*
-    "<clinit>",
-    "<init>",
-    "equals",
-    "getNewIDNumber",
-    "getName",
-    "getDateCheckedOut",
-    "setDateCheckedOut",
-    "resetDateCheckedOut",
-    "getUserCheckedOut",
-    "setUserCheckedOut",
-    "resetUserCheckedOut",
-    "getDateDue",
-    "setDateDue",
-    "resetDateDue",
-    "getID",
-    "getAuthorName",
-    */
     // dbg!(&file.method_by_name("main"));
+    // for name in file.method_names() {
+    //     dbg!(&file.method_by_name(name).unwrap().code().unwrap().lex());
+    //     file.clone().codegen(name, &mut outfile)?;
+    // }
     // dbg!(file.method_names());
-    // let f = "getNewIDNumber";
-    // dbg!(file.method_by_name(f).unwrap().code().unwrap().lex());
-    // file.codegen(f, &mut outfile)?;
 
     dbg!(file.method_by_name("main").unwrap().code().unwrap().lex());
     file.codegen("main", &mut outfile)?;

@@ -40,7 +40,7 @@ impl Code {
                 0xca => Instruction::Breakpoint,
                 0x34 => Instruction::CALoad,
                 0x55 => Instruction::CAStore,
-                0xc0 => Instruction::Checkcast(next(), next()),
+                0xc0 => Instruction::Checkcast(u16::from_be_bytes([next(), next()])),
                 0x90 => Instruction::D2f,
                 0x8e => Instruction::D2i,
                 0x8f => Instruction::D2l,
@@ -52,11 +52,11 @@ impl Code {
                 0x0e => Instruction::DConst0,
                 0x0f => Instruction::DConst1,
                 0x6f => Instruction::DDiv,
-                0x18 => Instruction::Dload(next()),
-                0x26 => Instruction::Dload0,
-                0x27 => Instruction::Dload1,
-                0x28 => Instruction::Dload2,
-                0x29 => Instruction::Dload3,
+                0x18 => Instruction::DLoad(next()),
+                0x26 => Instruction::DLoad0,
+                0x27 => Instruction::DLoad1,
+                0x28 => Instruction::DLoad2,
+                0x29 => Instruction::DLoad3,
                 0x6b => Instruction::DMul,
                 0x77 => Instruction::DNeg,
                 0x73 => Instruction::DRem,
@@ -85,11 +85,11 @@ impl Code {
                 0x0c => Instruction::FConst1,
                 0x0d => Instruction::FConst2,
                 0x6e => Instruction::FDiv,
-                0x17 => Instruction::Fload(next()),
-                0x22 => Instruction::Fload0,
-                0x23 => Instruction::Fload1,
-                0x24 => Instruction::Fload2,
-                0x25 => Instruction::Fload3,
+                0x17 => Instruction::FLoad(next()),
+                0x22 => Instruction::FLoad0,
+                0x23 => Instruction::FLoad1,
+                0x24 => Instruction::FLoad2,
+                0x25 => Instruction::FLoad3,
                 0x6a => Instruction::FMul,
                 0x76 => Instruction::FNeg,
                 0x72 => Instruction::FRem,
@@ -150,7 +150,7 @@ impl Code {
                 0x74 => Instruction::INeg,
                 0xc1 => Instruction::InstanceOf(u16::from_be_bytes([next(), next()])),
                 0xba => Instruction::InvokeDynamic(u16::from_be_bytes([next(), next()]), next(), next()),
-                0xb9 => Instruction::InvokeInterface(next(), next(), next(), next()),
+                0xb9 => Instruction::InvokeInterface(u16::from_be_bytes([next(), next()]), next(), next()),
                 0xb7 => Instruction::InvokeSpecial(u16::from_be_bytes([next(), next()])),
                 0xb8 => Instruction::InvokeStatic(u16::from_be_bytes([next(), next()])),
                 0xb6 => Instruction::InvokeVirtual(u16::from_be_bytes([next(), next()])),
@@ -300,7 +300,7 @@ pub enum Instruction {
     /// store a char into an array
     CAStore,
     /// checks whether an objectref is of a certain type, the class reference of which is in the constant pool at index (indexbyte1 << 8 + indexbyte2)
-    Checkcast(u8, u8),
+    Checkcast(u16),
     /// convert a double to a float
     D2f,
     /// convert a double to an int
@@ -324,15 +324,15 @@ pub enum Instruction {
     /// divide two doubles
     DDiv,
     /// load a double value from a local variable #index
-    Dload(u8),
+    DLoad(u8),
     /// load a double from local variable 0
-    Dload0,
+    DLoad0,
     /// load a double from local variable 1
-    Dload1,
+    DLoad1,
     /// load a double from local variable 2
-    Dload2,
+    DLoad2,
     /// load a double from local variable 3
-    Dload3,
+    DLoad3,
     /// multiply two doubles
     DMul,
     /// negate a double
@@ -390,15 +390,15 @@ pub enum Instruction {
     /// divide two floats
     FDiv,
     /// load a float value from a local variable #index
-    Fload(u8),
+    FLoad(u8),
     /// load a float value from local variable 0
-    Fload0,
+    FLoad0,
     /// load a float value from local variable 1
-    Fload1,
+    FLoad1,
     /// load a float value from local variable 2
-    Fload2,
+    FLoad2,
     /// load a float value from local variable 3
-    Fload3,
+    FLoad3,
     /// multiply two floats
     FMul,
     /// negate a float
@@ -520,7 +520,7 @@ pub enum Instruction {
     /// invokes a dynamic method and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     InvokeDynamic(u16, u8, u8),
     /// invokes an interface method on object objectref and puts the result on the stack (might be void); the interface method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
-    InvokeInterface(u8, u8, u8, u8),
+    InvokeInterface(u16, u8, u8),
     /// invoke instance method on object objectref and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
     InvokeSpecial(u16),
     /// invoke a static method and puts the result on the stack (might be void); the method is identified by method reference index in constant pool (indexbyte1 << 8 + indexbyte2)
@@ -661,7 +661,7 @@ pub enum Instruction {
     Swap,
     /// 16+: [0–3 bytes padding], defaultbyte1, defaultbyte2, defaultbyte3, defaultbyte4, lowbyte1, lowbyte2, lowbyte3, lowbyte4, highbyte1, highbyte2, highbyte3, highbyte4, jump offsets...	index →	continue execution from an address in the table at offset index
     TableSwitch,
-    ///  execute opcode, where opcode is either iload, fload, aload, lload, dload, istore, fstore, astore, lstore, dstore, or ret, but assume the index is 16 bit
+    ///  execute opcode, where opcode is either iload, fLoad, aload, lload, dLoad, istore, fstore, astore, lstore, dstore, or ret, but assume the index is 16 bit
     Wide3(u8, u8, u8),
     /// execute iinc, where the index is 16 bits and the constant to increment by is a signed 16 bit short
     Wide5(u8, u8, u8, u8, u8),
@@ -703,10 +703,10 @@ impl Instruction {
             | Instruction::DConst0
             | Instruction::DConst1
             | Instruction::DDiv
-            | Instruction::Dload0
-            | Instruction::Dload1
-            | Instruction::Dload2
-            | Instruction::Dload3
+            | Instruction::DLoad0
+            | Instruction::DLoad1
+            | Instruction::DLoad2
+            | Instruction::DLoad3
             | Instruction::DMul
             | Instruction::DNeg
             | Instruction::DRem
@@ -734,10 +734,10 @@ impl Instruction {
             | Instruction::FConst1
             | Instruction::FConst2
             | Instruction::FDiv
-            | Instruction::Fload0
-            | Instruction::Fload1
-            | Instruction::Fload2
-            | Instruction::Fload3
+            | Instruction::FLoad0
+            | Instruction::FLoad1
+            | Instruction::FLoad2
+            | Instruction::FLoad3
             | Instruction::FMul
             | Instruction::FNeg
             | Instruction::FRem
@@ -827,9 +827,9 @@ impl Instruction {
             Instruction::ALoad(_)
             | Instruction::AStore(_)
             | Instruction::BiPush(_)
-            | Instruction::Dload(_)
+            | Instruction::DLoad(_)
             | Instruction::DStore(_)
-            | Instruction::Fload(_)
+            | Instruction::FLoad(_)
             | Instruction::FStore(_)
             | Instruction::GetField(_)
             | Instruction::GetStatic(_)
@@ -844,7 +844,7 @@ impl Instruction {
             | Instruction::Ldc(_)
             | Instruction::LLoad(_) => 2,
             Instruction::ANewArray(_)
-            | Instruction::Checkcast(_, _)
+            | Instruction::Checkcast(_)
             | Instruction::Goto(_, _)
             | Instruction::InvokeSpecial(_)
             | Instruction::IfAcmpeq(_, _)
@@ -874,7 +874,7 @@ impl Instruction {
             Instruction::Wide3(_, _, _) | Instruction::MultiANewArray(_, _, _) => 4,
             Instruction::GotoW(_, _, _, _)
             | Instruction::InvokeDynamic(_, _, _)
-            | Instruction::InvokeInterface(_, _, _, _)
+            | Instruction::InvokeInterface(_, _, _)
             | Instruction::JsrW(_, _, _, _) => 5,
             Instruction::Wide5(_, _, _, _, _) => 6,
             Instruction::TableSwitch => {
