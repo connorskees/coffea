@@ -1,6 +1,6 @@
 #![deny(missing_debug_implementations)]
 #![warn(clippy::pedantic)]
-#![allow(dead_code, clippy::use_self, clippy::module_name_repetitions, clippy::use_self)]
+#![allow(dead_code, clippy::use_self, clippy::module_name_repetitions)]
 // todo: heuristic for byte and friends being converted to int (e.g. indexing into array)
 // todo: heuristic for generics
 // todo: not necessary to have field descriptor (can just be type)
@@ -15,6 +15,7 @@ use std::convert::TryInto;
 use std::fmt;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
+use std::string::ToString;
 
 use crate::attributes::Attribute;
 use crate::builder::ClassFileBuilder;
@@ -340,7 +341,7 @@ impl ClassFile {
     }
 }
 
-/// A higher level representation of StackEntry
+/// A higher level representation of `StackEntry`
 #[derive(Debug, Clone, PartialEq)]
 enum AST {
     Null,
@@ -550,15 +551,15 @@ impl StackEntry {
             StackEntry::Double(_) => Type::Double,
             StackEntry::Long(_) => Type::Long,
             StackEntry::Array(ty, ..) => Type::Reference(Box::new(ty.clone())),
-            StackEntry::New(s) => Type::ClassName(s.clone()),
-            StackEntry::Index(_, _, ty) => ty.clone(),
-            StackEntry::Class(s) => Type::ClassName(s.clone()),
-            StackEntry::Cast(ty, _) => ty.clone(),
+            StackEntry::New(s)
+            | StackEntry::Class(s) => Type::ClassName(s.clone()),
             StackEntry::UnaryOp(op) => op.ty(),
             StackEntry::BinaryOp(left, _, _) => left.ty(),
-            StackEntry::Ident(_, ty) => ty.clone(),
-            StackEntry::Function(_, _, ty) => ty.clone(),
-            StackEntry::Field(_, _, ty) => ty.clone(),
+            StackEntry::Index(_, _, ty)
+            | StackEntry::Cast(ty, _)
+            | StackEntry::Ident(_, ty)
+            | StackEntry::Function(_, _, ty)
+            | StackEntry::Field(_, _, ty) => ty.clone(),
             StackEntry::String(_) => Type::ClassName("String".to_owned()),
             StackEntry::Unitialized => panic!("attempted to get type of unitialized"),
         }
@@ -725,13 +726,7 @@ impl<W: Write> Codegen<W> {
                         .stack
                         .pop()
                         .expect("expected local variable at index to exist");
-                    let ty = match &array {
-                        StackEntry::Array(ty, _, _) => ty,
-                        StackEntry::Index(_, _, ty) => ty,
-                        StackEntry::Ident(_, ty) => ty,
-                        _ => unimplemented!(),
-                    }
-                    .clone();
+                    let ty = array.ty();
                     let ty = match ty {
                         Type::Reference(r) => *r,
                         _ => ty,
@@ -878,7 +873,8 @@ impl<W: Write> Codegen<W> {
                     let object = self.stack.pop().expect("expected value to be on stack");
                     let f = StackEntry::Function(
                         match name.as_str() {
-                            "<init>" => object.to_string(),
+                            "<init>"
+                            | "<clinit>" => object.to_string(),
                             _ => format!("{}.{}", object, name),
                         },
                         args,
@@ -1031,8 +1027,9 @@ impl<W: Write> Codegen<W> {
                 Instruction::Pop2 => {
                     let val1 = self.stack.pop().unwrap();
                     match val1 {
-                        StackEntry::Long(_) | StackEntry::Double(_) => {}
-                        StackEntry::Function(_, _, Type::Double)
+                        StackEntry::Long(_)
+                        | StackEntry::Double(_)
+                        | StackEntry::Function(_, _, Type::Double)
                         | StackEntry::Function(_, _, Type::Long) => {}
                         _ => self.ast.push(self.stack.pop().unwrap().into()),
                     }
@@ -1127,8 +1124,8 @@ impl<W: Write> Codegen<W> {
                     // todo: figure out initialization with `dup`
                     let val = self.stack.pop().unwrap();
                     match val {
-                        StackEntry::Array(..) => self.stack.push(val),
-                        StackEntry::New(..) => self.stack.push(val),
+                        StackEntry::Array(..)
+                        | StackEntry::New(..) => self.stack.push(val),
                         _ => {
                             self.stack.push(val.clone());
                             self.stack.push(val);
@@ -1212,7 +1209,7 @@ impl<W: Write> Codegen<W> {
             "{}",
             self.ast
                 .iter()
-                .map(|a| a.to_string())
+                .map(ToString::to_string)
                 .collect::<Vec<String>>()
                 .join("")
         )?;
@@ -1316,17 +1313,17 @@ impl ClassFile {
         let tokens = method.code().unwrap().lex().into_iter();
         let mut local_variables = HashMap::new();
         // when the method is not static, the first argument is an implicit `this`
-        let arg_offset = if !method.access_flags.is_static() {
-            local_variables.insert(
-                0,
-                StackEntry::Ident(
-                    "this".to_owned(),
-                    Type::ClassName(self.class_name()?.to_owned()),
-                ),
-            );
-            1
-        } else {
+        let arg_offset = if method.access_flags.is_static() {
             0
+        } else {
+                local_variables.insert(
+                    0,
+                    StackEntry::Ident(
+                        "this".to_owned(),
+                        Type::ClassName(self.class_name()?.to_owned()),
+                    ),
+                );
+                1
         };
         for (idx, arg) in method.args.iter().enumerate() {
             local_variables.insert(
