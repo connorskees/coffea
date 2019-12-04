@@ -718,14 +718,8 @@ impl<W: Write> Codegen<W> {
                 | Instruction::IALoad
                 | Instruction::LALoad
                 | Instruction::SALoad => {
-                    let index = self
-                        .stack
-                        .pop()
-                        .expect("expected local variable at index to exist");
-                    let array = self
-                        .stack
-                        .pop()
-                        .expect("expected local variable at index to exist");
+                    let index = self.pop_stack()?;
+                    let array = self.pop_stack()?;
                     let ty = array.ty();
                     let ty = match ty {
                         Type::Reference(r) => *r,
@@ -768,9 +762,9 @@ impl<W: Write> Codegen<W> {
                 | Instruction::IAStore
                 | Instruction::LAStore
                 | Instruction::SAStore => {
-                    let val = self.stack.pop().unwrap();
-                    let index = self.stack.pop().unwrap();
-                    let array = self.stack.pop().unwrap();
+                    let val = self.pop_stack()?;
+                    let index = self.pop_stack()?;
+                    let array = self.pop_stack()?;
                     match array {
                         // this is used to fill values in array literal
                         StackEntry::Array(ty, count, mut els) => {
@@ -795,35 +789,35 @@ impl<W: Write> Codegen<W> {
                 }
 
                 Instruction::IAdd | Instruction::FAdd | Instruction::DAdd | Instruction::LAdd => {
-                    self.binary_op(BinaryOp::Add)
+                    self.binary_op(BinaryOp::Add)?
                 }
                 Instruction::ISub | Instruction::FSub | Instruction::DSub | Instruction::LSub => {
-                    self.binary_op(BinaryOp::Sub)
+                    self.binary_op(BinaryOp::Sub)?
                 }
                 Instruction::IMul | Instruction::FMul | Instruction::DMul | Instruction::LMul => {
-                    self.binary_op(BinaryOp::Mul)
+                    self.binary_op(BinaryOp::Mul)?
                 }
                 Instruction::IDiv | Instruction::FDiv | Instruction::DDiv | Instruction::LDiv => {
-                    self.binary_op(BinaryOp::Div)
+                    self.binary_op(BinaryOp::Div)?
                 }
                 Instruction::IRem | Instruction::FRem | Instruction::DRem | Instruction::LRem => {
-                    self.binary_op(BinaryOp::Rem)
+                    self.binary_op(BinaryOp::Rem)?
                 }
-                Instruction::IShl | Instruction::LShl => self.binary_op(BinaryOp::Shl),
-                Instruction::IShr | Instruction::LShr => self.binary_op(BinaryOp::Shr),
-                Instruction::IUShr | Instruction::LUShr => self.binary_op(BinaryOp::UShr),
-                Instruction::IXor | Instruction::LXor => self.binary_op(BinaryOp::Xor),
-                Instruction::IAnd | Instruction::LAnd => self.binary_op(BinaryOp::And),
-                Instruction::IOr | Instruction::LOr => self.binary_op(BinaryOp::Or),
-                Instruction::Fcmpg | Instruction::Dcmpg => self.binary_op(BinaryOp::GreaterThan),
-                Instruction::Fcmpl | Instruction::Dcmpl => self.binary_op(BinaryOp::LessThan),
+                Instruction::IShl | Instruction::LShl => self.binary_op(BinaryOp::Shl)?,
+                Instruction::IShr | Instruction::LShr => self.binary_op(BinaryOp::Shr)?,
+                Instruction::IUShr | Instruction::LUShr => self.binary_op(BinaryOp::UShr)?,
+                Instruction::IXor | Instruction::LXor => self.binary_op(BinaryOp::Xor)?,
+                Instruction::IAnd | Instruction::LAnd => self.binary_op(BinaryOp::And)?,
+                Instruction::IOr | Instruction::LOr => self.binary_op(BinaryOp::Or)?,
+                Instruction::Fcmpg | Instruction::Dcmpg => self.binary_op(BinaryOp::GreaterThan)?,
+                Instruction::Fcmpl | Instruction::Dcmpl => self.binary_op(BinaryOp::LessThan)?,
                 Instruction::INeg | Instruction::FNeg | Instruction::DNeg | Instruction::LNeg => {
-                    let val = self.stack.pop().unwrap();
+                    let val = self.pop_stack()?;
                     self.stack
                         .push(StackEntry::UnaryOp(Box::new(UnaryOp::Neg(val))));
                 }
                 Instruction::InstanceOf(idx) => {
-                    let obj1 = self.stack.pop().unwrap();
+                    let obj1 = self.pop_stack()?;
                     let obj2 = self.class.class_name_from_index(idx)?;
                     self.stack.push(StackEntry::BinaryOp(
                         Box::new(obj1),
@@ -833,11 +827,11 @@ impl<W: Write> Codegen<W> {
                 }
 
                 Instruction::Lcmp => {
-                    let val2 = match self.stack.pop().unwrap() {
+                    let val2 = match self.pop_stack()? {
                         StackEntry::Long(l) => l,
                         _ => unimplemented!("Lcmp non-long value"),
                     };
-                    let val1 = match self.stack.pop().unwrap() {
+                    let val1 = match self.pop_stack()? {
                         StackEntry::Long(l) => l,
                         _ => unimplemented!("Lcmp non-long value"),
                     };
@@ -868,9 +862,9 @@ impl<W: Write> Codegen<W> {
                     let (class, name, descriptor) = self.class.read_methodref_from_index(index)?;
                     let mut args: Vec<StackEntry> = Vec::new();
                     for _ in 0..descriptor.args.len() {
-                        args.push(self.stack.pop().expect("expected value to be on stack"));
+                        args.push(self.pop_stack()?);
                     }
-                    let object = self.stack.pop().expect("expected value to be on stack");
+                    let object = self.pop_stack()?;
                     let f = StackEntry::Function(
                         match name.as_str() {
                             "<init>"
@@ -887,7 +881,7 @@ impl<W: Write> Codegen<W> {
                     let (class, name, descriptor) = self.class.read_methodref_from_index(index)?;
                     let mut args: Vec<StackEntry> = Vec::new();
                     for _ in 0..descriptor.args.len() {
-                        args.push(self.stack.pop().unwrap());
+                        args.push(self.pop_stack()?);
                     }
                     let f = StackEntry::Function(
                         format!("{}.{}", class, name),
@@ -911,9 +905,9 @@ impl<W: Write> Codegen<W> {
                     let (_, name, descriptor) = self.class.read_methodref_from_index(index)?;
                     let mut args: Vec<StackEntry> = Vec::new();
                     for _ in 0..descriptor.args.len() {
-                        args.push(self.stack.pop().expect("expected value to be on stack"));
+                        args.push(self.pop_stack()?);
                     }
-                    let object = self.stack.pop().expect("expected value to be on stack");
+                    let object = self.pop_stack()?;
                     let f = StackEntry::Function(
                         format!("{}.{}", object, name),
                         args.clone(),
@@ -942,7 +936,7 @@ impl<W: Write> Codegen<W> {
                 }
                 Instruction::GetField(index) => {
                     let (class, name, _) = self.class.read_fieldref_from_index(index)?;
-                    let obj = self.stack.pop().expect("expected object on stack");
+                    let obj = self.pop_stack()?;
                     match &obj {
                         StackEntry::Ident(_, _) => {
                             self.stack.push(StackEntry::Field(
@@ -956,10 +950,7 @@ impl<W: Write> Codegen<W> {
                 }
 
                 Instruction::PutStatic(index) => {
-                    let val = self
-                        .stack
-                        .pop()
-                        .expect("expected value on stack in putfield");
+                    let val = self.pop_stack()?;
                     let (obj, field_name, ty) = self.class.read_fieldref_from_index(index)?;
                     self.ast.push(AST::FieldAssignment {
                         obj: Box::new(AST::Object(obj)),
@@ -969,11 +960,8 @@ impl<W: Write> Codegen<W> {
                     });
                 }
                 Instruction::PutField(index) => {
-                    let val = self
-                        .stack
-                        .pop()
-                        .expect("expected value on stack in putfield");
-                    let obj = self.stack.pop().expect("expected obj on stack in putfield");
+                    let val = self.pop_stack()?;
+                    let obj = self.pop_stack()?;
                     let (_, field_name, ty) = self.class.read_fieldref_from_index(index)?;
                     self.ast.push(AST::FieldAssignment {
                         obj: obj.into(),
@@ -995,7 +983,7 @@ impl<W: Write> Codegen<W> {
                         11 => Type::Long,   //long
                         _ => unimplemented!("unexpected NewArray type"),
                     };
-                    let count: usize = match self.stack.pop().unwrap() {
+                    let count: usize = match self.pop_stack()? {
                         StackEntry::Int(i) => i,
                         _ => unimplemented!("NewArray count is non-integer value"),
                     }
@@ -1005,7 +993,7 @@ impl<W: Write> Codegen<W> {
                 }
                 Instruction::ANewArray(index) => {
                     let ty = FieldDescriptor::new(self.class.class_name_from_index(index)?).ty;
-                    let count: usize = match self.stack.pop().unwrap() {
+                    let count: usize = match self.pop_stack()? {
                         StackEntry::Int(i) => i,
                         _ => unimplemented!("ANewArray count is non-integer value"),
                     }
@@ -1017,7 +1005,7 @@ impl<W: Write> Codegen<W> {
                     unimplemented!("instruction `MultiANewArray` not yet implemented")
                 }
                 Instruction::ArrayLength => {
-                    let val = self.stack.pop().unwrap();
+                    let val = self.pop_stack()?;
                     self.stack
                         .push(StackEntry::UnaryOp(Box::new(UnaryOp::ArrayLength(val))));
                 }
@@ -1025,7 +1013,7 @@ impl<W: Write> Codegen<W> {
                 Instruction::Nop | Instruction::NoName => {}
                 Instruction::Pop => self.ast.push(self.stack.pop().unwrap().into()),
                 Instruction::Pop2 => {
-                    let val1 = self.stack.pop().unwrap();
+                    let val1 = self.pop_stack()?;
                     match val1 {
                         StackEntry::Long(_)
                         | StackEntry::Double(_)
@@ -1059,14 +1047,14 @@ impl<W: Write> Codegen<W> {
                     unimplemented!("instruction `IfAcmpne` not yet implemented")
                 }
                 Instruction::Ifeq(_, _) => {
-                    // let val = self.stack.pop().unwrap();
+                    // let val = self.pop_stack()?;
                 }
                 Instruction::Ifge(_, _) => unimplemented!("instruction `Ifge` not yet implemented"),
                 Instruction::Ifgt(_, _) => unimplemented!("instruction `Ifgt` not yet implemented"),
                 Instruction::Ifle(_, _) => unimplemented!("instruction `Ifle` not yet implemented"),
                 Instruction::Iflt(_, _) => unimplemented!("instruction `Iflt` not yet implemented"),
                 Instruction::Ifne(_, _) => {
-                    // let val = self.stack.pop().unwrap();
+                    // let val = self.pop_stack()?;
                 }
                 Instruction::IfIcmpeq(_, _) => {
                     unimplemented!("instruction `IfIcmpeq` not yet implemented")
@@ -1107,13 +1095,13 @@ impl<W: Write> Codegen<W> {
                 }
                 Instruction::Ret(_) => unimplemented!("instruction `Ret` not yet implemented"),
 
-                Instruction::I2b => self.cast(Type::Byte),
-                Instruction::I2c => self.cast(Type::Char),
-                Instruction::I2d | Instruction::F2d | Instruction::L2d => self.cast(Type::Double),
-                Instruction::I2l | Instruction::F2l | Instruction::D2l => self.cast(Type::Long),
-                Instruction::I2s => self.cast(Type::Short),
-                Instruction::F2i | Instruction::D2i | Instruction::L2i => self.cast(Type::Int),
-                Instruction::I2f | Instruction::D2f | Instruction::L2f => self.cast(Type::Float),
+                Instruction::I2b => self.cast(Type::Byte)?,
+                Instruction::I2c => self.cast(Type::Char)?,
+                Instruction::I2d | Instruction::F2d | Instruction::L2d => self.cast(Type::Double)?,
+                Instruction::I2l | Instruction::F2l | Instruction::D2l => self.cast(Type::Long)?,
+                Instruction::I2s => self.cast(Type::Short)?,
+                Instruction::F2i | Instruction::D2i | Instruction::L2i => self.cast(Type::Int)?,
+                Instruction::I2f | Instruction::D2f | Instruction::L2f => self.cast(Type::Float)?,
 
                 Instruction::New(idx) => {
                     let obj = self.class.class_name_from_index(idx)?;
@@ -1122,7 +1110,7 @@ impl<W: Write> Codegen<W> {
 
                 Instruction::Dup => {
                     // todo: figure out initialization with `dup`
-                    let val = self.stack.pop().unwrap();
+                    let val = self.pop_stack()?;
                     match val {
                         StackEntry::Array(..)
                         | StackEntry::New(..) => self.stack.push(val),
@@ -1133,33 +1121,33 @@ impl<W: Write> Codegen<W> {
                     };
                 }
                 Instruction::DupX1 => {
-                    let val1 = self.stack.pop().unwrap();
-                    let val2 = self.stack.pop().unwrap();
+                    let val1 = self.pop_stack()?;
+                    let val2 = self.pop_stack()?;
                     self.stack.push(val1.clone());
                     self.stack.push(val2);
                     self.stack.push(val1);
                 }
                 Instruction::DupX2 => {
-                    let val1 = self.stack.pop().unwrap();
-                    let val2 = self.stack.pop().unwrap();
-                    let val3 = self.stack.pop().unwrap();
+                    let val1 = self.pop_stack()?;
+                    let val2 = self.pop_stack()?;
+                    let val3 = self.pop_stack()?;
                     self.stack.push(val1.clone());
                     self.stack.push(val3);
                     self.stack.push(val2);
                     self.stack.push(val1);
                 }
                 Instruction::Dup2 => {
-                    let val1 = self.stack.pop().unwrap();
-                    let val2 = self.stack.pop().unwrap();
+                    let val1 = self.pop_stack()?;
+                    let val2 = self.pop_stack()?;
                     self.stack.push(val2.clone());
                     self.stack.push(val1.clone());
                     self.stack.push(val2);
                     self.stack.push(val1);
                 }
                 Instruction::Dup2X1 => {
-                    let val1 = self.stack.pop().unwrap();
-                    let val2 = self.stack.pop().unwrap();
-                    let val3 = self.stack.pop().unwrap();
+                    let val1 = self.pop_stack()?;
+                    let val2 = self.pop_stack()?;
+                    let val3 = self.pop_stack()?;
                     self.stack.push(val2.clone());
                     self.stack.push(val1.clone());
                     self.stack.push(val3);
@@ -1167,10 +1155,10 @@ impl<W: Write> Codegen<W> {
                     self.stack.push(val1);
                 }
                 Instruction::Dup2X2 => {
-                    let val1 = self.stack.pop().unwrap();
-                    let val2 = self.stack.pop().unwrap();
-                    let val3 = self.stack.pop().unwrap();
-                    let val4 = self.stack.pop().unwrap();
+                    let val1 = self.pop_stack()?;
+                    let val2 = self.pop_stack()?;
+                    let val3 = self.pop_stack()?;
+                    let val4 = self.pop_stack()?;
                     self.stack.push(val2.clone());
                     self.stack.push(val1.clone());
                     self.stack.push(val4);
@@ -1180,8 +1168,8 @@ impl<W: Write> Codegen<W> {
                 }
 
                 Instruction::Swap => {
-                    let val1 = self.stack.pop().unwrap();
-                    let val2 = self.stack.pop().unwrap();
+                    let val1 = self.pop_stack()?;
+                    let val2 = self.pop_stack()?;
                     self.stack.push(val1);
                     self.stack.push(val2);
                 }
@@ -1218,7 +1206,7 @@ impl<W: Write> Codegen<W> {
     }
 
     fn store(&mut self, idx: u8) -> JResult<()> {
-        let val = self.stack.pop().unwrap();
+        let val = self.pop_stack()?;
         let ty = val.ty();
         let idx = usize::from(idx);
         let ident = match &ty {
@@ -1249,9 +1237,10 @@ impl<W: Write> Codegen<W> {
         Ok(())
     }
 
-    fn cast(&mut self, ty: Type) {
-        let val = self.stack.pop().unwrap();
+    fn cast(&mut self, ty: Type) -> JResult<()> {
+        let val = self.pop_stack()?;
         self.stack.push(StackEntry::Cast(ty, Box::new(val)));
+        Ok(())
     }
 
     fn load(&mut self, idx: u8) {
@@ -1263,11 +1252,16 @@ impl<W: Write> Codegen<W> {
         );
     }
 
-    fn binary_op(&mut self, op: BinaryOp) {
-        let val2 = self.stack.pop().unwrap();
-        let val1 = self.stack.pop().unwrap();
+    fn binary_op(&mut self, op: BinaryOp) -> JResult<()> {
+        let val2 = self.pop_stack()?;
+        let val1 = self.pop_stack()?;
         self.stack
             .push(StackEntry::BinaryOp(Box::new(val1), op, Box::new(val2)));
+        Ok(())
+    }
+
+    fn pop_stack(&mut self) -> JResult<StackEntry> {
+        self.stack.pop().ok_or(ParseError::EmptyStack)
     }
 }
 
