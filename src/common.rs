@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::StackEntry;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     /// signed byte
@@ -51,6 +53,83 @@ impl fmt::Display for Type {
             Type::Boolean => write!(f, "boolean"),
             Type::Reference(t) => write!(f, "{}[]", t),
             Type::Void => write!(f, "void"),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum BinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+    Shl,
+    /// arithmetic shift right
+    Shr,
+    /// logical shift right
+    UShr,
+    /// bitwise and
+    And,
+    Or,
+    Xor,
+    InstanceOf,
+    Equal,
+    NotEqual,
+    GreaterThan,
+    LessThan,
+    GreaterEqualThan,
+    LessEqualThan,
+}
+
+impl fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BinaryOp::Add => write!(f, "+"),
+            BinaryOp::Sub => write!(f, "-"),
+            BinaryOp::Mul => write!(f, "*"),
+            BinaryOp::Div => write!(f, "/"),
+            BinaryOp::Rem => write!(f, "%"),
+            BinaryOp::Shl => write!(f, "<<"),
+            BinaryOp::Shr => write!(f, ">>"),
+            BinaryOp::UShr => write!(f, ">>>"),
+            BinaryOp::And => write!(f, "&"),
+            BinaryOp::Or => write!(f, "|"),
+            BinaryOp::Xor => write!(f, "^"),
+            BinaryOp::InstanceOf => write!(f, "instanceof"),
+            BinaryOp::Equal => write!(f, "=="),
+            BinaryOp::NotEqual => write!(f, "!="),
+            BinaryOp::GreaterThan => write!(f, ">"),
+            BinaryOp::LessThan => write!(f, "<"),
+            BinaryOp::GreaterEqualThan => write!(f, ">="),
+            BinaryOp::LessEqualThan => write!(f, "<="),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum UnaryOp {
+    Neg(StackEntry),
+    ArrayLength(StackEntry),
+    PlusPlus(StackEntry),
+    MinusMinus(StackEntry),
+}
+
+impl fmt::Display for UnaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            UnaryOp::Neg(v) => write!(f, "-{}", v),
+            UnaryOp::ArrayLength(v) => write!(f, "{}.length", v),
+            UnaryOp::PlusPlus(v) => writeln!(f, "{}++;", v),
+            UnaryOp::MinusMinus(v) => writeln!(f, "{}--;", v),
+        }
+    }
+}
+
+impl UnaryOp {
+    pub(crate) fn ty(&self) -> Type {
+        match self {
+            Self::Neg(s) | Self::ArrayLength(s) | Self::PlusPlus(s) | Self::MinusMinus(s) => s.ty(),
         }
     }
 }

@@ -1,5 +1,6 @@
 #![deny(missing_debug_implementations)]
-#![allow(dead_code, clippy::use_self, clippy::module_name_repetitions)]
+#![warn(clippy::pedantic)]
+#![allow(dead_code, clippy::use_self, clippy::module_name_repetitions, clippy::use_self)]
 // todo: heuristic for byte and friends being converted to int (e.g. indexing into array)
 // todo: heuristic for generics
 // todo: not necessary to have field descriptor (can just be type)
@@ -8,6 +9,7 @@
 // todo: method calls as their own stack entry
 // todo: i++ and i-- as expressions
 // todo: i-- parses to i++
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt;
@@ -17,7 +19,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use crate::attributes::Attribute;
 use crate::builder::ClassFileBuilder;
 use crate::code::Instruction;
-pub use crate::common::Type;
+pub use crate::common::{BinaryOp, Type, UnaryOp};
 use crate::errors::{JResult, ParseError};
 pub use crate::fields::{FieldAccessFlags, FieldDescriptor, FieldInfo};
 use crate::methods::{MethodDescriptor, MethodInfo};
@@ -378,7 +380,7 @@ enum AST {
         return_type: Type,
     },
     FieldAccess {
-        class_name: String,
+        obj: Box<AST>,
         field_name: String,
         ty: Type,
     },
@@ -422,7 +424,9 @@ impl From<StackEntry> for AST {
             StackEntry::Double(d) => AST::Double(d),
             StackEntry::Long(l) => AST::Long(l),
             StackEntry::Array(ty, num_of_els, els) => AST::Array {
-                ty, num_of_els, els: els.into_iter().map(|el| el.into()).collect()
+                ty,
+                num_of_els,
+                els: els.into_iter().map(|el| el.into()).collect(),
             },
             StackEntry::New(s) => AST::New(s),
             StackEntry::Index(arr, index, arr_type) => AST::ArrayIndex {
@@ -437,18 +441,25 @@ impl From<StackEntry> for AST {
                 AST::BinaryOp(Box::new(AST::from(*left)), op, Box::new(AST::from(*right)))
             }
             StackEntry::Ident(name, ty) => AST::Ident(name, ty),
-            // StackEntry::Function(String, Vec<StackEntry>, Type),
-            // StackEntry::Field(Type, String),
+            StackEntry::Function(name, args, return_type) => AST::FunctionCall {
+                name,
+                args: args.into_iter().map(|arg| arg.into()).collect(),
+                return_type,
+            },
+            StackEntry::Field(obj, field_name, ty) => AST::FieldAccess {
+                obj: Box::new(AST::from(*obj)),
+                field_name,
+                ty,
+            },
             StackEntry::String(s) => AST::String(s),
             StackEntry::Unitialized => panic!("attempted to convert unitialized to AST"),
-            _ => AST::StackEntry(entry),
         }
     }
 }
 
 impl Into<Box<AST>> for StackEntry {
     fn into(self) -> Box<AST> {
-        Box::new(AST::StackEntry(self))
+        Box::new(self.into())
     }
 }
 
@@ -486,10 +497,8 @@ impl fmt::Display for AST {
                     .join(", ")
             ),
             AST::FieldAccess {
-                class_name,
-                field_name,
-                ..
-            } => write!(f, "{}.{}", class_name, field_name),
+                obj, field_name, ..
+            } => write!(f, "{}.{}", obj, field_name),
             AST::FieldAssignment {
                 obj,
                 field_name,
@@ -511,85 +520,8 @@ impl fmt::Display for AST {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum BinaryOp {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Rem,
-    Shl,
-    /// arithmetic shift right
-    Shr,
-    /// logical shift right
-    UShr,
-    /// bitwise and
-    And,
-    Or,
-    Xor,
-    InstanceOf,
-    Equal,
-    NotEqual,
-    GreaterThan,
-    LessThan,
-    GreaterEqualThan,
-    LessEqualThan,
-}
-
-impl fmt::Display for BinaryOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            BinaryOp::Add => write!(f, "+"),
-            BinaryOp::Sub => write!(f, "-"),
-            BinaryOp::Mul => write!(f, "*"),
-            BinaryOp::Div => write!(f, "/"),
-            BinaryOp::Rem => write!(f, "%"),
-            BinaryOp::Shl => write!(f, "<<"),
-            BinaryOp::Shr => write!(f, ">>"),
-            BinaryOp::UShr => write!(f, ">>>"),
-            BinaryOp::And => write!(f, "&"),
-            BinaryOp::Or => write!(f, "|"),
-            BinaryOp::Xor => write!(f, "^"),
-            BinaryOp::InstanceOf => write!(f, "instanceof"),
-            BinaryOp::Equal => write!(f, "=="),
-            BinaryOp::NotEqual => write!(f, "!="),
-            BinaryOp::GreaterThan => write!(f, ">"),
-            BinaryOp::LessThan => write!(f, "<"),
-            BinaryOp::GreaterEqualThan => write!(f, ">="),
-            BinaryOp::LessEqualThan => write!(f, "<="),
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
-enum UnaryOp {
-    Neg(StackEntry),
-    ArrayLength(StackEntry),
-    PlusPlus(StackEntry),
-    MinusMinus(StackEntry),
-}
-
-impl fmt::Display for UnaryOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            UnaryOp::Neg(v) => write!(f, "-{}", v),
-            UnaryOp::ArrayLength(v) => write!(f, "{}.length", v),
-            UnaryOp::PlusPlus(v) => writeln!(f, "{}++;", v),
-            UnaryOp::MinusMinus(v) => writeln!(f, "{}--;", v),
-        }
-    }
-}
-
-impl UnaryOp {
-    fn ty(&self) -> Type {
-        match self {
-            Self::Neg(s) | Self::ArrayLength(s) | Self::PlusPlus(s) | Self::MinusMinus(s) => s.ty(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum StackEntry {
+pub enum StackEntry {
     Null,
     Int(i32),
     Float(f32),
@@ -604,7 +536,7 @@ enum StackEntry {
     BinaryOp(Box<StackEntry>, BinaryOp, Box<StackEntry>),
     Ident(String, Type),
     Function(String, Vec<StackEntry>, Type),
-    Field(Type, String),
+    Field(Box<StackEntry>, String, Type),
     String(String),
     Unitialized,
 }
@@ -626,7 +558,7 @@ impl StackEntry {
             StackEntry::BinaryOp(left, _, _) => left.ty(),
             StackEntry::Ident(_, ty) => ty.clone(),
             StackEntry::Function(_, _, ty) => ty.clone(),
-            StackEntry::Field(ty, _) => ty.clone(),
+            StackEntry::Field(_, _, ty) => ty.clone(),
             StackEntry::String(_) => Type::ClassName("String".to_owned()),
             StackEntry::Unitialized => panic!("attempted to get type of unitialized"),
         }
@@ -667,7 +599,7 @@ impl fmt::Display for StackEntry {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            StackEntry::Field(_, name) => write!(f, "{}", name),
+            StackEntry::Field(_, name, _) => write!(f, "{}", name),
             StackEntry::Unitialized => panic!("attempted to render unitialized entry"),
         }
     }
@@ -914,13 +846,11 @@ impl<W: Write> Codegen<W> {
                         StackEntry::Long(l) => l,
                         _ => unimplemented!("Lcmp non-long value"),
                     };
-                    if val1 == val2 {
-                        self.stack.push(StackEntry::Int(0));
-                    } else if val1 > val2 {
-                        self.stack.push(StackEntry::Int(1));
-                    } else {
-                        self.stack.push(StackEntry::Int(-1));
-                    }
+                    self.stack.push(match val1.cmp(&val2) {
+                        Ordering::Equal => StackEntry::Int(0),
+                        Ordering::Greater => StackEntry::Int(1),
+                        Ordering::Less => StackEntry::Int(-1),
+                    });
                 }
 
                 Instruction::Return => break,
@@ -1008,17 +938,21 @@ impl<W: Write> Codegen<W> {
 
                 Instruction::GetStatic(index) => {
                     let (class, name, ty) = self.class.read_fieldref_from_index(index)?;
-                    self.stack
-                        .push(StackEntry::Field(ty, format!("{}.{}", &class, name)));
+                    self.stack.push(StackEntry::Field(
+                        Box::new(StackEntry::Class(class)),
+                        name,
+                        ty,
+                    ));
                 }
                 Instruction::GetField(index) => {
                     let (class, name, _) = self.class.read_fieldref_from_index(index)?;
                     let obj = self.stack.pop().expect("expected object on stack");
-                    match obj {
-                        StackEntry::Ident(s, _) => {
+                    match &obj {
+                        StackEntry::Ident(_, _) => {
                             self.stack.push(StackEntry::Field(
+                                Box::new(obj),
+                                name,
                                 Type::ClassName(class),
-                                format!("{}.{}", s, name),
                             ));
                         }
                         _ => unimplemented!("non-ident field access"),
@@ -1304,6 +1238,7 @@ impl<W: Write> Codegen<W> {
             Type::Reference(_) => format!("arr{}", idx),
             Type::Void => panic!("attempted to store variable of type void"),
         };
+
         match self
             .local_variables
             .insert(idx, StackEntry::Ident(ident.clone(), ty.clone()))
@@ -1362,8 +1297,9 @@ impl ClassFile {
         }
         if self.access_flags.is_enum {
             s.push("enum");
+        } else {
+            s.push("class");
         }
-        s.push("class");
         s.push(self.class_name()?);
         if !self.access_flags.is_super {
             s.push("extends");
