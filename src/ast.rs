@@ -1,4 +1,5 @@
 use std::fmt;
+use std::string::ToString;
 
 use crate::common::{BinaryOp, Type, UnaryOp};
 use crate::StackEntry;
@@ -63,10 +64,12 @@ pub enum AST {
     If {
         skip: usize,
         cond: Box<AST>,
+        then: Vec<AST>,
     },
     IfNot {
         skip: usize,
         cond: Box<AST>,
+        then: Vec<AST>,
     },
     IfCmp {
         skip: usize,
@@ -172,8 +175,24 @@ impl fmt::Display for AST {
             AST::ReAssignment { var, val } => writeln!(f, "{} = {};", var, val),
             AST::UnaryOp(op) => write!(f, "{}", op),
             AST::BinaryOp(a, op, b) => write!(f, "({} {} {})", a, op, b),
-            AST::If { cond, .. } => write!(f, "if ({}) {{", cond),
-            AST::IfNot { cond, .. } => write!(f, "if !({}) {{", cond),
+            AST::If { cond, then, .. } => write!(
+                f,
+                "if ({}) {{\n{}}}",
+                cond,
+                then.iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>()
+                    .join(";")
+            ),
+            AST::IfNot { cond, then, .. } => write!(
+                f,
+                "if (!{}) {{\n{}}}",
+                cond,
+                then.iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>()
+                    .join(";")
+            ),
             AST::IfCmp { cond, .. } => write!(f, "if ({}) {{", cond),
             AST::Goto(_) => panic!("attempted to render goto"),
             AST::NOP => write!(f, ""),
