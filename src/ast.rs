@@ -62,18 +62,8 @@ pub enum AST {
     BinaryOp(Box<AST>, BinaryOp, Box<AST>),
     UnaryOp(UnaryOp),
     If {
-        skip: usize,
         cond: Box<AST>,
         then: Vec<AST>,
-    },
-    IfNot {
-        skip: usize,
-        cond: Box<AST>,
-        then: Vec<AST>,
-    },
-    IfCmp {
-        skip: usize,
-        cond: Box<AST>,
     },
     Goto(usize),
     NOP,
@@ -175,25 +165,15 @@ impl fmt::Display for AST {
             AST::ReAssignment { var, val } => writeln!(f, "{} = {};", var, val),
             AST::UnaryOp(op) => write!(f, "{}", op),
             AST::BinaryOp(a, op, b) => write!(f, "({} {} {})", a, op, b),
-            AST::If { cond, then, .. } => write!(
+            AST::If { cond, then } => writeln!(
                 f,
                 "if ({}) {{\n{}}}",
                 cond,
                 then.iter()
                     .map(ToString::to_string)
                     .collect::<Vec<String>>()
-                    .join(";")
+                    .join("")
             ),
-            AST::IfNot { cond, then, .. } => write!(
-                f,
-                "if (!{}) {{\n{}}}",
-                cond,
-                then.iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<String>>()
-                    .join(";")
-            ),
-            AST::IfCmp { cond, .. } => write!(f, "if ({}) {{", cond),
             AST::Goto(_) => panic!("attempted to render goto"),
             AST::NOP => write!(f, ""),
             AST::StackEntry(s) => write!(f, "{}", s),

@@ -885,13 +885,13 @@ impl<W: Write> Codegen<W> {
                 unimplemented!("instruction `IfAcmpne` not yet implemented")
             }
             Instruction::Ifeq(branchbyte1, branchbyte2) => {
-                let val = self.pop_stack()?;
+                let mut cond = self.pop_stack()?.into();
                 let offset: i16 =
                     self.current_pos + (i16::from(branchbyte1) << 8 | i16::from(branchbyte2));
                 let mut then = Vec::new();
                 while let Some(tok) = self.tokens.next() {
-                    let val = self.read_instruction(tok)?;
-                    match val {
+                    let ast = self.read_instruction(tok)?;
+                    match ast {
                         Some(v) => then.push(v),
                         None => continue,
                     }
@@ -899,9 +899,15 @@ impl<W: Write> Codegen<W> {
                         break;
                     }
                 }
+
+                if then.len() == 1 {
+                    if let AST::If { cond: this_cond, then: this_then } = then[0].clone() {
+                        then = this_then.clone();
+                        cond = Box::new(AST::BinaryOp(cond, BinaryOp::LogicalAnd, this_cond));
+                    }
+                }
                 return Ok(Some(AST::If {
-                    skip: offset as usize,
-                    cond: val.into(),
+                    cond,
                     then,
                 }));
             }
@@ -910,13 +916,13 @@ impl<W: Write> Codegen<W> {
             Instruction::Ifle(_, _) => unimplemented!("instruction `Ifle` not yet implemented"),
             Instruction::Iflt(_, _) => unimplemented!("instruction `Iflt` not yet implemented"),
             Instruction::Ifne(branchbyte1, branchbyte2) => {
-                let val = self.pop_stack()?;
+                let raw_cond = self.pop_stack()?;
                 let offset: i16 =
                     self.current_pos + (i16::from(branchbyte1) << 8 | i16::from(branchbyte2));
                 let mut then = Vec::new();
                 while let Some(tok) = self.tokens.next() {
-                    let val = self.read_instruction(tok)?;
-                    match val {
+                    let ast = self.read_instruction(tok)?;
+                    match ast {
                         Some(v) => then.push(v),
                         None => continue,
                     }
@@ -924,9 +930,20 @@ impl<W: Write> Codegen<W> {
                         break;
                     }
                 }
-                return Ok(Some(AST::IfNot {
-                    skip: offset as usize,
-                    cond: val.into(),
+
+                let cond = if then.len() != 1 {
+                    Box::new(AST::UnaryOp(UnaryOp::Negate(raw_cond)))
+                } else {
+                    match then[0].clone() {
+                        AST::If { cond: this_cond, then: this_then } => {
+                            then = this_then.clone();
+                            Box::new(AST::BinaryOp(raw_cond.into(), BinaryOp::LogicalOr, this_cond))
+                        }
+                        _ => Box::new(AST::UnaryOp(UnaryOp::Negate(raw_cond)))
+                    }
+                };
+                return Ok(Some(AST::If {
+                    cond,
                     then,
                 }));
             }
