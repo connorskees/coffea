@@ -1,7 +1,7 @@
 use std::fmt;
 
-use crate::StackEntry;
 use crate::common::{BinaryOp, Type, UnaryOp};
+use crate::StackEntry;
 
 /// A higher level representation of `StackEntry`
 #[derive(Debug, Clone, PartialEq)]

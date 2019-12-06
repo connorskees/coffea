@@ -373,8 +373,7 @@ impl StackEntry {
             StackEntry::Double(_) => Type::Double,
             StackEntry::Long(_) => Type::Long,
             StackEntry::Array(ty, ..) => Type::Reference(Box::new(ty.clone())),
-            StackEntry::New(s)
-            | StackEntry::Class(s) => Type::ClassName(s.clone()),
+            StackEntry::New(s) | StackEntry::Class(s) => Type::ClassName(s.clone()),
             StackEntry::UnaryOp(op) => op.ty(),
             StackEntry::BinaryOp(left, _, _) => left.ty(),
             StackEntry::Index(_, _, ty)
@@ -689,8 +688,7 @@ impl<W: Write> Codegen<W> {
                     let object = self.pop_stack()?;
                     let f = StackEntry::Function(
                         match name.as_str() {
-                            "<init>"
-                            | "<clinit>" => object.to_string(),
+                            "<init>" | "<clinit>" => object.to_string(),
                             _ => format!("{}.{}", object, name),
                         },
                         args,
@@ -919,7 +917,9 @@ impl<W: Write> Codegen<W> {
 
                 Instruction::I2b => self.cast(Type::Byte)?,
                 Instruction::I2c => self.cast(Type::Char)?,
-                Instruction::I2d | Instruction::F2d | Instruction::L2d => self.cast(Type::Double)?,
+                Instruction::I2d | Instruction::F2d | Instruction::L2d => {
+                    self.cast(Type::Double)?
+                }
                 Instruction::I2l | Instruction::F2l | Instruction::D2l => self.cast(Type::Long)?,
                 Instruction::I2s => self.cast(Type::Short)?,
                 Instruction::F2i | Instruction::D2i | Instruction::L2i => self.cast(Type::Int)?,
@@ -934,8 +934,7 @@ impl<W: Write> Codegen<W> {
                     // todo: figure out initialization with `dup`
                     let val = self.pop_stack()?;
                     match val {
-                        StackEntry::Array(..)
-                        | StackEntry::New(..) => self.stack.push(val),
+                        StackEntry::Array(..) | StackEntry::New(..) => self.stack.push(val),
                         _ => {
                             self.stack.push(val.clone());
                             self.stack.push(val);
@@ -1132,14 +1131,14 @@ impl ClassFile {
         let arg_offset = if method.access_flags.is_static() {
             0
         } else {
-                local_variables.insert(
-                    0,
-                    StackEntry::Ident(
-                        "this".to_owned(),
-                        Type::ClassName(self.class_name()?.to_owned()),
-                    ),
-                );
-                1
+            local_variables.insert(
+                0,
+                StackEntry::Ident(
+                    "this".to_owned(),
+                    Type::ClassName(self.class_name()?.to_owned()),
+                ),
+            );
+            1
         };
         for (idx, arg) in method.args.iter().enumerate() {
             local_variables.insert(

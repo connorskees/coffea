@@ -13,7 +13,6 @@ pub enum ParseError {
     EmptyStack,
 }
 
-
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -27,7 +26,6 @@ impl fmt::Display for ParseError {
 }
 
 impl std::error::Error for ParseError {}
-
 
 impl From<io::Error> for ParseError {
     fn from(error: io::Error) -> Self {
