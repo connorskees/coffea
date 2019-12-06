@@ -135,7 +135,11 @@ impl fmt::Display for UnaryOp {
 impl UnaryOp {
     pub(crate) fn ty(&self) -> Type {
         match self {
-            Self::Neg(s) | Self::Negate(s) | Self::ArrayLength(s) | Self::PlusPlus(s) | Self::MinusMinus(s) => s.ty(),
+            Self::Neg(s)
+            | Self::Negate(s)
+            | Self::ArrayLength(s)
+            | Self::PlusPlus(s)
+            | Self::MinusMinus(s) => s.ty(),
         }
     }
 }

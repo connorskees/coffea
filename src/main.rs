@@ -435,7 +435,7 @@ struct Codegen<W: Write> {
     local_variables: HashMap<usize, StackEntry>,
     tokens: std::vec::IntoIter<Instruction>,
     ast: Vec<AST>,
-    current_pos: i16,
+    current_pos: u16,
 }
 
 impl<W: Write> Codegen<W> {
@@ -462,7 +462,7 @@ impl<W: Write> Codegen<W> {
     }
 
     fn read_instruction(&mut self, instruction: Instruction) -> JResult<Option<AST>> {
-        self.current_pos += i16::from(instruction.len());
+        self.current_pos += instruction.len();
         match instruction {
             Instruction::BiPush(n) => self.stack.push(StackEntry::Int(i32::from(n))),
             Instruction::SIPush(n) => self.stack.push(StackEntry::Int(i32::from(n))),
@@ -852,11 +852,8 @@ impl<W: Write> Codegen<W> {
             Instruction::Pop => return Ok(Some(self.stack.pop().unwrap().into())),
             Instruction::Pop2 => {
                 let val1 = self.pop_stack()?;
-                match val1 {
-                    StackEntry::Long(_)
-                    | StackEntry::Double(_)
-                    | StackEntry::Function(_, _, Type::Double)
-                    | StackEntry::Function(_, _, Type::Long) => {}
+                match val1.ty() {
+                    Type::Long | Type::Double => {}
                     _ => return Ok(Some(self.stack.pop().unwrap().into())),
                 }
                 return Ok(Some(val1.into()));
@@ -878,16 +875,15 @@ impl<W: Write> Codegen<W> {
                 }
             }
 
-            Instruction::IfAcmpeq(_, _) => {
+            Instruction::IfAcmpeq(_) => {
                 unimplemented!("instruction `IfAcmpeq` not yet implemented")
             }
-            Instruction::IfAcmpne(_, _) => {
+            Instruction::IfAcmpne(_) => {
                 unimplemented!("instruction `IfAcmpne` not yet implemented")
             }
-            Instruction::Ifeq(branchbyte1, branchbyte2) => {
+            Instruction::Ifeq(offset) => {
                 let mut cond = self.pop_stack()?.into();
-                let offset: i16 =
-                    self.current_pos + (i16::from(branchbyte1) << 8 | i16::from(branchbyte2));
+                let pos = self.current_pos + offset;
                 let mut then = Vec::new();
                 while let Some(tok) = self.tokens.next() {
                     let ast = self.read_instruction(tok)?;
@@ -895,30 +891,30 @@ impl<W: Write> Codegen<W> {
                         Some(v) => then.push(v),
                         None => continue,
                     }
-                    if self.current_pos <= offset {
+                    if self.current_pos <= pos {
                         break;
                     }
                 }
 
                 if then.len() == 1 {
-                    if let AST::If { cond: this_cond, then: this_then } = then[0].clone() {
+                    if let AST::If {
+                        cond: this_cond,
+                        then: this_then,
+                    } = then[0].clone()
+                    {
                         then = this_then.clone();
                         cond = Box::new(AST::BinaryOp(cond, BinaryOp::LogicalAnd, this_cond));
                     }
                 }
-                return Ok(Some(AST::If {
-                    cond,
-                    then,
-                }));
+                return Ok(Some(AST::If { cond, then }));
             }
-            Instruction::Ifge(_, _) => unimplemented!("instruction `Ifge` not yet implemented"),
-            Instruction::Ifgt(_, _) => unimplemented!("instruction `Ifgt` not yet implemented"),
-            Instruction::Ifle(_, _) => unimplemented!("instruction `Ifle` not yet implemented"),
-            Instruction::Iflt(_, _) => unimplemented!("instruction `Iflt` not yet implemented"),
-            Instruction::Ifne(branchbyte1, branchbyte2) => {
+            Instruction::Ifge(_) => unimplemented!("instruction `Ifge` not yet implemented"),
+            Instruction::Ifgt(_) => unimplemented!("instruction `Ifgt` not yet implemented"),
+            Instruction::Ifle(_) => unimplemented!("instruction `Ifle` not yet implemented"),
+            Instruction::Iflt(_) => unimplemented!("instruction `Iflt` not yet implemented"),
+            Instruction::Ifne(offset) => {
                 let raw_cond = self.pop_stack()?;
-                let offset: i16 =
-                    self.current_pos + (i16::from(branchbyte1) << 8 | i16::from(branchbyte2));
+                let pos = self.current_pos + offset;
                 let mut then = Vec::new();
                 while let Some(tok) = self.tokens.next() {
                     let ast = self.read_instruction(tok)?;
@@ -926,7 +922,7 @@ impl<W: Write> Codegen<W> {
                         Some(v) => then.push(v),
                         None => continue,
                     }
-                    if self.current_pos <= offset {
+                    if self.current_pos <= pos {
                         break;
                     }
                 }
@@ -935,40 +931,102 @@ impl<W: Write> Codegen<W> {
                     Box::new(AST::UnaryOp(UnaryOp::Negate(raw_cond)))
                 } else {
                     match then[0].clone() {
-                        AST::If { cond: this_cond, then: this_then } => {
+                        AST::If {
+                            cond: this_cond,
+                            then: this_then,
+                        } => {
                             then = this_then.clone();
-                            Box::new(AST::BinaryOp(raw_cond.into(), BinaryOp::LogicalOr, this_cond))
+                            Box::new(AST::BinaryOp(
+                                raw_cond.into(),
+                                BinaryOp::LogicalOr,
+                                this_cond,
+                            ))
                         }
-                        _ => Box::new(AST::UnaryOp(UnaryOp::Negate(raw_cond)))
+                        _ => Box::new(AST::UnaryOp(UnaryOp::Negate(raw_cond))),
                     }
                 };
-                return Ok(Some(AST::If {
-                    cond,
-                    then,
-                }));
+                return Ok(Some(AST::If { cond, then }));
             }
-            Instruction::IfIcmpeq(_, _) => {
-                unimplemented!("instruction `IfIcmpeq` not yet implemented")
+            Instruction::IfIcmpeq(offset) => {
+                let val2 = self.pop_stack()?;
+                let val1 = self.pop_stack()?;
+                let mut cond =
+                    Box::new(AST::BinaryOp(val1.into(), BinaryOp::NotEqual, val2.into()));
+                let pos = self.current_pos + offset;
+                let mut then = Vec::new();
+                while let Some(tok) = self.tokens.next() {
+                    let ast = self.read_instruction(tok)?;
+                    match ast {
+                        Some(v) => then.push(v),
+                        None => continue,
+                    }
+                    if self.current_pos <= pos {
+                        break;
+                    }
+                }
+
+                if then.len() == 1 {
+                    if let AST::If {
+                        cond: this_cond,
+                        then: this_then,
+                    } = then[0].clone()
+                    {
+                        then = this_then.clone();
+                        cond = Box::new(AST::BinaryOp(cond, BinaryOp::LogicalOr, this_cond));
+                    }
+                }
+                return Ok(Some(AST::If { cond, then }));
             }
-            Instruction::IfIcmpne(_, _) => {
-                unimplemented!("instruction `IfIcmpne` not yet implemented")
+            Instruction::IfIcmpne(offset) => {
+                let val2 = self.pop_stack()?;
+                let val1 = self.pop_stack()?;
+                let cond = Box::new(AST::BinaryOp(val1.into(), BinaryOp::Equal, val2.into()));
+                let pos = self.current_pos + offset;
+                let mut then = Vec::new();
+                while let Some(tok) = self.tokens.next() {
+                    let ast = self.read_instruction(tok)?;
+                    match ast {
+                        Some(v) => then.push(v),
+                        None => continue,
+                    }
+                    if self.current_pos <= pos {
+                        break;
+                    }
+                }
+
+                let cond = if then.len() != 1 {
+                    cond
+                } else {
+                    match then[0].clone() {
+                        AST::If {
+                            cond: this_cond,
+                            then: this_then,
+                        } => {
+                            then = this_then.clone();
+                            Box::new(AST::BinaryOp(cond.into(), BinaryOp::LogicalAnd, this_cond))
+                        }
+                        _ => cond,
+                    }
+                };
+
+                return Ok(Some(AST::If { cond, then }));
             }
-            Instruction::IfIcmpge(_, _) => {
+            Instruction::IfIcmpge(_) => {
                 unimplemented!("instruction `IfIcmpge` not yet implemented")
             }
-            Instruction::IfIcmpgt(_, _) => {
+            Instruction::IfIcmpgt(_) => {
                 unimplemented!("instruction `IfIcmpgt` not yet implemented")
             }
-            Instruction::IfIcmple(_, _) => {
+            Instruction::IfIcmple(_) => {
                 unimplemented!("instruction `IfIcmple` not yet implemented")
             }
-            Instruction::IfIcmplt(_, _) => {
+            Instruction::IfIcmplt(_) => {
                 unimplemented!("instruction `IfIcmplt` not yet implemented")
             }
-            Instruction::Ifnonnull(_, _) => {
+            Instruction::Ifnonnull(_) => {
                 unimplemented!("instruction `Ifnonnull` not yet implemented")
             }
-            Instruction::Ifnull(_, _) => unimplemented!("instruction `Ifnull` not yet implemented"),
+            Instruction::Ifnull(_) => unimplemented!("instruction `Ifnull` not yet implemented"),
 
             Instruction::Goto(_branchbyte1, _branchbyte2) => {
                 // writeln!(self.buf, "else {{")?;

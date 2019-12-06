@@ -122,22 +122,22 @@ impl Code {
                 0x07 => Instruction::IConst4,
                 0x08 => Instruction::IConst5,
                 0x6c => Instruction::IDiv,
-                0xa5 => Instruction::IfAcmpeq(next(), next()),
-                0xa6 => Instruction::IfAcmpne(next(), next()),
-                0x9f => Instruction::IfIcmpeq(next(), next()),
-                0xa2 => Instruction::IfIcmpge(next(), next()),
-                0xa3 => Instruction::IfIcmpgt(next(), next()),
-                0xa4 => Instruction::IfIcmple(next(), next()),
-                0xa1 => Instruction::IfIcmplt(next(), next()),
-                0xa0 => Instruction::IfIcmpne(next(), next()),
-                0x99 => Instruction::Ifeq(next(), next()),
-                0x9c => Instruction::Ifge(next(), next()),
-                0x9d => Instruction::Ifgt(next(), next()),
-                0x9e => Instruction::Ifle(next(), next()),
-                0x9b => Instruction::Iflt(next(), next()),
-                0x9a => Instruction::Ifne(next(), next()),
-                0xc7 => Instruction::Ifnonnull(next(), next()),
-                0xc6 => Instruction::Ifnull(next(), next()),
+                0xa5 => Instruction::IfAcmpeq(u16::from_be_bytes([next(), next()])),
+                0xa6 => Instruction::IfAcmpne(u16::from_be_bytes([next(), next()])),
+                0x9f => Instruction::IfIcmpeq(u16::from_be_bytes([next(), next()])),
+                0xa2 => Instruction::IfIcmpge(u16::from_be_bytes([next(), next()])),
+                0xa3 => Instruction::IfIcmpgt(u16::from_be_bytes([next(), next()])),
+                0xa4 => Instruction::IfIcmple(u16::from_be_bytes([next(), next()])),
+                0xa1 => Instruction::IfIcmplt(u16::from_be_bytes([next(), next()])),
+                0xa0 => Instruction::IfIcmpne(u16::from_be_bytes([next(), next()])),
+                0x99 => Instruction::Ifeq(u16::from_be_bytes([next(), next()])),
+                0x9c => Instruction::Ifge(u16::from_be_bytes([next(), next()])),
+                0x9d => Instruction::Ifgt(u16::from_be_bytes([next(), next()])),
+                0x9e => Instruction::Ifle(u16::from_be_bytes([next(), next()])),
+                0x9b => Instruction::Iflt(u16::from_be_bytes([next(), next()])),
+                0x9a => Instruction::Ifne(u16::from_be_bytes([next(), next()])),
+                0xc7 => Instruction::Ifnonnull(u16::from_be_bytes([next(), next()])),
+                0xc6 => Instruction::Ifnull(u16::from_be_bytes([next(), next()])),
                 0x84 => Instruction::Iinc(next(), next()),
                 0x15 => Instruction::ILoad(next()),
                 0x1a => Instruction::ILoad0,
@@ -464,37 +464,37 @@ pub enum Instruction {
     /// divide two integers
     IDiv,
     /// if references are equal, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    IfAcmpeq(u8, u8),
+    IfAcmpeq(u16),
     /// if references are not equal, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    IfAcmpne(u8, u8),
+    IfAcmpne(u16),
     /// if ints are equal, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    IfIcmpeq(u8, u8),
+    IfIcmpeq(u16),
     /// if value1 is greater than or equal to value2, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    IfIcmpge(u8, u8),
+    IfIcmpge(u16),
     /// if value1 is greater than value2, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    IfIcmpgt(u8, u8),
+    IfIcmpgt(u16),
     /// if value1 is less than or equal to value2, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    IfIcmple(u8, u8),
+    IfIcmple(u16),
     /// if value1 is less than value2, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    IfIcmplt(u8, u8),
+    IfIcmplt(u16),
     /// if ints are not equal, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    IfIcmpne(u8, u8),
+    IfIcmpne(u16),
     /// if value is 0, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    Ifeq(u8, u8),
+    Ifeq(u16),
     /// if value is greater than or equal to 0, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    Ifge(u8, u8),
+    Ifge(u16),
     /// if value is greater than 0, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    Ifgt(u8, u8),
+    Ifgt(u16),
     /// if value is less than or equal to 0, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    Ifle(u8, u8),
+    Ifle(u16),
     /// if value is less than 0, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    Iflt(u8, u8),
+    Iflt(u16),
     /// if value is not 0, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    Ifne(u8, u8),
+    Ifne(u16),
     /// if value is not null, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    Ifnonnull(u8, u8),
+    Ifnonnull(u16),
     /// if value is null, branch to instruction at branchoffset (signed short constructed from unsigned bytes branchbyte1 << 8 + branchbyte2)
-    Ifnull(u8, u8),
+    Ifnull(u16),
     /// increment local variable #index by signed byte const
     Iinc(u8, u8),
     /// load an int value from a local variable #index
@@ -671,7 +671,7 @@ pub enum Instruction {
 impl Instruction {
     #[must_use]
     // todo: some have u16 so should count for 3
-    pub(crate) fn len(self) -> u8 {
+    pub(crate) fn len(self) -> u16 {
         match self {
             Instruction::AALoad
             | Instruction::AAStore
@@ -847,22 +847,22 @@ impl Instruction {
             | Instruction::Checkcast(_)
             | Instruction::Goto(_, _)
             | Instruction::InvokeSpecial(_)
-            | Instruction::IfAcmpeq(_, _)
-            | Instruction::IfAcmpne(_, _)
-            | Instruction::IfIcmpeq(_, _)
-            | Instruction::IfIcmpge(_, _)
-            | Instruction::IfIcmpgt(_, _)
-            | Instruction::IfIcmple(_, _)
-            | Instruction::IfIcmplt(_, _)
-            | Instruction::IfIcmpne(_, _)
-            | Instruction::Ifeq(_, _)
-            | Instruction::Ifge(_, _)
-            | Instruction::Ifgt(_, _)
-            | Instruction::Ifle(_, _)
-            | Instruction::Iflt(_, _)
-            | Instruction::Ifne(_, _)
-            | Instruction::Ifnonnull(_, _)
-            | Instruction::Ifnull(_, _)
+            | Instruction::IfAcmpeq(_)
+            | Instruction::IfAcmpne(_)
+            | Instruction::IfIcmpeq(_)
+            | Instruction::IfIcmpge(_)
+            | Instruction::IfIcmpgt(_)
+            | Instruction::IfIcmple(_)
+            | Instruction::IfIcmplt(_)
+            | Instruction::IfIcmpne(_)
+            | Instruction::Ifeq(_)
+            | Instruction::Ifge(_)
+            | Instruction::Ifgt(_)
+            | Instruction::Ifle(_)
+            | Instruction::Iflt(_)
+            | Instruction::Ifne(_)
+            | Instruction::Ifnonnull(_)
+            | Instruction::Ifnull(_)
             | Instruction::Iinc(_, _)
             | Instruction::InstanceOf(_)
             | Instruction::Jsr(_, _)
