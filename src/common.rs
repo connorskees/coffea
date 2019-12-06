@@ -72,6 +72,8 @@ pub enum BinaryOp {
     /// bitwise and
     And,
     Or,
+    LogicalAnd,
+    LogicalOr,
     Xor,
     InstanceOf,
     Equal,
@@ -95,6 +97,8 @@ impl fmt::Display for BinaryOp {
             BinaryOp::UShr => write!(f, ">>>"),
             BinaryOp::And => write!(f, "&"),
             BinaryOp::Or => write!(f, "|"),
+            BinaryOp::LogicalAnd => write!(f, "&&"),
+            BinaryOp::LogicalOr => write!(f, "||"),
             BinaryOp::Xor => write!(f, "^"),
             BinaryOp::InstanceOf => write!(f, "instanceof"),
             BinaryOp::Equal => write!(f, "=="),
