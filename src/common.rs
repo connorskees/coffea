@@ -117,6 +117,7 @@ pub enum UnaryOp {
     ArrayLength(StackEntry),
     PlusPlus(StackEntry),
     MinusMinus(StackEntry),
+    Negate(StackEntry),
 }
 
 impl fmt::Display for UnaryOp {
@@ -126,6 +127,7 @@ impl fmt::Display for UnaryOp {
             UnaryOp::ArrayLength(v) => write!(f, "{}.length", v),
             UnaryOp::PlusPlus(v) => writeln!(f, "{}++;", v),
             UnaryOp::MinusMinus(v) => writeln!(f, "{}--;", v),
+            UnaryOp::Negate(v) => write!(f, "!{}", v),
         }
     }
 }
@@ -133,7 +135,7 @@ impl fmt::Display for UnaryOp {
 impl UnaryOp {
     pub(crate) fn ty(&self) -> Type {
         match self {
-            Self::Neg(s) | Self::ArrayLength(s) | Self::PlusPlus(s) | Self::MinusMinus(s) => s.ty(),
+            Self::Neg(s) | Self::Negate(s) | Self::ArrayLength(s) | Self::PlusPlus(s) | Self::MinusMinus(s) => s.ty(),
         }
     }
 }
