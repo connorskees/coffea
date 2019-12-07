@@ -20,7 +20,7 @@ use std::string::ToString;
 use crate::ast::AST;
 use crate::attributes::Attribute;
 use crate::builder::ClassFileBuilder;
-use crate::code::Instruction;
+use crate::code::{Instruction, Instructions};
 pub use crate::common::{BinaryOp, Type, UnaryOp};
 use crate::errors::{JResult, ParseError};
 pub use crate::fields::{FieldAccessFlags, FieldDescriptor, FieldInfo};
@@ -433,9 +433,9 @@ struct Codegen<W: Write> {
     buf: W,
     stack: Vec<StackEntry>,
     local_variables: HashMap<usize, StackEntry>,
-    tokens: std::vec::IntoIter<Instruction>,
+    tokens: Instructions,
     ast: Vec<AST>,
-    current_pos: u16,
+    current_pos: i16,
 }
 
 impl<W: Write> Codegen<W> {
@@ -462,7 +462,9 @@ impl<W: Write> Codegen<W> {
     }
 
     fn read_instruction(&mut self, instruction: Instruction) -> JResult<Option<AST>> {
-        self.current_pos += instruction.len();
+        // dbg!(&instruction);
+        let len = instruction.len();
+        self.current_pos += len;
         match instruction {
             Instruction::BiPush(n) => self.stack.push(StackEntry::Int(i32::from(n))),
             Instruction::SIPush(n) => self.stack.push(StackEntry::Int(i32::from(n))),
@@ -1028,16 +1030,20 @@ impl<W: Write> Codegen<W> {
             }
             Instruction::Ifnull(_) => unimplemented!("instruction `Ifnull` not yet implemented"),
 
-            Instruction::Goto(_branchbyte1, _branchbyte2) => {
-                // writeln!(self.buf, "else {{")?;
-                // let _offset: i16 = i16::from(branchbyte1) << 8 | i16::from(branchbyte2);
-                unimplemented!("goto is unimplemented")
+            Instruction::Goto(offset) => {
+                self.tokens.goto(&((offset+self.current_pos-len) as usize));
+                // if self.tokens.next() == Some(instruction) {
+                //     dbg!("test");
+                // }
+                // let offset: i16 = i16::from(branchbyte1) << 8 | i16::from(branchbyte2);
+                dbg!((offset+self.current_pos-len) as usize);
+                // unimplemented!("goto is unimplemented")
             }
-            Instruction::GotoW(_, _, _, _) => {
+            Instruction::GotoW(_) => {
                 unimplemented!("instruction `GotoW` not yet implemented")
             }
-            Instruction::Jsr(_, _) => unimplemented!("instruction `Jsr` not yet implemented"),
-            Instruction::JsrW(_, _, _, _) => {
+            Instruction::Jsr(_) => unimplemented!("instruction `Jsr` not yet implemented"),
+            Instruction::JsrW(_) => {
                 unimplemented!("instruction `JsrW` not yet implemented")
             }
             Instruction::Ret(_) => unimplemented!("instruction `Ret` not yet implemented"),
@@ -1239,7 +1245,7 @@ impl ClassFile {
         let method = self.method_by_name(method_name)?;
         // buf.write_all(self.class_signature()?.as_bytes())?;
         buf.write_all(method.signature().as_bytes())?;
-        let tokens = method.code().unwrap().lex().into_iter();
+        let tokens = method.code().unwrap().lex();
         let mut local_variables = HashMap::new();
         // when the method is not static, the first argument is an implicit `this`
         let arg_offset = if method.access_flags.is_static() {
