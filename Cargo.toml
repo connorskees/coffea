@@ -2,9 +2,19 @@
 name = "coffea"
 version = "0.1.0"
 authors = ["ConnorSkees <39542938+ConnorSkees@users.noreply.github.com>"]
+description = "A very much WIP Java bytecode decompiler"
+readme = "README.md"
+license = "MIT"
+categories = ["parser-implementations"]
+keywords = ["java", "jvm", "bytecode"]
+repository = "https://github.com/connorskees/coffea"
 edition = "2018"
+exclude = ["*.java", "tests", "Cargo.lock"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bitreader = "0.3.2"
+
+[profile.release]
+debug = true
