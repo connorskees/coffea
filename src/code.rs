@@ -24,7 +24,7 @@ impl Instructions {
 
     pub fn goto(&mut self, pos: &usize) {
         // dbg!(pos);
-        self.cursor = self.map.get(pos).unwrap().clone();
+        self.cursor = *self.map.get(pos).unwrap();
     }
 }
 
@@ -42,7 +42,7 @@ impl Code {
     pub fn lex(&self) -> Instructions {
         let mut bytes = self.code.iter().enumerate();
         let mut instructions = Vec::with_capacity(bytes.len());
-        let mut instruction_map= HashMap::new();
+        let mut instruction_map = HashMap::new();
         let mut instruction_num = 0;
         while let Some((idx, b)) = bytes.next() {
             let mut next = || *bytes.next().unwrap().1;
@@ -179,8 +179,14 @@ impl Code {
                 0x68 => Instruction::IMul,
                 0x74 => Instruction::INeg,
                 0xc1 => Instruction::InstanceOf(u16::from_be_bytes([next(), next()])),
-                0xba => Instruction::InvokeDynamic(u16::from_be_bytes([next(), next()]), next(), next()),
-                0xb9 => Instruction::InvokeInterface(u16::from_be_bytes([next(), next()]), next(), next()),
+                0xba => {
+                    Instruction::InvokeDynamic(u16::from_be_bytes([next(), next()]), next(), next())
+                }
+                0xb9 => Instruction::InvokeInterface(
+                    u16::from_be_bytes([next(), next()]),
+                    next(),
+                    next(),
+                ),
                 0xb7 => Instruction::InvokeSpecial(u16::from_be_bytes([next(), next()])),
                 0xb8 => Instruction::InvokeStatic(u16::from_be_bytes([next(), next()])),
                 0xb6 => Instruction::InvokeVirtual(u16::from_be_bytes([next(), next()])),
@@ -252,7 +258,7 @@ impl Code {
                 0x5f => Instruction::Swap,
                 0xaa => unimplemented!("instruction `TableSwitch` not yet implemented"), //Instruction::TableSwitch,
                 0xc4 => {
-                    let n  = next();
+                    let n = next();
                     match n {
                         0x84 => Instruction::Wide5(n, next(), next(), next(), next()),
                         0x15..=0x19 | 0x36..=0x39 | 0x89 => Instruction::Wide3(n, next(), next()),
@@ -266,7 +272,12 @@ impl Code {
             instruction_num += instruction.len() as usize;
         }
         let instruction_count = instructions.len();
-        Instructions { instructions, instruction_count, map: instruction_map, cursor: 0 }
+        Instructions {
+            instructions,
+            instruction_count,
+            map: instruction_map,
+            cursor: 0,
+        }
         // instructions
     }
 }

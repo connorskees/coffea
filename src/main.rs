@@ -904,7 +904,7 @@ impl<W: Write> Codegen<W> {
                         then: this_then,
                     } = then[0].clone()
                     {
-                        then = this_then.clone();
+                        then = this_then;
                         cond = Box::new(AST::BinaryOp(cond, BinaryOp::LogicalAnd, this_cond));
                     }
                 }
@@ -937,7 +937,7 @@ impl<W: Write> Codegen<W> {
                             cond: this_cond,
                             then: this_then,
                         } => {
-                            then = this_then.clone();
+                            then = this_then;
                             Box::new(AST::BinaryOp(
                                 raw_cond.into(),
                                 BinaryOp::LogicalOr,
@@ -973,7 +973,7 @@ impl<W: Write> Codegen<W> {
                         then: this_then,
                     } = then[0].clone()
                     {
-                        then = this_then.clone();
+                        then = this_then;
                         cond = Box::new(AST::BinaryOp(cond, BinaryOp::LogicalOr, this_cond));
                     }
                 }
@@ -1004,8 +1004,8 @@ impl<W: Write> Codegen<W> {
                             cond: this_cond,
                             then: this_then,
                         } => {
-                            then = this_then.clone();
-                            Box::new(AST::BinaryOp(cond.into(), BinaryOp::LogicalAnd, this_cond))
+                            then = this_then;
+                            Box::new(AST::BinaryOp(cond, BinaryOp::LogicalAnd, this_cond))
                         }
                         _ => cond,
                     }
@@ -1031,21 +1031,18 @@ impl<W: Write> Codegen<W> {
             Instruction::Ifnull(_) => unimplemented!("instruction `Ifnull` not yet implemented"),
 
             Instruction::Goto(offset) => {
-                self.tokens.goto(&((offset+self.current_pos-len) as usize));
+                self.tokens
+                    .goto(&((offset + self.current_pos - len) as usize));
                 // if self.tokens.next() == Some(instruction) {
                 //     dbg!("test");
                 // }
                 // let offset: i16 = i16::from(branchbyte1) << 8 | i16::from(branchbyte2);
-                dbg!((offset+self.current_pos-len) as usize);
+                dbg!((offset + self.current_pos - len) as usize);
                 // unimplemented!("goto is unimplemented")
             }
-            Instruction::GotoW(_) => {
-                unimplemented!("instruction `GotoW` not yet implemented")
-            }
+            Instruction::GotoW(_) => unimplemented!("instruction `GotoW` not yet implemented"),
             Instruction::Jsr(_) => unimplemented!("instruction `Jsr` not yet implemented"),
-            Instruction::JsrW(_) => {
-                unimplemented!("instruction `JsrW` not yet implemented")
-            }
+            Instruction::JsrW(_) => unimplemented!("instruction `JsrW` not yet implemented"),
             Instruction::Ret(_) => unimplemented!("instruction `Ret` not yet implemented"),
 
             Instruction::I2b => self.cast(Type::Byte)?,
