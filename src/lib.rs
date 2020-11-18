@@ -9,9 +9,7 @@
 // todo: method calls as their own stack entry
 // todo: i++ and i-- as expressions
 // todo: i-- parses to i++
-use std::{
-    cmp::Ordering, collections::HashMap, convert::TryInto, fmt, io::Write, string::ToString,
-};
+use std::{cmp::Ordering, collections::HashMap, convert::TryInto, fmt, string::ToString};
 
 use crate::{
     ast::AST,
@@ -123,9 +121,8 @@ impl fmt::Display for StackEntry {
 }
 
 #[derive(Debug)]
-pub(crate) struct Codegen<W: Write> {
-    class: ClassFile,
-    buf: W,
+pub(crate) struct Codegen<'a> {
+    class: &'a mut ClassFile,
     stack: Vec<StackEntry>,
     local_variables: HashMap<usize, StackEntry>,
     tokens: Instructions,
@@ -133,8 +130,8 @@ pub(crate) struct Codegen<W: Write> {
     current_pos: i16,
 }
 
-impl<W: Write> Codegen<W> {
-    fn codegen(mut self) -> JResult<()> {
+impl Codegen<'_> {
+    fn codegen(mut self) -> JResult<Vec<AST>> {
         while let Some(instruction) = self.tokens.next() {
             let val = self.read_instruction(instruction)?;
             match val {
@@ -142,18 +139,8 @@ impl<W: Write> Codegen<W> {
                 None => continue,
             }
         }
-        dbg!(&self.ast);
-        write!(
-            self.buf,
-            "{}",
-            self.ast
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<String>>()
-                .join("")
-        )?;
-        Ok(())
-        // buf.write_all(b"}\n}\n")?;
+
+        Ok(self.ast)
     }
 
     fn read_instruction(&mut self, instruction: Instruction) -> JResult<Option<AST>> {

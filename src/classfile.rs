@@ -29,8 +29,8 @@ impl<W: Write> ClassFileVisitor<W> {
 
         self.indent.increase();
 
-        for method in &self.class_file.methods {
-            // ignore methods like `<init>`
+        for method in self.class_file.methods.clone() {
+            // ignore methods like `<init>``
             if method.name.starts_with('<') {
                 continue;
             }
@@ -39,7 +39,7 @@ impl<W: Write> ClassFileVisitor<W> {
             self.indent.increase();
             self.buf.write_all(method.signature().as_bytes())?;
 
-            // method.code().unwrap();
+            self.visit_method_body(&method)?;
 
             self.indent.decrease();
             self.indent.write(&mut self.buf)?;
@@ -47,6 +47,47 @@ impl<W: Write> ClassFileVisitor<W> {
         }
 
         self.buf.write_all(b"}\n")?;
+
+        Ok(())
+    }
+
+    fn visit_method_body(&mut self, method: &MethodInfo) -> JResult<()> {
+        let tokens = method.code().unwrap().lex();
+        let mut local_variables = HashMap::new();
+        // when the method is not static, the first argument is an implicit `this`
+        let arg_offset = if method.access_flags.is_static() {
+            0
+        } else {
+            local_variables.insert(
+                0,
+                StackEntry::Ident(
+                    "this".to_owned(),
+                    Type::ClassName(self.class_file.class_name()?.to_owned()),
+                ),
+            );
+            1
+        };
+        for (idx, arg) in method.args.iter().enumerate() {
+            local_variables.insert(
+                idx + arg_offset,
+                StackEntry::Ident(format!("arg{}", idx + arg_offset), arg.clone()),
+            );
+        }
+
+        let ast = Codegen {
+            class: &mut self.class_file,
+            stack: Vec::new(),
+            local_variables,
+            tokens,
+            ast: Vec::new(),
+            current_pos: 0,
+        }
+        .codegen()?;
+
+        for line in ast {
+            self.indent.write(&mut self.buf)?;
+            writeln!(self.buf, "{}", line)?;
+        }
 
         Ok(())
     }
@@ -340,43 +381,6 @@ impl ClassFile {
         }
         s.push("{\n");
         Ok(s.join(" "))
-    }
-
-    pub fn codegen<N: AsRef<str>, W: Write>(self, method_name: N, buf: &mut W) -> JResult<()> {
-        let method = self.method_by_name(method_name)?;
-        // buf.write_all(self.class_signature()?.as_bytes())?;
-        buf.write_all(method.signature().as_bytes())?;
-        let tokens = method.code().unwrap().lex();
-        let mut local_variables = HashMap::new();
-        // when the method is not static, the first argument is an implicit `this`
-        let arg_offset = if method.access_flags.is_static() {
-            0
-        } else {
-            local_variables.insert(
-                0,
-                StackEntry::Ident(
-                    "this".to_owned(),
-                    Type::ClassName(self.class_name()?.to_owned()),
-                ),
-            );
-            1
-        };
-        for (idx, arg) in method.args.iter().enumerate() {
-            local_variables.insert(
-                idx + arg_offset,
-                StackEntry::Ident(format!("arg{}", idx + arg_offset), arg.clone()),
-            );
-        }
-        Codegen {
-            class: self,
-            buf,
-            stack: Vec::new(),
-            local_variables,
-            tokens,
-            ast: Vec::new(),
-            current_pos: 0,
-        }
-        .codegen()
     }
 }
 
