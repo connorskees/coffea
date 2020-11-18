@@ -1,4 +1,5 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(u16)]
 pub enum MajorVersion {
     JavaSE15 = 59,
     JavaSE14 = 58,

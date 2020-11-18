@@ -9,13 +9,15 @@
 // todo: method calls as their own stack entry
 // todo: i++ and i-- as expressions
 // todo: i-- parses to i++
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::convert::TryInto;
-use std::fmt;
-use std::fs::File;
-use std::io::{BufRead, BufReader, Read, Write};
-use std::string::ToString;
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    convert::TryInto,
+    fmt,
+    fs::File,
+    io::{BufRead, BufReader, Read, Write},
+    string::ToString,
+};
 
 use crate::ast::AST;
 use crate::attributes::Attribute;

@@ -1,14 +1,18 @@
 use std::io::{BufRead, Read};
 
-use crate::attributes::{Attribute, ExceptionTableEntry, LocalVariableTableEntry, *};
-use crate::code::Code;
-pub use crate::common::Type;
-use crate::errors::{JResult, ParseError};
-pub use crate::fields::{FieldAccessFlags, FieldInfo};
-use crate::methods::{MethodAccessFlags, MethodDescriptor, MethodInfo};
-use crate::pool::PoolKind;
-pub use crate::version::MajorVersion;
-use crate::{ClassAccessFlags, ClassFile};
+use crate::{
+    attributes::{Attribute, ExceptionTableEntry, LocalVariableTableEntry, *},
+    code::Code,
+    errors::{JResult, ParseError},
+    methods::{MethodAccessFlags, MethodDescriptor, MethodInfo},
+    pool::PoolKind,
+    {ClassAccessFlags, ClassFile},
+};
+pub use crate::{
+    common::Type,
+    fields::{FieldAccessFlags, FieldInfo},
+    version::MajorVersion,
+};
 
 const CLASS_FILE_HEADER: [u8; 4] = [0xCA, 0xFE, 0xBA, 0xBE];
 

@@ -1,5 +1,4 @@
-use std::fmt;
-use std::io;
+use std::{fmt, io};
 
 pub type JResult<T> = Result<T, ParseError>;
 

@@ -1,5 +1,4 @@
-use std::fmt;
-use std::string::ToString;
+use std::{fmt, string::ToString};
 
 use crate::common::{BinaryOp, Type, UnaryOp};
 use crate::StackEntry;

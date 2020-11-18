@@ -1,6 +1,4 @@
-use crate::attributes::Attribute;
-use crate::code::Code;
-use crate::common::Type;
+use crate::{attributes::Attribute, code::Code, common::Type};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MethodInfo {
