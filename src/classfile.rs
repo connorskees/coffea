@@ -216,7 +216,7 @@ impl ClassFile {
         self.methods.iter().map(|m| &m.name).collect()
     }
 
-    pub fn method_by_name<T: AsRef<str>>(&self, name: T) -> JResult<&MethodInfo> {
+    pub fn method_by_name(&self, name: &str) -> JResult<&MethodInfo> {
         for method in &self.methods {
             if method.name == name.as_ref() {
                 return Ok(method);
