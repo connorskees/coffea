@@ -7,7 +7,7 @@ use std::{
 use crate::{
     attributes::Attribute,
     builder::ClassFileBuilder,
-    common::Type,
+    common::{Indent, Type},
     errors::{JResult, ParseError},
     fields::{FieldDescriptor, FieldInfo},
     methods::{MethodDescriptor, MethodInfo},
@@ -15,6 +15,37 @@ use crate::{
     version::MajorVersion,
     Codegen, StackEntry,
 };
+
+struct ClassFileVisitor<W: Write> {
+    class_file: ClassFile,
+    buf: W,
+    indent: Indent,
+}
+
+impl<W: Write> ClassFileVisitor<W> {
+    fn visit_class(&mut self) -> JResult<()> {
+        self.buf
+            .write_all(self.class_file.class_signature()?.as_bytes())?;
+
+        self.indent.increase();
+
+        for method in &self.class_file.methods {
+            self.indent.write(&mut self.buf)?;
+            self.indent.increase();
+            self.buf.write_all(method.signature().as_bytes())?;
+
+            // method.code().unwrap();
+
+            self.indent.decrease();
+            self.indent.write(&mut self.buf)?;
+            self.buf.write_all(b"}\n")?;
+        }
+
+        self.buf.write_all(b"}\n")?;
+
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassFile {
@@ -44,6 +75,7 @@ impl ClassFile {
     }
 }
 
+/// Methods for accessing data contained within the `ClassFile`
 impl ClassFile {
     #[must_use]
     pub const fn version(&self) -> (MajorVersion, u16) {
@@ -259,7 +291,18 @@ impl ClassFile {
     }
 }
 
+/// Methods for codegen and printing
 impl ClassFile {
+    pub fn print<W: Write>(self, buf: W) -> JResult<()> {
+        let mut visitor = ClassFileVisitor {
+            class_file: self,
+            buf,
+            indent: Indent::new(),
+        };
+
+        visitor.visit_class()
+    }
+
     pub fn class_signature(&self) -> JResult<String> {
         let mut s = Vec::new();
         if self.access_flags.is_public {

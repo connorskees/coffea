@@ -1,4 +1,7 @@
-use std::{fs::File, io::BufReader};
+use std::{
+    fs::File,
+    io::{stdout, BufReader},
+};
 
 use coffea::{errors::JResult, ClassFile};
 
@@ -14,7 +17,9 @@ fn main() -> JResult<()> {
     let reader = BufReader::new(File::open("test.class")?);
     let file = ClassFile::from_bufreader(reader)?;
     // let mut outfile = File::create("testout.java")?;
-    let mut outfile = std::io::stdout();
+    let outfile = stdout();
+
+    file.print(outfile)?;
 
     // dbg!(&file.method_by_name("main"));
     // for name in file.method_names() {
@@ -23,7 +28,7 @@ fn main() -> JResult<()> {
     // }
     // dbg!(file.method_names());
 
-    dbg!(file.method_by_name("main").unwrap().code().unwrap().lex());
-    file.codegen("main", &mut outfile)?;
+    // dbg!(file.method_by_name("main").unwrap().code().unwrap().lex());
+    // file.codegen("main", &mut outfile)?;
     Ok(())
 }

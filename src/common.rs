@@ -1,6 +1,7 @@
 use std::{
     borrow::{Borrow, Cow},
     fmt,
+    io::{self, Write},
 };
 
 use crate::StackEntry;
@@ -178,5 +179,29 @@ impl UnaryOp {
             | Self::PlusPlus(s)
             | Self::MinusMinus(s) => s.ty(),
         }
+    }
+}
+
+pub(crate) struct Indent {
+    buffer: Vec<u8>,
+}
+
+impl Indent {
+    pub fn new() -> Self {
+        Self { buffer: Vec::new() }
+    }
+
+    pub fn increase(&mut self) {
+        self.buffer.push(b' ');
+        self.buffer.push(b' ');
+    }
+
+    pub fn decrease(&mut self) {
+        self.buffer.pop();
+        self.buffer.pop();
+    }
+
+    pub fn write(&self, buf: &mut dyn Write) -> io::Result<()> {
+        buf.write_all(&self.buffer)
     }
 }
