@@ -290,18 +290,19 @@ impl ClassFile {
                 name_and_type_index,
                 class_index,
             } => {
-                let (name, sig): (String, MethodDescriptor) =
-                    match &self.const_pool[usize::from(name_and_type_index - 1)] {
-                        PoolKind::NameAndType {
-                            name_index,
-                            descriptor_index,
-                        } => {
-                            let name = self.utf_from_index(*name_index)?;
-                            let ty = MethodDescriptor::new(self.utf_from_index(*descriptor_index)?);
-                            (name, ty)
-                        }
-                        _ => return Err(ParseError::IndexError(line!())),
-                    };
+                let (name, sig): (String, MethodDescriptor) = match &self.const_pool
+                    [usize::from(name_and_type_index - 1)]
+                {
+                    PoolKind::NameAndType {
+                        name_index,
+                        descriptor_index,
+                    } => {
+                        let name = self.utf_from_index(*name_index)?;
+                        let ty = MethodDescriptor::new(&self.utf_from_index(*descriptor_index)?);
+                        (name, ty)
+                    }
+                    _ => return Err(ParseError::IndexError(line!())),
+                };
                 let class = self
                     .class_name_from_index(*class_index)?
                     .split('/')

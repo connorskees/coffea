@@ -1,4 +1,7 @@
-use std::fmt;
+use std::{
+    borrow::{Borrow, Cow},
+    fmt,
+};
 
 use crate::StackEntry;
 
@@ -28,32 +31,33 @@ pub enum Type {
     Void,
 }
 
-impl fmt::Display for Type {
-    /// Convert Type to string representation
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Type {
+    pub fn as_str(&self) -> Cow<'static, str> {
         match self {
-            Type::Byte => write!(f, "byte"),
-            Type::Char => write!(f, "char"),
-            Type::Double => write!(f, "double"),
-            Type::Float => write!(f, "float"),
-            Type::Int => write!(f, "int"),
-            Type::Long => write!(f, "long"),
-            // we can be certain that the classname will be ASCII
-            // todo: dont just automatically strip the first 10 chars (java.lang.)
-            Type::ClassName(s) => write!(
-                f,
-                "{}",
-                if s.starts_with("java.lang.") {
-                    unsafe { String::from_utf8_unchecked(s.as_bytes()[10..].to_owned()) }
-                } else {
-                    s.to_owned()
-                }
-            ),
-            Type::Short => write!(f, "short"),
-            Type::Boolean => write!(f, "boolean"),
-            Type::Reference(t) => write!(f, "{}[]", t),
-            Type::Void => write!(f, "void"),
+            Type::Byte => Cow::Borrowed("byte"),
+            Type::Char => Cow::Borrowed("char"),
+            Type::Double => Cow::Borrowed("double"),
+            Type::Float => Cow::Borrowed("float"),
+            Type::Int => Cow::Borrowed("int"),
+            Type::Long => Cow::Borrowed("long"),
+            // todo: do we always want to remove `java.lang.`?
+            Type::ClassName(s) => Cow::Owned(s.strip_prefix("java/lang/").unwrap_or(s).to_owned()),
+            Type::Short => Cow::Borrowed("short"),
+            Type::Boolean => Cow::Borrowed("boolean"),
+            Type::Reference(t) => Cow::Owned(format!("{}[]", t)),
+            Type::Void => Cow::Borrowed("void"),
         }
+    }
+
+    /// Helper method for constructing the `java.lang.String` type
+    pub fn string() -> Self {
+        Type::ClassName("java/lang/String".to_owned())
+    }
+}
+
+impl fmt::Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str().borrow())
     }
 }
 
