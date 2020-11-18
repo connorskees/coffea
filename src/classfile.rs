@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    attributes::Attribute,
+    attributes::{Attribute, BootstrapMethod},
     builder::ClassFileBuilder,
     common::{Indent, Type},
     errors::{JResult, ParseError},
@@ -271,6 +271,17 @@ impl ClassFile {
         }
     }
 
+    pub fn bootstrap_methods(&self) -> Option<&[BootstrapMethod]> {
+        for attr in &self.attributes {
+            match attr {
+                Attribute::BootstrapMethods(b) => return Some(b),
+                _ => continue,
+            }
+        }
+
+        None
+    }
+
     pub fn read_methodref_from_index(
         &self,
         index: u16,
@@ -293,6 +304,52 @@ impl ClassFile {
                     }
                     _ => return Err(ParseError::IndexError(line!())),
                 };
+                let class = self
+                    .class_name_from_index(*class_index)?
+                    .split('/')
+                    .last()
+                    .unwrap()
+                    .to_owned();
+                Ok((class, name, sig))
+            }
+            _ => Err(ParseError::IndexError(line!())),
+        }
+    }
+
+    pub fn read_invoke_dynamic_from_index(
+        &self,
+        index: u16,
+    ) -> JResult<(String, String, MethodDescriptor)> {
+        match &self.const_pool[usize::from(index - 1)] {
+            PoolKind::InvokeDynamic {
+                name_and_type_index,
+                boostrap_method_attr_index,
+            } => {
+                let (name, sig): (String, MethodDescriptor) = match &self.const_pool
+                    [usize::from(name_and_type_index - 1)]
+                {
+                    PoolKind::NameAndType {
+                        name_index,
+                        descriptor_index,
+                    } => {
+                        let name = self.utf_from_index(*name_index)?;
+                        let ty = MethodDescriptor::new(&self.utf_from_index(*descriptor_index)?);
+                        (name, ty)
+                    }
+                    _ => return Err(ParseError::IndexError(line!())),
+                };
+                let bootstrap_method = self
+                    .bootstrap_methods()
+                    .unwrap()
+                    .get(*boostrap_method_attr_index as usize)
+                    .unwrap();
+
+                let class_index =
+                    match &self.const_pool[bootstrap_method.bootstrap_method_ref as usize] {
+                        PoolKind::MethodRef { class_index, .. } => class_index,
+                        _ => todo!("expected `PoolKind::MethodRef`"),
+                    };
+
                 let class = self
                     .class_name_from_index(*class_index)?
                     .split('/')

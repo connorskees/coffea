@@ -374,8 +374,20 @@ impl Codegen<'_> {
                 return Ok(Some(AST::Return(self.stack.pop().unwrap().into())));
             }
 
-            Instruction::InvokeDynamic(_, _, _) => {
-                unimplemented!("instruction `InvokeDynamic` not yet implemented")
+            Instruction::InvokeDynamic(index, _, _) => {
+                let (class, name, descriptor) = self.class.read_invoke_dynamic_from_index(index)?;
+                let mut args: Vec<StackEntry> = Vec::new();
+                for _ in 0..descriptor.args.len() {
+                    args.push(self.pop_stack()?);
+                }
+
+                let f = StackEntry::Function(
+                    format!("{}.{}", class, name),
+                    args,
+                    Type::ClassName(class),
+                );
+
+                self.stack.push(f);
             }
             Instruction::InvokeInterface(_, _, _) => {
                 unimplemented!("instruction `InvokeInterface` not yet implemented")

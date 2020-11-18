@@ -1,44 +1,119 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PoolKind {
+    /// Used to represent a class or an interface
     Class(u16),
+
+    /// Used to represent a class field
     FieldRef {
+        /// Index of the class containing this field
         class_index: u16,
+
+        /// Index of the name and type of this field
         name_and_type_index: u16,
     },
+
+    /// Used to represent a class method
     MethodRef {
+        /// Index of the class containing this method
         class_index: u16,
+
+        /// Index of the name and return type of this method
         name_and_type_index: u16,
     },
+
+    /// Used to represent an interface method
     InterfaceMethodRef {
+        /// Index of the class or interface containing this method
         class_index: u16,
+
+        /// Index of the name and return type of this method
         name_and_type_index: u16,
     },
+
+    /// Used to represent constant String objects
     String(u16),
+
+    /// Used to represent constant `int`s
     Integer(u32),
-    Float {
-        bytes: u32,
-    },
+
+    /// Used to represent constant `float`s
+    Float { bytes: u32 },
+
+    /// Used to represent constant `long`s
     Long(i64),
-    Double {
-        high_bytes: u32,
-        low_bytes: u32,
-    },
+
+    /// Used to represent constant `double`s
+    Double { high_bytes: u32, low_bytes: u32 },
+
+    /// Represents a field or method without indicating
+    /// to which class or interface it belongs
     NameAndType {
+        /// Index of the field or method name
         name_index: u16,
+
+        /// Index of the field or method descriptor
         descriptor_index: u16,
     },
+
+    /// A UTF-8 string. Used to represent names of fields, classes, methods, etc.
     Utf8(String),
+
+    /// Represents a handle to a method
+    /// (I think this is like a function pointer?)
     MethodHandle {
-        reference_kind: u8,
+        reference_kind: MethodReferenceHandleKind,
         reference_index: u16,
     },
+
+    /// Represents the argument and return types of a method
     MethodType {
+        /// Index of the method descriptor
         descriptor_index: u16,
     },
+
     InvokeDynamic {
         boostrap_method_attr_index: u16,
         name_and_type_index: u16,
     },
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum MethodReferenceHandleKind {
+    ///	getfield C.f:T
+    GetField = 1,
+    ///	getstatic C.f:T
+    GetStatic = 2,
+    ///	putfield C.f:T
+    PutField = 3,
+    ///	putstatic C.f:T
+    PutStatic = 4,
+    ///	invokevirtual C.m:(A*)T
+    InvokeVirtual = 5,
+    ///	invokestatic C.m:(A*)T
+    InvokeStatic = 6,
+    ///	invokespecial C.m:(A*)T
+    InvokeSpecial = 7,
+    ///	new C; dup; invokespecial C.<init>:(A*)void
+    NewInvokeSpecial = 8,
+    ///	invokeinterface C.m:(A*)T
+    InvokeInterface = 9,
+}
+
+impl MethodReferenceHandleKind {
+    pub fn from_u8(n: u8) -> Self {
+        match n {
+            1 => Self::GetField,
+            2 => Self::GetStatic,
+            3 => Self::PutField,
+            4 => Self::PutStatic,
+            5 => Self::InvokeVirtual,
+            6 => Self::InvokeStatic,
+            7 => Self::InvokeSpecial,
+            8 => Self::NewInvokeSpecial,
+            9 => Self::InvokeInterface,
+            _ => todo!("invalid method reference handle kind"),
+        }
+    }
 }
 
 impl PoolKind {
@@ -113,7 +188,8 @@ impl PoolKind {
     }
 
     #[must_use]
-    pub const fn method_handle(reference_kind: u8, reference_index: u16) -> PoolKind {
+    pub fn method_handle(reference_kind: u8, reference_index: u16) -> PoolKind {
+        let reference_kind = MethodReferenceHandleKind::from_u8(reference_kind);
         PoolKind::MethodHandle {
             reference_kind,
             reference_index,
