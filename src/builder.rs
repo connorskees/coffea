@@ -221,7 +221,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                     return Err(ParseError::IndexError(line!()));
                 };
             let attributes_count = self.read_u16()?;
-            let attributes = self.read_attributes(attributes_count)?;
+            let attributes = self.read_attributes(attributes_count)?.into_boxed_slice();
             methods.push(MethodInfo {
                 access_flags,
                 name,

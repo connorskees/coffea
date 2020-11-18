@@ -30,6 +30,11 @@ impl<W: Write> ClassFileVisitor<W> {
         self.indent.increase();
 
         for method in &self.class_file.methods {
+            // ignore methods like `<init>`
+            if method.name.starts_with('<') {
+                continue;
+            }
+
             self.indent.write(&mut self.buf)?;
             self.indent.increase();
             self.buf.write_all(method.signature().as_bytes())?;

@@ -8,14 +8,14 @@ use crate::{
 pub struct MethodInfo {
     pub access_flags: MethodAccessFlags,
     pub name: String,
-    pub args: Vec<Type>,
+    pub args: Box<[Type]>,
     pub return_type: Type,
-    pub attributes: Vec<Attribute>,
+    pub attributes: Box<[Attribute]>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct MethodDescriptor {
-    pub args: Vec<Type>,
+    pub args: Box<[Type]>,
     pub return_type: Type,
 }
 
@@ -39,7 +39,7 @@ impl MethodDescriptor {
         };
         MethodDescriptor {
             return_type: ret,
-            args,
+            args: args.into_boxed_slice(),
         }
     }
 }
@@ -85,7 +85,7 @@ impl MethodInfo {
 
     #[must_use]
     pub fn code(&self) -> Option<&Code> {
-        for attr in &self.attributes {
+        for attr in self.attributes.iter() {
             match attr {
                 Attribute::Code(c) => return Some(c),
                 _ => continue,
@@ -215,9 +215,9 @@ mod test {
                 MethodAccessFlags::PUBLIC | MethodAccessFlags::STATIC,
             ),
             name: "testMethod".to_owned(),
-            args: Vec::new(),
+            args: Vec::new().into_boxed_slice(),
             return_type: Type::Void,
-            attributes: Vec::new(),
+            attributes: Vec::new().into_boxed_slice(),
         };
 
         assert_eq!(
@@ -237,9 +237,10 @@ mod test {
                 Type::Short,
                 Type::Long,
                 Type::Reference(Box::new(Type::Reference(Box::new(Type::Int)))),
-            ],
+            ]
+            .into_boxed_slice(),
             return_type: Type::ClassName("String".to_owned()),
-            attributes: Vec::new(),
+            attributes: Vec::new().into_boxed_slice(),
         };
         assert_eq!(
             method_info.signature(),
@@ -258,9 +259,10 @@ mod test {
                 Type::Short,
                 Type::Long,
                 Type::Reference(Box::new(Type::Reference(Box::new(Type::Int)))),
-            ],
+            ]
+            .into_boxed_slice(),
             return_type: Type::ClassName("String".to_owned()),
-            attributes: Vec::new(),
+            attributes: Vec::new().into_boxed_slice(),
         };
         assert_eq!(
             method_info.signature(),
@@ -273,7 +275,7 @@ mod test {
         assert_eq!(
             MethodDescriptor::new("([Ljava/lang/String;)V"),
             MethodDescriptor {
-                args: vec![Type::Reference(Box::new(Type::string()))],
+                args: vec![Type::Reference(Box::new(Type::string()))].into_boxed_slice(),
                 return_type: Type::Void,
             }
         )
@@ -284,7 +286,7 @@ mod test {
         assert_eq!(
             MethodDescriptor::new("(IDLjava/lang/String;)Ljava/lang/String;"),
             MethodDescriptor {
-                args: vec![Type::Int, Type::Double, Type::string()],
+                args: vec![Type::Int, Type::Double, Type::string()].into_boxed_slice(),
                 return_type: Type::string(),
             }
         )
@@ -295,7 +297,8 @@ mod test {
         assert_eq!(
             MethodDescriptor::new("(LTestClass;D)Ljava/lang/String;"),
             MethodDescriptor {
-                args: vec![Type::ClassName("TestClass".to_owned()), Type::Double,],
+                args: vec![Type::ClassName("TestClass".to_owned()), Type::Double,]
+                    .into_boxed_slice(),
                 return_type: Type::string(),
             }
         )
@@ -310,7 +313,8 @@ mod test {
                     Type::Reference(Box::new(Type::Reference(Box::new(Type::Int)))),
                     Type::Double,
                     Type::Reference(Box::new(Type::string()))
-                ],
+                ]
+                .into_boxed_slice(),
                 return_type: Type::Void,
             }
         )
