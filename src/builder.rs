@@ -38,7 +38,8 @@ pub(crate) struct ClassFileBuilder<R: Read + BufRead> {
 /// High level methods for parsing class files
 impl<R: Read + BufRead> ClassFileBuilder<R> {
     pub(crate) fn parse(mut self) -> JResult<ClassFile> {
-        assert_eq!(read_bytes_to_buffer!(self.reader, 4), CLASS_FILE_HEADER);
+        let header = read_bytes_to_buffer!(self.reader, 4);
+        assert_eq!(header, CLASS_FILE_HEADER);
         let version = self.read_version()?;
         self.const_pool = self.read_const_pool()?;
         let access_flags = ClassAccessFlags::from_u16(self.read_u16()?);
