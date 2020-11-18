@@ -61,6 +61,39 @@ impl fmt::Display for Type {
     }
 }
 
+pub(crate) fn parse_single_type(cc: &mut std::str::Chars<'_>) -> Option<Type> {
+    Some(match cc.next()? {
+        ')' => return None,
+        'B' => Type::Byte,
+        'C' => Type::Char,
+        'D' => Type::Double,
+        'F' => Type::Float,
+        'I' => Type::Int,
+        'J' => Type::Long,
+        'L' => {
+            let mut name = String::new();
+            while let Some(c) = cc.next() {
+                if c == ';' {
+                    break;
+                }
+                name.push(c);
+            }
+            Type::ClassName(name)
+        }
+        'S' => Type::Short,
+        'Z' => Type::Boolean,
+        'V' => Type::Void,
+        '[' => {
+            let t = match parse_single_type(cc) {
+                Some(t) => t,
+                None => todo!(),
+            };
+            Type::Reference(Box::new(t))
+        }
+        _ => todo!("unknown character"),
+    })
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum BinaryOp {
     Add,

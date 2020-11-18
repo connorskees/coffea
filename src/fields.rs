@@ -1,5 +1,30 @@
-use crate::attributes::Attribute;
-use crate::common::Type;
+use crate::{
+    attributes::Attribute,
+    common::{parse_single_type, Type},
+};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FieldInfo {
+    pub access_flags: FieldAccessFlags,
+    pub name_index: u16,
+    pub descriptor_index: u16,
+    pub attribute_info: Vec<Attribute>,
+}
+
+#[derive(Debug)]
+pub struct FieldDescriptor {
+    pub ty: Type,
+}
+
+impl FieldDescriptor {
+    /// Parse field descriptor from str
+    pub fn new(s: &str) -> FieldDescriptor {
+        let mut chars = s.chars();
+        let ty = parse_single_type(&mut chars).expect("found no field descriptor type");
+
+        FieldDescriptor { ty }
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FieldAccessFlags {
@@ -12,57 +37,6 @@ pub struct FieldAccessFlags {
     is_transient: bool,
     is_synthetic: bool,
     is_enum: bool,
-}
-
-#[derive(Debug)]
-pub struct FieldDescriptor {
-    pub ty: Type,
-}
-
-impl FieldDescriptor {
-    /// Parse field descriptor from str
-    pub fn new<S: std::fmt::Debug + AsRef<str>>(s: S) -> FieldDescriptor {
-        let mut chars = s.as_ref().chars();
-        let ty = FieldDescriptor::eat_type(&mut chars).expect("found no field descriptor type");
-
-        FieldDescriptor { ty }
-    }
-
-    fn eat_type<'a>(cc: &mut std::str::Chars<'a>) -> Option<Type> {
-        if let Some(c) = cc.next() {
-            Some(match c {
-                'B' => Type::Byte,
-                'C' => Type::Char,
-                'D' => Type::Double,
-                'F' => Type::Float,
-                'I' => Type::Int,
-                'J' => Type::Long,
-                'L' => {
-                    let mut name = String::new();
-                    while let Some(c2) = cc.next() {
-                        if c2 == ';' {
-                            break;
-                        }
-                        name.push(c2);
-                    }
-                    Type::ClassName(name)
-                }
-                'S' => Type::Short,
-                'Z' => Type::Boolean,
-                'V' => Type::Void,
-                '[' => {
-                    let t = match FieldDescriptor::eat_type(cc) {
-                        Some(t) => t,
-                        None => unimplemented!(),
-                    };
-                    Type::Reference(Box::new(t))
-                }
-                _ => Type::ClassName(cc.collect()),
-            })
-        } else {
-            None
-        }
-    }
 }
 
 impl FieldAccessFlags {
@@ -90,12 +64,4 @@ impl FieldAccessFlags {
             is_enum: (n & FieldAccessFlags::ENUM) != 0,
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FieldInfo {
-    pub access_flags: FieldAccessFlags,
-    pub name_index: u16,
-    pub descriptor_index: u16,
-    pub attribute_info: Vec<Attribute>,
 }

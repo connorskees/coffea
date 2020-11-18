@@ -273,6 +273,7 @@ impl ClassFile {
         }
     }
 
+    // todo: can return &'self str?
     pub fn utf_from_index(&self, index: u16) -> JResult<String> {
         if let PoolKind::Utf8(s) = &self.const_pool[usize::from(index - 1)] {
             Ok(s.clone())
@@ -329,7 +330,7 @@ impl ClassFile {
                         descriptor_index,
                     } => {
                         let name = self.utf_from_index(*name_index)?;
-                        let ty = FieldDescriptor::new(self.utf_from_index(*descriptor_index)?).ty;
+                        let ty = FieldDescriptor::new(&self.utf_from_index(*descriptor_index)?).ty;
                         (name, ty)
                     }
                     _ => return Err(ParseError::IndexError(line!())),
@@ -836,7 +837,7 @@ impl<W: Write> Codegen<W> {
                 self.stack.push(StackEntry::Array(ty, count, v))
             }
             Instruction::ANewArray(index) => {
-                let ty = FieldDescriptor::new(self.class.class_name_from_index(index)?).ty;
+                let ty = FieldDescriptor::new(&self.class.class_name_from_index(index)?).ty;
                 let count: usize = match self.pop_stack()? {
                     StackEntry::Int(i) => i,
                     _ => unimplemented!("ANewArray count is non-integer value"),

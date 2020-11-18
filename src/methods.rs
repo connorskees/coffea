@@ -1,4 +1,8 @@
-use crate::{attributes::Attribute, code::Code, common::Type};
+use crate::{
+    attributes::Attribute,
+    code::Code,
+    common::{parse_single_type, Type},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MethodInfo {
@@ -25,54 +29,17 @@ impl MethodDescriptor {
             todo!("invalid starting character in return type")
         }
 
-        while let Some(c) = MethodDescriptor::eat_type(&mut chars) {
+        while let Some(c) = parse_single_type(&mut chars) {
             args.push(c);
         }
 
-        let ret = match MethodDescriptor::eat_type(&mut chars) {
+        let ret = match parse_single_type(&mut chars) {
             Some(t) => t,
             None => todo!("no return type given"),
         };
         MethodDescriptor {
             return_type: ret,
             args,
-        }
-    }
-
-    fn eat_type(cc: &mut std::str::Chars<'_>) -> Option<Type> {
-        if let Some(c) = cc.next() {
-            Some(match c {
-                ')' => return None,
-                'B' => Type::Byte,
-                'C' => Type::Char,
-                'D' => Type::Double,
-                'F' => Type::Float,
-                'I' => Type::Int,
-                'J' => Type::Long,
-                'L' => {
-                    let mut name = String::new();
-                    while let Some(c) = cc.next() {
-                        if c == ';' {
-                            break;
-                        }
-                        name.push(c);
-                    }
-                    Type::ClassName(name)
-                }
-                'S' => Type::Short,
-                'Z' => Type::Boolean,
-                'V' => Type::Void,
-                '[' => {
-                    let t = match MethodDescriptor::eat_type(cc) {
-                        Some(t) => t,
-                        None => todo!(),
-                    };
-                    Type::Reference(Box::new(t))
-                }
-                _ => todo!("unknown character"),
-            })
-        } else {
-            None
         }
     }
 }
