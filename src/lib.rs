@@ -365,13 +365,15 @@ impl Codegen<'_> {
                 });
             }
 
-            Instruction::Return => {}
+            Instruction::Return => {
+                return Ok(Some(AST::Return(None)));
+            }
             Instruction::AReturn
             | Instruction::Ireturn
             | Instruction::Freturn
             | Instruction::Dreturn
             | Instruction::Lreturn => {
-                return Ok(Some(AST::Return(self.stack.pop().unwrap().into())));
+                return Ok(Some(AST::Return(Some(self.pop_stack()?.into()))));
             }
 
             Instruction::InvokeDynamic(index, _, _) => {

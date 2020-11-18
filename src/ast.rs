@@ -67,7 +67,7 @@ pub enum AST {
     Goto(usize),
     NOP,
     StackEntry(StackEntry),
-    Return(Box<AST>),
+    Return(Option<Box<AST>>),
 }
 
 impl From<StackEntry> for AST {
@@ -176,7 +176,10 @@ impl fmt::Display for AST {
             AST::Goto(_) => panic!("attempted to render goto"),
             AST::NOP => write!(f, ""),
             AST::StackEntry(s) => write!(f, "{}", s),
-            AST::Return(val) => write!(f, "return {};", val),
+            AST::Return(val) => match val {
+                Some(v) => write!(f, "return {};", v),
+                None => write!(f, "return;"),
+            },
         }
     }
 }
