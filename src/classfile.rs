@@ -30,7 +30,7 @@ impl<W: Write> ClassFileVisitor<W> {
         self.indent.increase();
 
         for method in self.class_file.methods.clone() {
-            // ignore methods like `<init>``
+            // ignore methods like `<init>` and `<cinit>`
             if method.name.starts_with('<') {
                 continue;
             }
