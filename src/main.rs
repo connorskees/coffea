@@ -9,7 +9,7 @@ fn main() -> JResult<()> {
     let out = std::process::Command::new("javac")
         .args(&["test.java"])
         .output()
-        .expect("fd");
+        .unwrap();
     if !out.stderr.is_empty() {
         dbg!(out);
         std::process::exit(1);

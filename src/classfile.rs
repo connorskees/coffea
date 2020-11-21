@@ -70,26 +70,41 @@ impl<W: Write> ClassFileVisitor<W> {
         for method in self.class_file.methods.clone() {
             if method.name == "<init>" {
                 self.visit_init(&method)?;
-
-                for field in self.class_file.fields.clone() {
-                    self.visit_field(field)?;
-                }
-                continue;
             }
 
-            if method.name == "<cinit>" {
+            if method.name == "<clinit>" {
+                self.indent.write(&mut self.buf)?;
+                self.indent.increase();
+
+                writeln!(self.buf, "static {{")?;
+
+                self.visit_method_body(&method)?;
+
+                self.indent.decrease();
+                self.indent.write(&mut self.buf)?;
+                writeln!(self.buf, "}}")?;
+            }
+        }
+
+        for field in self.class_file.fields.clone() {
+            self.visit_field(field)?;
+        }
+
+        for method in self.class_file.methods.clone() {
+            if method.name == "<init>" || method.name == "<clinit>" {
                 continue;
             }
 
             self.indent.write(&mut self.buf)?;
             self.indent.increase();
+
             self.buf.write_all(method.signature().as_bytes())?;
 
             self.visit_method_body(&method)?;
 
             self.indent.decrease();
             self.indent.write(&mut self.buf)?;
-            self.buf.write_all(b"}\n")?;
+            writeln!(self.buf, "}}")?;
         }
 
         self.buf.write_all(b"}\n")?;
