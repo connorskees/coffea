@@ -19,6 +19,7 @@ use std::{
 
 use crate::{
     ast::AST,
+    cfg::{ControlFlowGraph, InstructionNode},
     code::{Instruction, Instructions},
     errors::{JResult, ParseError},
     invoke_dynamic::{ArgType, InvokeDynamicArgs},
@@ -34,6 +35,7 @@ pub use crate::{
 pub mod ast;
 pub mod attributes;
 mod builder;
+mod cfg;
 mod classfile;
 pub mod code;
 mod common;
@@ -147,35 +149,6 @@ pub(crate) struct Codegen<'a> {
     fields: &'a mut HashMap<String, AST>,
 }
 
-#[derive(Debug, Clone)]
-struct InstructionNode {
-    pos: usize,
-    inst: Instruction,
-}
-
-#[derive(Debug, Clone)]
-struct ControlFlowGraph {
-    edges: HashMap<usize, Vec<usize>>,
-    nodes: HashMap<usize, Vec<InstructionNode>>,
-}
-
-impl ControlFlowGraph {
-    pub fn new() -> Self {
-        Self {
-            edges: HashMap::new(),
-            nodes: HashMap::new(),
-        }
-    }
-
-    pub fn add_node(&mut self, pos: usize, inst: Vec<InstructionNode>) {
-        self.nodes.insert(pos, inst);
-    }
-
-    pub fn add_edge(&mut self, starting_pos: usize, ending_pos: usize) {
-        self.edges.entry(starting_pos).or_default().push(ending_pos);
-    }
-}
-
 impl Codegen<'_> {
     fn codegen(mut self) -> JResult<Vec<AST>> {
         // while let Some(instruction) = self.tokens.next() {
@@ -257,6 +230,8 @@ impl Codegen<'_> {
                 graph.add_node(pos, current_block);
             }
         }
+
+        graph.visualize()?;
 
         Ok(graph)
     }
