@@ -1,3 +1,5 @@
+use std::io;
+
 use crate::{
     attributes::Attribute,
     common::{parse_single_type, Type},
@@ -28,15 +30,15 @@ impl FieldDescriptor {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FieldAccessFlags {
-    is_public: bool,
-    is_private: bool,
-    is_protected: bool,
-    is_static: bool,
-    is_final: bool,
-    is_volatile: bool,
-    is_transient: bool,
-    is_synthetic: bool,
-    is_enum: bool,
+    pub is_public: bool,
+    pub is_private: bool,
+    pub is_protected: bool,
+    pub is_static: bool,
+    pub is_final: bool,
+    pub is_volatile: bool,
+    pub is_transient: bool,
+    pub is_synthetic: bool,
+    pub is_enum: bool,
 }
 
 impl FieldAccessFlags {
@@ -63,5 +65,36 @@ impl FieldAccessFlags {
             is_synthetic: (n & FieldAccessFlags::SYNTHETIC) != 0,
             is_enum: (n & FieldAccessFlags::ENUM) != 0,
         }
+    }
+
+    pub fn write(&self, buf: &mut dyn io::Write) -> io::Result<()> {
+        // todo: other fields
+        let mut has_written = false;
+        if self.is_public {
+            buf.write_all(b"public")?;
+            has_written = true;
+        }
+
+        if self.is_static {
+            if has_written {
+                buf.write_all(b" ")?;
+            }
+            has_written = true;
+            buf.write_all(b"static")?;
+        }
+
+        if self.is_final {
+            if has_written {
+                buf.write_all(b" ")?;
+            }
+            // has_written = true;
+            buf.write_all(b"final")?;
+        }
+
+        if has_written {
+            buf.write_all(b" ")?;
+        }
+
+        Ok(())
     }
 }

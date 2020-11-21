@@ -5,10 +5,10 @@ use std::{
 };
 
 use crate::{
-    ast::AstVisitor,
+    ast::{AstVisitor, AST},
     attributes::{Attribute, BootstrapMethod},
     builder::ClassFileBuilder,
-    common::{Indent, Type},
+    common::{double_to_f64, float_to_f32, Indent, Type},
     errors::{JResult, ParseError},
     fields::{FieldDescriptor, FieldInfo},
     methods::{MethodDescriptor, MethodInfo},
@@ -21,9 +21,46 @@ struct ClassFileVisitor<W: Write> {
     class_file: ClassFile,
     buf: W,
     indent: Indent,
+    /// map from name to value of init values of class fields
+    fields: HashMap<String, AST>,
 }
 
 impl<W: Write> ClassFileVisitor<W> {
+    /// Visit function `<init>`, necessary for setup of class
+    /// fields, among other things. `<init>` should always be
+    /// visited first
+    fn visit_init(&mut self, init: &MethodInfo) -> JResult<()> {
+        let tokens = init.code().unwrap().lex();
+
+        let mut fields = HashMap::new();
+
+        let mut local_variables = HashMap::new();
+
+        local_variables.insert(
+            0,
+            StackEntry::Ident(
+                "this".to_owned(),
+                Type::ClassName(self.class_file.class_name()?.to_owned()),
+            ),
+        );
+
+        Codegen {
+            class: &mut self.class_file,
+            stack: Vec::new(),
+            local_variables,
+            tokens,
+            ast: Vec::new(),
+            current_pos: 0,
+            fields: &mut fields,
+            inside_init: true,
+        }
+        .codegen()?;
+
+        self.fields = fields;
+
+        Ok(())
+    }
+
     fn visit_class(&mut self) -> JResult<()> {
         self.buf
             .write_all(self.class_file.class_signature()?.as_bytes())?;
@@ -31,8 +68,16 @@ impl<W: Write> ClassFileVisitor<W> {
         self.indent.increase();
 
         for method in self.class_file.methods.clone() {
-            // ignore methods like `<init>` and `<cinit>`
-            if method.name.starts_with('<') {
+            if method.name == "<init>" {
+                self.visit_init(&method)?;
+
+                for field in self.class_file.fields.clone() {
+                    self.visit_field(field)?;
+                }
+                continue;
+            }
+
+            if method.name == "<cinit>" {
                 continue;
             }
 
@@ -48,6 +93,59 @@ impl<W: Write> ClassFileVisitor<W> {
         }
 
         self.buf.write_all(b"}\n")?;
+
+        Ok(())
+    }
+
+    // todo: don't need by value
+    fn visit_field(&mut self, field: FieldInfo) -> JResult<()> {
+        self.indent.write(&mut self.buf)?;
+
+        field.access_flags.write(&mut self.buf)?;
+
+        let ty = FieldDescriptor::new(&self.class_file.utf_from_index(field.descriptor_index)?).ty;
+        let name = self.class_file.utf_from_index(field.name_index)?;
+
+        write!(self.buf, "{} {} = ", ty, name)?;
+        if field.access_flags.is_static {
+            let mut const_index = None;
+            for attr in field.attribute_info {
+                match attr {
+                    Attribute::ConstantValue { const_value_index } => {
+                        const_index = Some(const_value_index)
+                    }
+                    _ => continue,
+                }
+            }
+
+            // todo: don't unwrap here
+            let const_index = const_index.unwrap();
+
+            let const_val = self
+                .class_file
+                .const_pool()
+                .get(const_index as usize - 1)
+                .unwrap();
+
+            match const_val {
+                PoolKind::Integer(i) => write!(self.buf, "{}", i),
+                PoolKind::Long(i) => write!(self.buf, "{}", i),
+                PoolKind::Float { bytes } => write!(self.buf, "{}", float_to_f32(*bytes)),
+                PoolKind::Double {
+                    high_bytes,
+                    low_bytes,
+                } => write!(self.buf, "{}", double_to_f64(*high_bytes, *low_bytes)),
+                PoolKind::String(i) => write!(self.buf, "{}", i),
+                _ => todo!(),
+            }?;
+        } else {
+            AstVisitor::visit(
+                self.fields.remove(&name).unwrap(),
+                &mut self.indent,
+                &mut self.buf,
+            )?;
+        }
+        writeln!(self.buf, ";")?;
 
         Ok(())
     }
@@ -82,6 +180,8 @@ impl<W: Write> ClassFileVisitor<W> {
             tokens,
             ast: Vec::new(),
             current_pos: 0,
+            fields: &mut HashMap::new(),
+            inside_init: false,
         }
         .codegen()?;
 
@@ -403,6 +503,7 @@ impl ClassFile {
             class_file: self,
             buf,
             indent: Indent::new(),
+            fields: HashMap::new(),
         };
 
         visitor.visit_class()

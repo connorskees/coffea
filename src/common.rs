@@ -205,3 +205,27 @@ impl Indent {
         buf.write_all(&self.buffer)
     }
 }
+
+pub fn double_to_f64(high_bytes: u32, low_bytes: u32) -> f64 {
+    let bits: u64 = (u64::from(high_bytes) << 32) + u64::from(low_bytes);
+    match bits {
+        0x7ff0_0000_0000_0000 => std::f64::INFINITY,
+        0xfff0_0000_0000_0000 => std::f64::NEG_INFINITY,
+        0x7ff0_0000_0000_0001..=0x7fff_ffff_ffff_ffff
+        | 0xfff0_0000_0000_0001..=0xffff_ffff_ffff_ffff => std::f64::NAN,
+        _ => {
+            let a = high_bytes.to_be_bytes();
+            let b = low_bytes.to_be_bytes();
+            f64::from_be_bytes([a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3]])
+        }
+    }
+}
+
+pub fn float_to_f32(bytes: u32) -> f32 {
+    match bytes {
+        0x7f80_0000 => std::f32::INFINITY,
+        0xff80_0000 => std::f32::NEG_INFINITY,
+        0x7f80_0001..=0x7fff_ffff | 0xff80_0001..=0xffff_ffff => std::f32::NAN,
+        _ => f32::from_be_bytes(bytes.to_be_bytes()),
+    }
+}

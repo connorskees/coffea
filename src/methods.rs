@@ -95,6 +95,7 @@ impl MethodInfo {
     }
 }
 
+// todo: make fields public rather than using methods for access
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MethodAccessFlags {
     is_public: bool,

@@ -18,7 +18,7 @@ use crate::{
 };
 pub use crate::{
     classfile::{ClassAccessFlags, ClassFile},
-    common::{BinaryOp, Type, UnaryOp},
+    common::{double_to_f64, float_to_f32, BinaryOp, Type, UnaryOp},
     fields::{FieldAccessFlags, FieldDescriptor, FieldInfo},
     pool::PoolKind,
     version::MajorVersion,
@@ -128,6 +128,9 @@ pub(crate) struct Codegen<'a> {
     tokens: Instructions,
     ast: Vec<AST>,
     current_pos: i16,
+    /// whether this is generating code for `<init>` or not
+    inside_init: bool,
+    fields: &'a mut HashMap<String, AST>,
 }
 
 impl Codegen<'_> {
@@ -157,34 +160,22 @@ impl Codegen<'_> {
                         .stack
                         .push(StackEntry::String(self.class.utf_from_index(*idx)?)),
                     PoolKind::Integer(i) => self.stack.push(StackEntry::Int(*i as i32)),
-                    PoolKind::Float { bytes } => self.stack.push(StackEntry::Float(match bytes {
-                        0x7f80_0000 => std::f32::INFINITY,
-                        0xff80_0000 => std::f32::NEG_INFINITY,
-                        0x7f80_0001..=0x7fff_ffff | 0xff80_0001..=0xffff_ffff => std::f32::NAN,
-                        _ => f32::from_be_bytes(bytes.to_be_bytes()),
-                    })),
+                    PoolKind::Float { bytes } => {
+                        self.stack.push(StackEntry::Float(float_to_f32(*bytes)))
+                    }
                     _ => unimplemented!(),
                 }
             }
             Instruction::Ldc2W(n) => {
                 let val = &self.class.const_pool[usize::from(n - 1)];
+
                 match val {
                     PoolKind::Double {
                         high_bytes,
                         low_bytes,
                     } => {
-                        let bits: u64 = (u64::from(*high_bytes) << 32) + u64::from(*low_bytes);
-                        self.stack.push(StackEntry::Double(match bits {
-                            0x7ff0_0000_0000_0000 => std::f64::INFINITY,
-                            0xfff0_0000_0000_0000 => std::f64::NEG_INFINITY,
-                            0x7ff0_0000_0000_0001..=0x7fff_ffff_ffff_ffff
-                            | 0xfff0_0000_0000_0001..=0xffff_ffff_ffff_ffff => std::f64::NAN,
-                            _ => {
-                                let a = high_bytes.to_be_bytes();
-                                let b = low_bytes.to_be_bytes();
-                                f64::from_be_bytes([a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3]])
-                            }
-                        }));
+                        self.stack
+                            .push(StackEntry::Double(double_to_f64(*high_bytes, *low_bytes)));
                     }
                     PoolKind::Long(long) => self.stack.push(StackEntry::Long(*long)),
                     _ => unimplemented!("Ldc2w should only encounter doubles and longs"),
@@ -499,6 +490,11 @@ impl Codegen<'_> {
                 let val = self.pop_stack()?;
                 let obj = self.pop_stack()?;
                 let (_, field_name, ty) = self.class.read_fieldref_from_index(index)?;
+
+                if self.inside_init {
+                    self.fields.insert(field_name.clone(), val.clone().into());
+                }
+
                 return Ok(Some(AST::FieldAssignment {
                     obj: obj.into(),
                     field_name,
