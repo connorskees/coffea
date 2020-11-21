@@ -1,4 +1,4 @@
-public class test {
+public class arrays {
   public static void main(String[] arg0) {
     int i1 = 1;
     int[] arr2 = new int[(i1 + 5)];
