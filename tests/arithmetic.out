@@ -1,0 +1,9 @@
+public class arithmetic {
+  public void main(String[] arg1) {
+    int i2 = 2;
+    int i3 = 3;
+    int i4 = (((i2 + i3) * i2) - i3);
+    double d5 = Math.pow((double) i2, (double) i3);
+    return;
+  }
+}

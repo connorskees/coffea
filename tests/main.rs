@@ -41,3 +41,4 @@ macro_rules! test {
 }
 
 test!(instance_variables);
+test!(arithmetic);
