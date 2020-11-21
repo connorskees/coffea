@@ -9,7 +9,7 @@
 // todo: method calls as their own stack entry
 // todo: i++ and i-- as expressions
 // todo: i-- parses to i++
-use std::{cmp::Ordering, collections::HashMap, convert::TryInto, fmt, string::ToString};
+use std::{cmp::Ordering, collections::HashMap, fmt, string::ToString};
 
 use crate::{
     ast::AST,
@@ -46,7 +46,7 @@ pub enum StackEntry {
     Double(f64),
     Long(i64),
     /// type, length, elements
-    Array(Type, usize, Vec<StackEntry>),
+    Array(Type, Box<StackEntry>, Vec<StackEntry>),
     /// name
     New(String),
     /// array, index, array type
@@ -65,7 +65,6 @@ pub enum StackEntry {
     /// class, field name, field type
     Field(Box<StackEntry>, String, Type),
     String(String),
-    Unitialized,
 }
 
 impl StackEntry {
@@ -86,7 +85,6 @@ impl StackEntry {
             | StackEntry::Function(_, _, ty)
             | StackEntry::Field(_, _, ty) => ty.clone(),
             StackEntry::String(_) => Type::ClassName("String".to_owned()),
-            StackEntry::Unitialized => panic!("attempted to get type of unitialized"),
         }
     }
 }
@@ -126,7 +124,6 @@ impl fmt::Display for StackEntry {
                     .join(", ")
             ),
             StackEntry::Field(_, name, _) => write!(f, "{}", name),
-            StackEntry::Unitialized => panic!("attempted to render unitialized entry"),
         }
     }
 }
@@ -288,15 +285,11 @@ impl Codegen<'_> {
                 let val = self.pop_stack()?;
                 let index = self.pop_stack()?;
                 let array = self.pop_stack()?;
+                // todo: generalize this for all
                 match array {
                     // this is used to fill values in array literal
                     StackEntry::Array(ty, count, mut els) => {
-                        let index: usize = match index {
-                            StackEntry::Int(i) => i.try_into()?,
-                            _ => unimplemented!("non-int array index"),
-                        };
                         els.push(val);
-                        els.swap_remove(index);
                         self.stack.push(StackEntry::Array(ty, count, els));
                     }
                     StackEntry::Ident(s, ty) => {
@@ -531,23 +524,13 @@ impl Codegen<'_> {
                     11 => Type::Long,   //long
                     _ => unimplemented!("unexpected NewArray type"),
                 };
-                let count: usize = match self.pop_stack()? {
-                    StackEntry::Int(i) => i,
-                    _ => unimplemented!("NewArray count is non-integer value"),
-                }
-                .try_into()?;
-                let v = vec![StackEntry::Unitialized; count];
-                self.stack.push(StackEntry::Array(ty, count, v))
+                let count = Box::new(self.pop_stack()?);
+                self.stack.push(StackEntry::Array(ty, count, Vec::new()))
             }
             Instruction::ANewArray(index) => {
                 let ty = FieldDescriptor::new(&self.class.class_name_from_index(index)?).ty;
-                let count: usize = match self.pop_stack()? {
-                    StackEntry::Int(i) => i,
-                    _ => unimplemented!("ANewArray count is non-integer value"),
-                }
-                .try_into()?;
-                let v = vec![StackEntry::Unitialized; count];
-                self.stack.push(StackEntry::Array(ty, count, v))
+                let count = Box::new(self.pop_stack()?);
+                self.stack.push(StackEntry::Array(ty, count, Vec::new()))
             }
             Instruction::MultiANewArray(_, _, _) => {
                 unimplemented!("instruction `MultiANewArray` not yet implemented")

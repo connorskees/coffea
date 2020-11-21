@@ -20,14 +20,12 @@ pub enum AST {
     /// object
     Object(String),
     /// array literal
-    /// takes {ty: Type, num_of_els: usize, els: Vec<AST>}
     Array {
         ty: Type,
-        num_of_els: usize,
+        num_of_els: Box<AST>,
         els: Vec<AST>,
     },
     /// array index
-    /// takes { arr: Box<AST>, index: Box<AST>, arr_type: Type }
     ArrayIndex {
         arr: Box<AST>,
         index: Box<AST>,
@@ -80,7 +78,7 @@ impl From<StackEntry> for AST {
             StackEntry::Long(l) => AST::Long(l),
             StackEntry::Array(ty, num_of_els, els) => AST::Array {
                 ty,
-                num_of_els,
+                num_of_els: Box::new(AST::from(*num_of_els)),
                 els: els.into_iter().map(|el| el.into()).collect(),
             },
             StackEntry::New(s) => AST::New(s),
@@ -107,7 +105,6 @@ impl From<StackEntry> for AST {
                 ty,
             },
             StackEntry::String(s) => AST::String(s),
-            StackEntry::Unitialized => panic!("attempted to convert unitialized to AST"),
         }
     }
 }
@@ -136,7 +133,17 @@ impl AstVisitor {
             AST::Long(l) => write!(f, "{}", l)?,
             AST::String(s) => write!(f, "\"{}\"", s)?,
             AST::Object(o) => write!(f, "{}", o)?,
-            AST::Array { mut els, .. } => {
+            AST::Array {
+                mut els,
+                num_of_els,
+                ty,
+            } => {
+                if els.is_empty() {
+                    write!(f, "new {}[", ty)?;
+                    AstVisitor::visit(*num_of_els, indent, f)?;
+                    write!(f, "]")?;
+                    return Ok(());
+                }
                 write!(f, "{{ ")?;
 
                 let last = els.pop();

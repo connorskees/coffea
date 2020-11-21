@@ -91,7 +91,11 @@ pub(crate) fn parse_single_type(cc: &mut std::str::Chars<'_>) -> Option<Type> {
             };
             Type::Reference(Box::new(t))
         }
-        _ => todo!("unknown character"),
+        c => {
+            let mut name = c.to_string();
+            name.push_str(&cc.collect::<String>());
+            Type::ClassName(name)
+        }
     })
 }
 
