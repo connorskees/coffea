@@ -126,6 +126,7 @@ impl AstVisitor {
         Self
     }
 
+    // todo: pretty print e.g. `Long.MAX_VALUE`?
     pub(crate) fn visit(ast: AST, indent: &mut Indent, f: &mut dyn Write) -> io::Result<()> {
         match ast {
             AST::Null => write!(f, "null")?,
