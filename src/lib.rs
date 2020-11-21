@@ -567,7 +567,18 @@ impl Codegen<'_> {
                         *val = StackEntry::Int(*u + i32::from(b));
                     }
                     StackEntry::Ident(..) => {
-                        return Ok(Some(AST::UnaryOp(UnaryOp::PlusPlus(val.clone()))));
+                        return Ok(Some(if b == 1 {
+                            AST::UnaryOp(UnaryOp::PlusPlus(val.clone()))
+                        } else {
+                            AST::ReAssignment {
+                                var: Box::new(val.clone().into()),
+                                val: Box::new(AST::BinaryOp(
+                                    Box::new(val.clone().into()),
+                                    BinaryOp::Add,
+                                    Box::new(AST::Int(i32::from(b))),
+                                )),
+                            }
+                        }))
                     }
                     _ => unimplemented!("iinc unknown variable type"),
                 }
@@ -733,7 +744,7 @@ impl Codegen<'_> {
                 //     dbg!("test");
                 // }
                 // let offset: i16 = i16::from(branchbyte1) << 8 | i16::from(branchbyte2);
-                dbg!((offset + self.current_pos - len) as usize);
+                // dbg!((offset + self.current_pos - len) as usize);
                 // unimplemented!("goto is unimplemented")
             }
             Instruction::GotoW(_) => unimplemented!("instruction `GotoW` not yet implemented"),

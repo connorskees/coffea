@@ -5,6 +5,7 @@ use std::{
 };
 
 use crate::{
+    ast::AstVisitor,
     attributes::{Attribute, BootstrapMethod},
     builder::ClassFileBuilder,
     common::{Indent, Type},
@@ -86,7 +87,8 @@ impl<W: Write> ClassFileVisitor<W> {
 
         for line in ast {
             self.indent.write(&mut self.buf)?;
-            writeln!(self.buf, "{}", line)?;
+            AstVisitor::visit(line, &mut self.indent, &mut self.buf)?;
+            self.buf.write_all(b"\n")?;
         }
 
         Ok(())

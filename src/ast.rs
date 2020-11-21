@@ -1,6 +1,6 @@
-use std::{fmt, string::ToString};
+use std::io::{self, Write};
 
-use crate::common::{BinaryOp, Type, UnaryOp};
+use crate::common::{BinaryOp, Indent, Type, UnaryOp};
 use crate::StackEntry;
 
 /// A higher level representation of `StackEntry`
@@ -118,68 +118,140 @@ impl Into<Box<AST>> for StackEntry {
     }
 }
 
-impl fmt::Display for AST {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            AST::Null => write!(f, "null"),
-            AST::Int(i) => write!(f, "{}", i),
-            AST::Float(fl) => write!(f, "{}", fl),
-            AST::Double(d) => write!(f, "{}", d),
-            AST::Long(l) => write!(f, "{}", l),
-            AST::String(s) => write!(f, "\"{}\"", s),
-            AST::Object(o) => write!(f, "{}", o),
-            AST::Array { els, .. } => write!(
-                f,
-                "{{ {} }}",
-                els.iter()
-                    .map(|a| format!("{}", a))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            ),
-            AST::ArrayIndex { arr, index, .. } => write!(f, "{}[{}]", arr, index),
-            AST::Cast(ty, val) => write!(f, "({}) {}", ty, val),
-            AST::Ident(s, _ty) => write!(f, "{}", s),
-            AST::New(val) => write!(f, "new {}", val),
-            AST::MethodCall(obj, meth) => write!(f, "{}.{}", obj, meth),
-            AST::FunctionCall { name, args, .. } => write!(
-                f,
-                "{}({})",
-                name,
-                args.iter()
-                    .rev()
-                    .map(|a| format!("{}", a))
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            ),
+#[derive(Debug)]
+pub struct AstVisitor;
+
+impl AstVisitor {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub(crate) fn visit(ast: AST, indent: &mut Indent, f: &mut dyn Write) -> io::Result<()> {
+        match ast {
+            AST::Null => write!(f, "null")?,
+            AST::Int(i) => write!(f, "{}", i)?,
+            AST::Float(fl) => write!(f, "{}", fl)?,
+            AST::Double(d) => write!(f, "{}", d)?,
+            AST::Long(l) => write!(f, "{}", l)?,
+            AST::String(s) => write!(f, "\"{}\"", s)?,
+            AST::Object(o) => write!(f, "{}", o)?,
+            AST::Array { mut els, .. } => {
+                write!(f, "{{ ")?;
+
+                let last = els.pop();
+
+                for el in els {
+                    AstVisitor::visit(el, indent, f)?;
+                    write!(f, ", ")?;
+                }
+
+                if let Some(last) = last {
+                    AstVisitor::visit(last, indent, f)?;
+                }
+
+                write!(f, " }}")?;
+            }
+            AST::ArrayIndex { arr, index, .. } => {
+                AstVisitor::visit(*arr, indent, f)?;
+                write!(f, "[")?;
+                AstVisitor::visit(*index, indent, f)?;
+                write!(f, "]")?;
+            }
+            AST::Cast(ty, val) => {
+                write!(f, "({}) ", ty)?;
+                AstVisitor::visit(*val, indent, f)?;
+            }
+            AST::Ident(s, _ty) => write!(f, "{}", s)?,
+            AST::New(val) => write!(f, "new {}", val)?,
+            AST::MethodCall(obj, meth) => {
+                AstVisitor::visit(*obj, indent, f)?;
+                write!(f, ".")?;
+                AstVisitor::visit(*meth, indent, f)?;
+            }
+            AST::FunctionCall { name, mut args, .. } => {
+                args.reverse();
+                write!(f, "{}(", name)?;
+
+                let last = args.pop();
+
+                for el in args {
+                    AstVisitor::visit(el, indent, f)?;
+                    write!(f, ", ")?;
+                }
+
+                if let Some(last) = last {
+                    AstVisitor::visit(last, indent, f)?;
+                }
+
+                write!(f, ")")?;
+            }
             AST::FieldAccess {
                 obj, field_name, ..
-            } => write!(f, "{}.{}", obj, field_name),
+            } => {
+                AstVisitor::visit(*obj, indent, f)?;
+                write!(f, ".{}", field_name)?
+            }
             AST::FieldAssignment {
                 obj,
                 field_name,
                 val,
                 ..
-            } => write!(f, "{}.{} = {};", obj, field_name, val),
-            AST::Assignment(ty, name, val) => writeln!(f, "{} {} = {};", ty, name, val),
-            AST::ReAssignment { var, val } => writeln!(f, "{} = {};", var, val),
-            AST::UnaryOp(op) => write!(f, "{}", op),
-            AST::BinaryOp(a, op, b) => write!(f, "({} {} {})", a, op, b),
-            AST::If { cond, then } => writeln!(
-                f,
-                "if ({}) {{\n{}}}",
-                cond,
-                then.iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<String>>()
-                    .join("")
-            ),
+            } => {
+                AstVisitor::visit(*obj, indent, f)?;
+                write!(f, ".{} = ", field_name)?;
+                AstVisitor::visit(*val, indent, f)?;
+                write!(f, ";")?;
+            }
+            AST::Assignment(ty, name, val) => {
+                write!(f, "{} {} = ", ty, name)?;
+                AstVisitor::visit(*val, indent, f)?;
+                write!(f, ";")?;
+            }
+            AST::ReAssignment { var, val } => {
+                AstVisitor::visit(*var, indent, f)?;
+                write!(f, " = ")?;
+                AstVisitor::visit(*val, indent, f)?;
+                write!(f, ";")?;
+            }
+            AST::UnaryOp(op) => write!(f, "{}", op)?,
+            AST::BinaryOp(a, op, b) => {
+                write!(f, "(")?;
+                AstVisitor::visit(*a, indent, f)?;
+                write!(f, " {} ", op)?;
+                AstVisitor::visit(*b, indent, f)?;
+                write!(f, ")")?;
+            }
+            AST::If { cond, then } => {
+                write!(f, "if (")?;
+                AstVisitor::visit(*cond, indent, f)?;
+                write!(f, ") {{\n")?;
+                indent.increase();
+
+                for line in then {
+                    indent.write(f)?;
+                    AstVisitor::visit(line, indent, f)?;
+                    writeln!(f)?;
+                }
+
+                indent.decrease();
+
+                indent.write(f)?;
+
+                write!(f, "}}")?;
+            }
             AST::Goto(_) => panic!("attempted to render goto"),
-            AST::NOP => write!(f, ""),
-            AST::StackEntry(s) => write!(f, "{}", s),
+            AST::NOP => write!(f, "")?,
+            AST::StackEntry(s) => write!(f, "{}", s)?,
             AST::Return(val) => match val {
-                Some(v) => write!(f, "return {};", v),
-                None => write!(f, "return;"),
+                Some(v) => {
+                    write!(f, "return ")?;
+                    AstVisitor::visit(*v, indent, f)?;
+                    write!(f, ";")?;
+                }
+                None => write!(f, "return;")?,
             },
         }
+
+        Ok(())
     }
 }
