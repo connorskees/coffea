@@ -296,6 +296,7 @@ impl std::fmt::Debug for Code {
     }
 }
 
+// todo: standardize instruction casing
 #[repr(u16)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Instruction {
@@ -714,10 +715,45 @@ pub enum Instruction {
     NoName, //= 0xcb..=0xfd
 }
 
+#[repr(u8)]
+pub(crate) enum InstLen {
+    One = 1,
+    Two = 2,
+    Three = 3,
+    Four = 4,
+    Five = 5,
+    Six = 6,
+}
+
 impl Instruction {
+    // todo: potentially `TableSwitch` and `Lookupswitch` as well?
+    pub(crate) fn is_control_flow(&self) -> bool {
+        matches!(
+            self,
+            Instruction::Goto(..)
+            | Instruction::GotoW(_)
+            | Instruction::IfAcmpeq(_)
+            | Instruction::IfAcmpne(_)
+            | Instruction::IfIcmpeq(_)
+            | Instruction::IfIcmpge(_)
+            | Instruction::IfIcmpgt(_)
+            | Instruction::IfIcmple(_)
+            | Instruction::IfIcmplt(_)
+            | Instruction::IfIcmpne(_)
+            | Instruction::Ifeq(_)
+            | Instruction::Ifge(_)
+            | Instruction::Ifgt(_)
+            | Instruction::Ifle(_)
+            | Instruction::Iflt(_)
+            | Instruction::Ifne(_)
+            | Instruction::Ifnonnull(_)
+            | Instruction::Ifnull(_)
+        )
+    }
+
     #[must_use]
     // todo: some have u16 so should count for 3
-    pub(crate) fn len(self) -> i16 {
+    pub(crate) fn len(self) -> InstLen {
         match self {
             Instruction::AALoad
             | Instruction::AAStore
@@ -869,7 +905,7 @@ impl Instruction {
             | Instruction::SALoad
             | Instruction::SAStore
             | Instruction::Swap
-            | Instruction::NoName => 1,
+            | Instruction::NoName => InstLen::One,
             Instruction::ALoad(_)
             | Instruction::AStore(_)
             | Instruction::BiPush(_)
@@ -888,7 +924,7 @@ impl Instruction {
             | Instruction::Ret(_)
             | Instruction::SIPush(_)
             | Instruction::Ldc(_)
-            | Instruction::LLoad(_) => 2,
+            | Instruction::LLoad(_) => InstLen::Two,
             Instruction::ANewArray(_)
             | Instruction::Checkcast(_)
             | Instruction::Goto(_)
@@ -916,13 +952,13 @@ impl Instruction {
             | Instruction::Ldc2W(_)
             | Instruction::New(_)
             | Instruction::PutField(_)
-            | Instruction::PutStatic(_) => 3,
-            Instruction::Wide3(_, _, _) | Instruction::MultiANewArray(_, _, _) => 4,
+            | Instruction::PutStatic(_) => InstLen::Three,
+            Instruction::Wide3(_, _, _) | Instruction::MultiANewArray(_, _, _) => InstLen::Four,
             Instruction::GotoW(_)
             | Instruction::InvokeDynamic(_, _, _)
             | Instruction::InvokeInterface(_, _, _)
-            | Instruction::JsrW(_) => 5,
-            Instruction::Wide5(_, _, _, _, _) => 6,
+            | Instruction::JsrW(_) => InstLen::Five,
+            Instruction::Wide5(_, _, _, _, _) => InstLen::Six,
             Instruction::TableSwitch => {
                 unimplemented!("instruction `TableSwitch` not yet implemented")
             }

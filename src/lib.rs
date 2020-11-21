@@ -2,6 +2,7 @@
 #![warn(clippy::pedantic)]
 #![allow(dead_code, clippy::use_self, clippy::module_name_repetitions)]
 // todo: heuristic for byte and friends being converted to int (e.g. indexing into array)
+// ^^ look at return type and casts
 // todo: heuristic for generics
 // todo: not necessary to have field descriptor (can just be type)
 // todo: stringbuilder syntactic sugar
@@ -9,7 +10,12 @@
 // todo: method calls as their own stack entry
 // todo: i++ and i-- as expressions
 // todo: i-- parses to i++
-use std::{cmp::Ordering, collections::HashMap, fmt, string::ToString};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    fmt, mem,
+    string::ToString,
+};
 
 use crate::{
     ast::AST,
@@ -135,29 +141,127 @@ pub(crate) struct Codegen<'a> {
     local_variables: HashMap<usize, StackEntry>,
     tokens: Instructions,
     ast: Vec<AST>,
-    current_pos: i16,
+    current_pos: usize,
     /// whether this is generating code for `<init>` or not
     inside_init: bool,
     fields: &'a mut HashMap<String, AST>,
 }
 
+#[derive(Debug, Clone)]
+struct InstructionNode {
+    pos: usize,
+    inst: Instruction,
+}
+
+#[derive(Debug, Clone)]
+struct ControlFlowGraph {
+    edges: HashMap<usize, Vec<usize>>,
+    nodes: HashMap<usize, Vec<InstructionNode>>,
+}
+
+impl ControlFlowGraph {
+    pub fn new() -> Self {
+        Self {
+            edges: HashMap::new(),
+            nodes: HashMap::new(),
+        }
+    }
+
+    pub fn add_node(&mut self, pos: usize, inst: Vec<InstructionNode>) {
+        self.nodes.insert(pos, inst);
+    }
+
+    pub fn add_edge(&mut self, starting_pos: usize, ending_pos: usize) {
+        self.edges.entry(starting_pos).or_default().push(ending_pos);
+    }
+}
+
 impl Codegen<'_> {
     fn codegen(mut self) -> JResult<Vec<AST>> {
-        while let Some(instruction) = self.tokens.next() {
-            let val = self.read_instruction(instruction)?;
-            match val {
-                Some(a) => self.ast.push(a),
-                None => continue,
-            }
-        }
+        // while let Some(instruction) = self.tokens.next() {
+        //     let val = self.read_instruction(instruction)?;
+        //     match val {
+        //         Some(a) => self.ast.push(a),
+        //         None => continue,
+        //     }
+        // }
+
+        self.construct_graph()?;
 
         Ok(self.ast)
     }
 
+    fn construct_graph(&mut self) -> JResult<ControlFlowGraph> {
+        let mut block_starts = HashSet::new();
+        let mut instructions = Vec::new();
+        let mut graph = ControlFlowGraph::new();
+        let mut current_pos = 0;
+
+        block_starts.insert(0);
+
+        let mut current_block_pos = None;
+        while let Some(inst) = self.tokens.next() {
+            current_block_pos = current_block_pos.or(Some(current_pos));
+            match inst {
+                Instruction::Goto(offset) => {
+                    let pos_to = (current_pos as i64 + offset as i64) as usize;
+                    block_starts.insert(pos_to);
+                    graph.add_edge(current_block_pos.unwrap(), pos_to);
+                }
+                Instruction::IfIcmpne(offset) => {
+                    let pos_to = (current_pos as i64 + offset as i64) as usize;
+                    block_starts.insert(pos_to);
+                    block_starts.insert(current_pos + inst.len() as usize);
+                    graph.add_edge(current_block_pos.unwrap(), pos_to);
+                    graph.add_edge(
+                        current_block_pos.unwrap(),
+                        current_pos + inst.len() as usize,
+                    );
+                }
+                _ => {}
+            }
+
+            if inst.is_control_flow() {
+                current_block_pos = None;
+            }
+
+            instructions.push(inst);
+
+            current_pos += inst.len() as usize;
+        }
+
+        current_pos = 0;
+
+        let mut current_block = Vec::new();
+
+        let mut current_block_pos = None;
+        for inst in instructions {
+            current_block_pos = current_block_pos.or(Some(current_pos));
+            current_pos += inst.len() as usize;
+            current_block.push(InstructionNode {
+                inst,
+                pos: current_pos as usize,
+            });
+
+            if block_starts.contains(&current_pos) {
+                graph.add_node(
+                    dbg!(current_block_pos.unwrap()),
+                    mem::take(&mut current_block),
+                );
+                current_block_pos = None;
+            }
+        }
+
+        if let Some(pos) = current_block_pos {
+            if !current_block.is_empty() {
+                graph.add_node(pos, current_block);
+            }
+        }
+
+        Ok(graph)
+    }
+
     fn read_instruction(&mut self, instruction: Instruction) -> JResult<Option<AST>> {
-        // dbg!(&instruction);
-        let len = instruction.len();
-        self.current_pos += len;
         match instruction {
             Instruction::BiPush(n) => self.stack.push(StackEntry::Int(i32::from(n))),
             Instruction::SIPush(n) => self.stack.push(StackEntry::Int(i32::from(n))),
@@ -587,7 +691,7 @@ impl Codegen<'_> {
             }
             Instruction::Ifeq(offset) => {
                 let mut cond = self.pop_stack()?.into();
-                let pos = self.current_pos + offset;
+                let pos = (self.current_pos as i64 + offset as i64) as usize;
                 let mut then = Vec::new();
                 while let Some(tok) = self.tokens.next() {
                     let ast = self.read_instruction(tok)?;
@@ -618,7 +722,7 @@ impl Codegen<'_> {
             Instruction::Iflt(_) => unimplemented!("instruction `Iflt` not yet implemented"),
             Instruction::Ifne(offset) => {
                 let raw_cond = self.pop_stack()?;
-                let pos = self.current_pos + offset;
+                let pos = (self.current_pos as i64 + offset as i64) as usize;
                 let mut then = Vec::new();
                 while let Some(tok) = self.tokens.next() {
                     let ast = self.read_instruction(tok)?;
@@ -656,7 +760,7 @@ impl Codegen<'_> {
                 let val1 = self.pop_stack()?;
                 let mut cond =
                     Box::new(AST::BinaryOp(val1.into(), BinaryOp::NotEqual, val2.into()));
-                let pos = self.current_pos + offset;
+                let pos = (self.current_pos as i64 + offset as i64) as usize;
                 let mut then = Vec::new();
                 while let Some(tok) = self.tokens.next() {
                     let ast = self.read_instruction(tok)?;
@@ -685,7 +789,7 @@ impl Codegen<'_> {
                 let val2 = self.pop_stack()?;
                 let val1 = self.pop_stack()?;
                 let cond = Box::new(AST::BinaryOp(val1.into(), BinaryOp::Equal, val2.into()));
-                let pos = self.current_pos + offset;
+                let pos = (self.current_pos as i64 + offset as i64) as usize;
                 let mut then = Vec::new();
                 while let Some(tok) = self.tokens.next() {
                     let ast = self.read_instruction(tok)?;
@@ -732,9 +836,10 @@ impl Codegen<'_> {
             }
             Instruction::Ifnull(_) => unimplemented!("instruction `Ifnull` not yet implemented"),
 
-            Instruction::Goto(offset) => {
-                self.tokens
-                    .goto(&((offset + self.current_pos - len) as usize));
+            Instruction::Goto(..) => {
+                todo!()
+                // self.tokens
+                //     .goto(&((offset as i64 + self.current_pos as i64 - len) as usize));
                 // if self.tokens.next() == Some(instruction) {
                 //     dbg!("test");
                 // }
@@ -749,9 +854,9 @@ impl Codegen<'_> {
 
             Instruction::I2b => self.cast(Type::Byte)?,
             Instruction::I2c => self.cast(Type::Char)?,
+            Instruction::I2s => self.cast(Type::Short)?,
             Instruction::I2d | Instruction::F2d | Instruction::L2d => self.cast(Type::Double)?,
             Instruction::I2l | Instruction::F2l | Instruction::D2l => self.cast(Type::Long)?,
-            Instruction::I2s => self.cast(Type::Short)?,
             Instruction::F2i | Instruction::D2i | Instruction::L2i => self.cast(Type::Int)?,
             Instruction::I2f | Instruction::D2f | Instruction::L2f => self.cast(Type::Float)?,
 
