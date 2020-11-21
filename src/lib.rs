@@ -43,15 +43,24 @@ pub enum StackEntry {
     Float(f32),
     Double(f64),
     Long(i64),
+    /// type, length, elements
     Array(Type, usize, Vec<StackEntry>),
+    /// name
     New(String),
+    /// array, index, array type
     Index(Box<StackEntry>, Box<StackEntry>, Type),
+    /// name
     Class(String),
+    /// type_to, castee
     Cast(Type, Box<StackEntry>),
     UnaryOp(Box<UnaryOp>),
+    /// lhs, op, rhs
     BinaryOp(Box<StackEntry>, BinaryOp, Box<StackEntry>),
+    /// name, type
     Ident(String, Type),
+    /// name, args, return type
     Function(String, Vec<StackEntry>, Type),
+    /// class, field name, field type
     Field(Box<StackEntry>, String, Type),
     String(String),
     Unitialized,
@@ -462,15 +471,11 @@ impl Codegen<'_> {
                 ));
             }
             Instruction::GetField(index) => {
-                let (class, name, _) = self.class.read_fieldref_from_index(index)?;
+                let (_, name, ty) = self.class.read_fieldref_from_index(index)?;
                 let obj = self.pop_stack()?;
                 match &obj {
                     StackEntry::Ident(_, _) => {
-                        self.stack.push(StackEntry::Field(
-                            Box::new(obj),
-                            name,
-                            Type::ClassName(class),
-                        ));
+                        self.stack.push(StackEntry::Field(Box::new(obj), name, ty));
                     }
                     _ => unimplemented!("non-ident field access"),
                 }
