@@ -80,11 +80,12 @@ impl ControlFlowGraph {
             });
 
             if block_starts.contains(&current_pos) {
-                graph.add_node(
-                    dbg!(current_block_pos.unwrap()),
-                    mem::take(&mut current_block),
-                );
+                graph.add_node(current_block_pos.unwrap(), mem::take(&mut current_block));
                 current_block_pos = None;
+
+                if block_starts.contains(&(current_pos - inst.len() as usize)) {
+                    graph.add_edge(current_pos - inst.len() as usize, current_pos)
+                }
             }
         }
 
@@ -126,9 +127,7 @@ impl ControlFlowGraph {
                 node,
                 instructions
                     .iter()
-                    .map(|i| format!("{:?}", i.inst)
-                        .replace('{', "\\{")
-                        .replace('}', "\\}"))
+                    .map(|i| format!("{:?}", i.inst))
                     .collect::<Vec<String>>()
                     .join("\\n")
             )?;
