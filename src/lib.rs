@@ -15,6 +15,7 @@ use crate::{
     ast::AST,
     code::{Instruction, Instructions},
     errors::{JResult, ParseError},
+    invoke_dynamic::{ArgType, InvokeDynamicArgs},
 };
 pub use crate::{
     classfile::{ClassAccessFlags, ClassFile},
@@ -32,6 +33,7 @@ pub mod code;
 mod common;
 pub mod errors;
 mod fields;
+mod invoke_dynamic;
 pub mod methods;
 mod pool;
 mod version;
@@ -377,8 +379,17 @@ impl Codegen<'_> {
             }
 
             Instruction::InvokeDynamic(index, _, _) => {
-                let (class, name, descriptor) = self.class.read_invoke_dynamic_from_index(index)?;
-                let mut args: Vec<StackEntry> = Vec::new();
+                let (class, name, descriptor, unparsed_args) =
+                    self.class.read_invoke_dynamic_from_index(index)?;
+
+                if class == "StringConcatFactory" && name == "makeConcatWithConstants" {
+                    let args = unparsed_args.to_vec();
+                    self.string_concat_factory(args)?;
+                    return Ok(None);
+                }
+
+                let mut args = Vec::new();
+
                 for _ in 0..descriptor.args.len() {
                     args.push(self.pop_stack()?);
                 }
@@ -386,7 +397,7 @@ impl Codegen<'_> {
                 let f = StackEntry::Function(
                     format!("{}.{}", class, name),
                     args,
-                    Type::ClassName(class),
+                    descriptor.return_type,
                 );
 
                 self.stack.push(f);
@@ -848,6 +859,38 @@ impl Codegen<'_> {
             | Instruction::TableSwitch => unimplemented!("instruction not yet implemented"),
         };
         Ok(None)
+    }
+
+    /// reverse java/lang/invoke/StringConcatFactory.makeConcatWithConstants
+    /// it is common enough to warrant special-cased desugaring
+    fn string_concat_factory(&mut self, unparsed_args: Vec<u16>) -> JResult<()> {
+        let mut args = Vec::new();
+        for arg in unparsed_args {
+            let s = self.class.string_from_index(arg)?;
+            let mut parser = InvokeDynamicArgs::new(&s);
+
+            while let Some(kind) = parser.next() {
+                match kind {
+                    ArgType::Pool(s) => {
+                        args.push(StackEntry::String(s.to_owned()));
+                    }
+                    ArgType::Stack => args.push(self.pop_stack()?),
+                }
+            }
+        }
+
+        let mut entry = StackEntry::BinaryOp(
+            Box::new(args.pop().unwrap()),
+            BinaryOp::Add,
+            Box::new(args.pop().unwrap()),
+        );
+
+        while let Some(arg) = args.pop() {
+            entry = StackEntry::BinaryOp(Box::new(entry), BinaryOp::Add, Box::new(arg));
+        }
+
+        self.stack.push(entry);
+        Ok(())
     }
 
     fn store(&mut self, idx: u8) -> JResult<Option<AST>> {

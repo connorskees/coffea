@@ -388,6 +388,15 @@ impl ClassFile {
         }
     }
 
+    // todo: can return &'self str?
+    pub fn string_from_index(&self, index: u16) -> JResult<String> {
+        if let PoolKind::String(s) = &self.const_pool[usize::from(index - 1)] {
+            self.utf_from_index(*s)
+        } else {
+            Err(ParseError::IndexError(line!()))
+        }
+    }
+
     pub fn bootstrap_methods(&self) -> Option<&[BootstrapMethod]> {
         for attr in &self.attributes {
             match attr {
@@ -433,10 +442,12 @@ impl ClassFile {
         }
     }
 
-    pub fn read_invoke_dynamic_from_index(
-        &self,
+    // todo: return &'a str for first arg?
+    // todo: ad hoc struct for return type
+    pub fn read_invoke_dynamic_from_index<'a>(
+        &'a self,
         index: u16,
-    ) -> JResult<(String, String, MethodDescriptor)> {
+    ) -> JResult<(String, String, MethodDescriptor, &'a [u16])> {
         match &self.const_pool[usize::from(index - 1)] {
             PoolKind::InvokeDynamic {
                 name_and_type_index,
@@ -473,7 +484,7 @@ impl ClassFile {
                     .last()
                     .unwrap()
                     .to_owned();
-                Ok((class, name, sig))
+                Ok((class, name, sig, &bootstrap_method.bootstrap_arguments))
             }
             _ => Err(ParseError::IndexError(line!())),
         }

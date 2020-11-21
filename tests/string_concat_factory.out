@@ -1,0 +1,13 @@
+public class string_concat_factory {
+  public static void main(String[] arg0) {
+    return;
+  }
+  public String stringConcatFactory(String arg1, String arg2, String arg3) {
+    int i4 = 2;
+    int i5 = 2;
+    String obj6 = "foo";
+    String obj7 = (((("bar2" + i4) + "1") + i4) + "1");
+    String obj8 = ((obj6 + obj7) + arg1);
+    return "";
+  }
+}
