@@ -10,16 +10,11 @@
 // todo: method calls as their own stack entry
 // todo: i++ and i-- as expressions
 // todo: i-- parses to i++
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-    fmt, mem,
-    string::ToString,
-};
+use std::{cmp::Ordering, collections::HashMap, fmt, string::ToString};
 
 use crate::{
     ast::AST,
-    cfg::{ControlFlowGraph, InstructionNode},
+    cfg::ControlFlowGraph,
     code::{Instruction, Instructions},
     errors::{JResult, ParseError},
     invoke_dynamic::{ArgType, InvokeDynamicArgs},
@@ -165,71 +160,7 @@ impl Codegen<'_> {
     }
 
     fn construct_graph(&mut self) -> JResult<ControlFlowGraph> {
-        let mut block_starts = HashSet::new();
-        let mut instructions = Vec::new();
-        let mut graph = ControlFlowGraph::new();
-        let mut current_pos = 0;
-
-        block_starts.insert(0);
-
-        let mut current_block_pos = None;
-        while let Some(inst) = self.tokens.next() {
-            current_block_pos = current_block_pos.or(Some(current_pos));
-            match inst {
-                Instruction::Goto(offset) => {
-                    let pos_to = (current_pos as i64 + offset as i64) as usize;
-                    block_starts.insert(pos_to);
-                    graph.add_edge(current_block_pos.unwrap(), pos_to);
-                }
-                Instruction::IfIcmpne(offset) => {
-                    let pos_to = (current_pos as i64 + offset as i64) as usize;
-                    block_starts.insert(pos_to);
-                    block_starts.insert(current_pos + inst.len() as usize);
-                    graph.add_edge(current_block_pos.unwrap(), pos_to);
-                    graph.add_edge(
-                        current_block_pos.unwrap(),
-                        current_pos + inst.len() as usize,
-                    );
-                }
-                _ => {}
-            }
-
-            if inst.is_control_flow() {
-                current_block_pos = None;
-            }
-
-            instructions.push(inst);
-
-            current_pos += inst.len() as usize;
-        }
-
-        current_pos = 0;
-
-        let mut current_block = Vec::new();
-
-        let mut current_block_pos = None;
-        for inst in instructions {
-            current_block_pos = current_block_pos.or(Some(current_pos));
-            current_pos += inst.len() as usize;
-            current_block.push(InstructionNode {
-                inst,
-                pos: current_pos as usize,
-            });
-
-            if block_starts.contains(&current_pos) {
-                graph.add_node(
-                    dbg!(current_block_pos.unwrap()),
-                    mem::take(&mut current_block),
-                );
-                current_block_pos = None;
-            }
-        }
-
-        if let Some(pos) = current_block_pos {
-            if !current_block.is_empty() {
-                graph.add_node(pos, current_block);
-            }
-        }
+        let graph = ControlFlowGraph::new(&mut self.tokens);
 
         graph.visualize()?;
 

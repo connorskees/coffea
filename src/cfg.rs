@@ -1,10 +1,14 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io::{BufWriter, Write},
+    mem,
     string::ToString,
 };
 
-use crate::{code::Instruction, errors::JResult};
+use crate::{
+    code::{Instruction, Instructions},
+    errors::JResult,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct InstructionNode {
@@ -19,11 +23,78 @@ pub(crate) struct ControlFlowGraph {
 }
 
 impl ControlFlowGraph {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(tokens: &mut Instructions) -> Self {
+        let mut graph = Self {
             edges: HashMap::new(),
             nodes: HashMap::new(),
+        };
+
+        let mut block_starts = HashSet::new();
+        let mut instructions = Vec::new();
+        let mut current_pos = 0;
+
+        block_starts.insert(0);
+
+        let mut current_block_pos = None;
+        while let Some(inst) = tokens.next() {
+            current_block_pos = current_block_pos.or(Some(current_pos));
+            match inst {
+                Instruction::Goto(offset) => {
+                    let pos_to = (current_pos as i64 + offset as i64) as usize;
+                    block_starts.insert(pos_to);
+                    graph.add_edge(current_block_pos.unwrap(), pos_to);
+                }
+                Instruction::IfIcmpne(offset) => {
+                    let pos_to = (current_pos as i64 + offset as i64) as usize;
+                    block_starts.insert(pos_to);
+                    block_starts.insert(current_pos + inst.len() as usize);
+                    graph.add_edge(current_block_pos.unwrap(), pos_to);
+                    graph.add_edge(
+                        current_block_pos.unwrap(),
+                        current_pos + inst.len() as usize,
+                    );
+                }
+                _ => {}
+            }
+
+            if inst.is_control_flow() {
+                current_block_pos = None;
+            }
+
+            instructions.push(inst);
+
+            current_pos += inst.len() as usize;
         }
+
+        current_pos = 0;
+
+        let mut current_block = Vec::new();
+
+        let mut current_block_pos = None;
+        for inst in instructions {
+            current_block_pos = current_block_pos.or(Some(current_pos));
+            current_pos += inst.len() as usize;
+            current_block.push(InstructionNode {
+                inst,
+                pos: current_pos as usize,
+            });
+
+            if block_starts.contains(&current_pos) {
+                graph.add_node(
+                    dbg!(current_block_pos.unwrap()),
+                    mem::take(&mut current_block),
+                );
+                current_block_pos = None;
+            }
+        }
+
+        if let Some(pos) = current_block_pos {
+            if !current_block.is_empty() {
+                graph.add_node(pos, current_block);
+            }
+        }
+
+        graph
     }
 
     pub fn add_node(&mut self, pos: usize, inst: Vec<InstructionNode>) {
