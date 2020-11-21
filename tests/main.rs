@@ -44,3 +44,4 @@ test!(instance_variables);
 test!(arithmetic);
 test!(string_concat_factory);
 test!(arrays);
+test!(casts);

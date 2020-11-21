@@ -1,0 +1,27 @@
+public class casts {
+  public static void main(String[] arg0) {
+    int i1 = 1;
+    float f2 = 2;
+    double d3 = 3;
+    long l5 = 4;
+    int i7 = (int) f2;
+    int i8 = (int) d3;
+    int i9 = (int) l5;
+    float f10 = (float) i1;
+    float f11 = (float) d3;
+    float f12 = (float) l5;
+    double d13 = (double) i1;
+    double d15 = (double) f2;
+    double d17 = (double) l5;
+    long l19 = (long) i1;
+    long l21 = (long) f2;
+    long l23 = (long) d3;
+    byte by25 = (byte) i1;
+    char ch26 = (char) i1;
+    short sh27 = (short) i1;
+    double d28 = (double) by25;
+    double d30 = (double) ch26;
+    double d32 = (double) sh27;
+    return;
+  }
+}
