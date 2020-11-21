@@ -1,0 +1,10 @@
+public class instance_variables {
+  public static final int a = 2;
+  int b = (2 * 2);
+  String c = "hiii";
+  public void main(String[] arg1) {
+    this.b = 3;
+    String s2 = this.c;
+    return;
+  }
+}
