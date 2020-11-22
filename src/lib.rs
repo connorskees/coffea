@@ -15,8 +15,8 @@ use std::{cmp::Ordering, collections::HashMap, fmt, string::ToString};
 use crate::{
     ast::AST,
     cfg::ControlFlowGraph,
-    code::{Instruction, Instructions},
     errors::{JResult, ParseError},
+    instructions::{Instruction, Instructions},
     invoke_dynamic::{ArgType, InvokeDynamicArgs},
 };
 pub use crate::{
@@ -36,6 +36,7 @@ pub mod code;
 mod common;
 pub mod errors;
 mod fields;
+mod instructions;
 mod invoke_dynamic;
 pub mod methods;
 mod pool;

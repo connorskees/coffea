@@ -6,8 +6,8 @@ use std::{
 };
 
 use crate::{
-    code::{Instruction, Instructions},
     errors::JResult,
+    instructions::{Instruction, Instructions},
 };
 
 #[derive(Debug, Clone)]
