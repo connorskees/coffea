@@ -38,21 +38,32 @@ impl ControlFlowGraph {
         let mut current_block_pos = None;
         while let Some(inst) = tokens.next() {
             current_block_pos = current_block_pos.or(Some(current_pos));
+
             match inst {
                 Instruction::Goto(offset) => {
                     let pos_to = (current_pos as i64 + offset as i64) as usize;
                     block_starts.insert(pos_to);
-                    graph.add_edge(current_block_pos.unwrap(), pos_to);
                 }
-                Instruction::IfIcmpne(offset) => {
+                Instruction::GotoW(..) => todo!(),
+                Instruction::IfAcmpeq(offset)
+                | Instruction::IfAcmpne(offset)
+                | Instruction::IfIcmpeq(offset)
+                | Instruction::IfIcmpge(offset)
+                | Instruction::IfIcmpgt(offset)
+                | Instruction::IfIcmple(offset)
+                | Instruction::IfIcmplt(offset)
+                | Instruction::IfIcmpne(offset)
+                | Instruction::Ifeq(offset)
+                | Instruction::Ifge(offset)
+                | Instruction::Ifgt(offset)
+                | Instruction::Ifle(offset)
+                | Instruction::Iflt(offset)
+                | Instruction::Ifne(offset)
+                | Instruction::Ifnonnull(offset)
+                | Instruction::Ifnull(offset) => {
                     let pos_to = (current_pos as i64 + offset as i64) as usize;
                     block_starts.insert(pos_to);
                     block_starts.insert(current_pos + inst.len() as usize);
-                    graph.add_edge(current_block_pos.unwrap(), pos_to);
-                    graph.add_edge(
-                        current_block_pos.unwrap(),
-                        current_pos + inst.len() as usize,
-                    );
                 }
                 _ => {}
             }
@@ -76,6 +87,39 @@ impl ControlFlowGraph {
 
         while let Some(inst) = instructions.next() {
             current_block_pos = current_block_pos.or(Some(current_pos));
+
+            match inst {
+                Instruction::Goto(offset) => {
+                    let pos_to = (current_pos as i64 + offset as i64) as usize;
+                    graph.add_edge(current_block_pos.unwrap(), pos_to);
+                }
+                Instruction::GotoW(..) => todo!(),
+                Instruction::IfAcmpeq(offset)
+                | Instruction::IfAcmpne(offset)
+                | Instruction::IfIcmpeq(offset)
+                | Instruction::IfIcmpge(offset)
+                | Instruction::IfIcmpgt(offset)
+                | Instruction::IfIcmple(offset)
+                | Instruction::IfIcmplt(offset)
+                | Instruction::IfIcmpne(offset)
+                | Instruction::Ifeq(offset)
+                | Instruction::Ifge(offset)
+                | Instruction::Ifgt(offset)
+                | Instruction::Ifle(offset)
+                | Instruction::Iflt(offset)
+                | Instruction::Ifne(offset)
+                | Instruction::Ifnonnull(offset)
+                | Instruction::Ifnull(offset) => {
+                    let pos_to = (current_pos as i64 + offset as i64) as usize;
+                    graph.add_edge(current_block_pos.unwrap(), pos_to);
+                    graph.add_edge(
+                        current_block_pos.unwrap(),
+                        current_pos + inst.len() as usize,
+                    );
+                }
+                _ => {}
+            }
+
             current_pos += inst.len() as usize;
             current_block.push(InstructionNode {
                 inst,
