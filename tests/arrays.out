@@ -11,6 +11,8 @@ public class arrays {
     int[] arr8 = arr7[1];
     int i9 = arr7[0][1];
     int i10 = arr7[arr7[0][0]][arr5[(i9 + 1)]];
+    int[][] arr11 = { { 1, 2 }, { 3, 4 } };
+    arr11[0][0] = 3;
     return;
   }
 }

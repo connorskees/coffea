@@ -13,5 +13,8 @@ public class arrays {
         int[] g = f[1];
         int h = f[0][1];
         int i = f[f[0][0]][d[h + 1]];
+
+        int[][] x = { { 1, 2 }, { 3, 4 } };
+        x[0][0] = 3;
     }
 }

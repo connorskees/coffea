@@ -296,24 +296,23 @@ impl Codegen<'_> {
                 let val = self.pop_stack()?;
                 let index = self.pop_stack()?;
                 let array = self.pop_stack()?;
-                // todo: generalize this for all
+
                 match array {
                     // this is used to fill values in array literal
                     StackEntry::Array(ty, count, mut els) => {
                         els.push(val);
                         self.stack.push(StackEntry::Array(ty, count, els));
                     }
-                    StackEntry::Ident(s, ty) => {
+                    entry => {
                         return Ok(Some(AST::ReAssignment {
                             var: Box::new(AST::ArrayIndex {
-                                arr: Box::new(AST::Ident(s, ty.clone())),
+                                arr_type: entry.ty(),
+                                arr: Box::new(entry.into()),
                                 index: index.into(),
-                                arr_type: ty,
                             }),
                             val: val.into(),
                         }))
                     }
-                    _ => unimplemented!(),
                 }
             }
 
