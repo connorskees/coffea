@@ -1,30 +1,297 @@
-use std::collections::HashMap;
+use std::slice::Iter;
 
 use crate::attributes::{Attribute, ExceptionTableEntry};
 
 #[derive(Debug, Clone)]
-pub struct Instructions {
-    instructions: Vec<Instruction>,
-    instruction_count: usize,
-    map: HashMap<usize, usize>,
-    cursor: usize,
+pub struct Instructions<'a> {
+    bytes: Iter<'a, u8>,
 }
 
-impl Instructions {
-    pub fn next(&mut self) -> Option<Instruction> {
-        let tmp = self.cursor;
-        // dbg!(&tmp);
-        self.cursor += 1;
-        if tmp >= self.instruction_count {
-            None
-        } else {
-            Some(self.instructions[tmp])
-        }
+impl Instructions<'_> {
+    fn next_byte(&mut self) -> Option<u8> {
+        self.bytes.next().cloned()
     }
+}
 
-    pub fn goto(&mut self, pos: &usize) {
-        // dbg!(pos);
-        self.cursor = *self.map.get(pos).unwrap();
+impl Iterator for Instructions<'_> {
+    type Item = Instruction;
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(match self.bytes.next()? {
+            0x32 => Instruction::AALoad,
+            0x53 => Instruction::AAStore,
+            0x01 => Instruction::AConstNull,
+            0x19 => Instruction::ALoad(self.next_byte()?),
+            0x2a => Instruction::Aload0,
+            0x2b => Instruction::Aload1,
+            0x2c => Instruction::Aload2,
+            0x2d => Instruction::ALoad3,
+            0xbd => {
+                Instruction::ANewArray(u16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xb0 => Instruction::AReturn,
+            0xbe => Instruction::ArrayLength,
+            0x3a => Instruction::AStore(self.next_byte()?),
+            0x4b => Instruction::AStore0,
+            0x4c => Instruction::AStore1,
+            0x4d => Instruction::AStore2,
+            0x4e => Instruction::AStore3,
+            0xbf => Instruction::Athrow,
+            0x33 => Instruction::BALoad,
+            0x54 => Instruction::BAStore,
+            0x10 => Instruction::BiPush(self.next_byte()?),
+            0xca => Instruction::Breakpoint,
+            0x34 => Instruction::CALoad,
+            0x55 => Instruction::CAStore,
+            0xc0 => {
+                Instruction::Checkcast(u16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0x90 => Instruction::D2f,
+            0x8e => Instruction::D2i,
+            0x8f => Instruction::D2l,
+            0x63 => Instruction::DAdd,
+            0x31 => Instruction::DALoad,
+            0x52 => Instruction::DAStore,
+            0x98 => Instruction::Dcmpg,
+            0x97 => Instruction::Dcmpl,
+            0x0e => Instruction::DConst0,
+            0x0f => Instruction::DConst1,
+            0x6f => Instruction::DDiv,
+            0x18 => Instruction::DLoad(self.next_byte()?),
+            0x26 => Instruction::DLoad0,
+            0x27 => Instruction::DLoad1,
+            0x28 => Instruction::DLoad2,
+            0x29 => Instruction::DLoad3,
+            0x6b => Instruction::DMul,
+            0x77 => Instruction::DNeg,
+            0x73 => Instruction::DRem,
+            0xaf => Instruction::Dreturn,
+            0x39 => Instruction::DStore(self.next_byte()?),
+            0x47 => Instruction::DStore0,
+            0x48 => Instruction::DStore1,
+            0x49 => Instruction::DStore2,
+            0x4a => Instruction::DStore3,
+            0x67 => Instruction::DSub,
+            0x59 => Instruction::Dup,
+            0x5a => Instruction::DupX1,
+            0x5b => Instruction::DupX2,
+            0x5c => Instruction::Dup2,
+            0x5d => Instruction::Dup2X1,
+            0x5e => Instruction::Dup2X2,
+            0x8d => Instruction::F2d,
+            0x8b => Instruction::F2i,
+            0x8c => Instruction::F2l,
+            0x62 => Instruction::FAdd,
+            0x30 => Instruction::FALoad,
+            0x51 => Instruction::FAStore,
+            0x96 => Instruction::Fcmpg,
+            0x95 => Instruction::Fcmpl,
+            0x0b => Instruction::FConst0,
+            0x0c => Instruction::FConst1,
+            0x0d => Instruction::FConst2,
+            0x6e => Instruction::FDiv,
+            0x17 => Instruction::FLoad(self.next_byte()?),
+            0x22 => Instruction::FLoad0,
+            0x23 => Instruction::FLoad1,
+            0x24 => Instruction::FLoad2,
+            0x25 => Instruction::FLoad3,
+            0x6a => Instruction::FMul,
+            0x76 => Instruction::FNeg,
+            0x72 => Instruction::FRem,
+            0xae => Instruction::Freturn,
+            0x38 => Instruction::FStore(self.next_byte()?),
+            0x43 => Instruction::FStore0,
+            0x44 => Instruction::FStore1,
+            0x45 => Instruction::FStore2,
+            0x46 => Instruction::FStore3,
+            0x66 => Instruction::FSub,
+            0xb4 => {
+                Instruction::GetField(u16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xb2 => {
+                Instruction::GetStatic(u16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xa7 => Instruction::Goto(i16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0xc8 => Instruction::GotoW(i32::from_be_bytes([
+                self.next_byte()?,
+                self.next_byte()?,
+                self.next_byte()?,
+                self.next_byte()?,
+            ])),
+            0x91 => Instruction::I2b,
+            0x92 => Instruction::I2c,
+            0x87 => Instruction::I2d,
+            0x86 => Instruction::I2f,
+            0x85 => Instruction::I2l,
+            0x93 => Instruction::I2s,
+            0x60 => Instruction::IAdd,
+            0x2e => Instruction::IALoad,
+            0x7e => Instruction::IAnd,
+            0x4f => Instruction::IAStore,
+            0x02 => Instruction::IConstM1,
+            0x03 => Instruction::IConst0,
+            0x04 => Instruction::IConst1,
+            0x05 => Instruction::IConst2,
+            0x06 => Instruction::IConst3,
+            0x07 => Instruction::IConst4,
+            0x08 => Instruction::IConst5,
+            0x6c => Instruction::IDiv,
+            0xa5 => {
+                Instruction::IfAcmpeq(i16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xa6 => {
+                Instruction::IfAcmpne(i16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0x9f => {
+                Instruction::IfIcmpeq(i16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xa2 => {
+                Instruction::IfIcmpge(i16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xa3 => {
+                Instruction::IfIcmpgt(i16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xa4 => {
+                Instruction::IfIcmple(i16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xa1 => {
+                Instruction::IfIcmplt(i16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xa0 => {
+                Instruction::IfIcmpne(i16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0x99 => Instruction::Ifeq(i16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0x9c => Instruction::Ifge(i16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0x9d => Instruction::Ifgt(i16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0x9e => Instruction::Ifle(i16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0x9b => Instruction::Iflt(i16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0x9a => Instruction::Ifne(i16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0xc7 => {
+                Instruction::Ifnonnull(i16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xc6 => Instruction::Ifnull(i16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0x84 => Instruction::Iinc(self.next_byte()?, self.next_byte()?),
+            0x15 => Instruction::ILoad(self.next_byte()?),
+            0x1a => Instruction::ILoad0,
+            0x1b => Instruction::ILoad1,
+            0x1c => Instruction::ILoad2,
+            0x1d => Instruction::ILoad3,
+            0xfe => Instruction::Impdep1,
+            0xff => Instruction::Impdep2,
+            0x68 => Instruction::IMul,
+            0x74 => Instruction::INeg,
+            0xc1 => {
+                Instruction::InstanceOf(u16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xba => Instruction::InvokeDynamic(
+                u16::from_be_bytes([self.next_byte()?, self.next_byte()?]),
+                self.next_byte()?,
+                self.next_byte()?,
+            ),
+            0xb9 => Instruction::InvokeInterface(
+                u16::from_be_bytes([self.next_byte()?, self.next_byte()?]),
+                self.next_byte()?,
+                self.next_byte()?,
+            ),
+            0xb7 => Instruction::InvokeSpecial(u16::from_be_bytes([
+                self.next_byte()?,
+                self.next_byte()?,
+            ])),
+            0xb8 => Instruction::InvokeStatic(u16::from_be_bytes([
+                self.next_byte()?,
+                self.next_byte()?,
+            ])),
+            0xb6 => Instruction::InvokeVirtual(u16::from_be_bytes([
+                self.next_byte()?,
+                self.next_byte()?,
+            ])),
+            0x80 => Instruction::IOr,
+            0x70 => Instruction::IRem,
+            0xac => Instruction::Ireturn,
+            0x78 => Instruction::IShl,
+            0x7a => Instruction::IShr,
+            0x36 => Instruction::IStore(self.next_byte()?),
+            0x3b => Instruction::IStore0,
+            0x3c => Instruction::IStore1,
+            0x3d => Instruction::IStore2,
+            0x3e => Instruction::IStore3,
+            0x64 => Instruction::ISub,
+            0x7c => Instruction::IUShr,
+            0x82 => Instruction::IXor,
+            0xa8 => Instruction::Jsr(i16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0xc9 => Instruction::JsrW(i32::from_be_bytes([
+                self.next_byte()?,
+                self.next_byte()?,
+                self.next_byte()?,
+                self.next_byte()?,
+            ])),
+            0x8a => Instruction::L2d,
+            0x89 => Instruction::L2f,
+            0x88 => Instruction::L2i,
+            0x61 => Instruction::LAdd,
+            0x2f => Instruction::LALoad,
+            0x7f => Instruction::LAnd,
+            0x50 => Instruction::LAStore,
+            0x94 => Instruction::Lcmp,
+            0x09 => Instruction::LConst0,
+            0x0a => Instruction::LConst1,
+            0x12 => Instruction::Ldc(u16::from(self.next_byte()?)),
+            0x13 => Instruction::LdcW(u16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0x14 => Instruction::Ldc2W(u16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0x6d => Instruction::LDiv,
+            0x16 => Instruction::LLoad(self.next_byte()?),
+            0x1e => Instruction::LLoad0,
+            0x1f => Instruction::LLoad1,
+            0x20 => Instruction::LLoad2,
+            0x21 => Instruction::LLoad3,
+            0x69 => Instruction::LMul,
+            0x75 => Instruction::LNeg,
+            0xab => unimplemented!("instruction `LookupSwitch` not yet implemented"), //Instruction::Lookupswitch,
+            0x81 => Instruction::LOr,
+            0x71 => Instruction::LRem,
+            0xad => Instruction::Lreturn,
+            0x79 => Instruction::LShl,
+            0x7b => Instruction::LShr,
+            0x37 => Instruction::LStore(self.next_byte()?),
+            0x3f => Instruction::LStore0,
+            0x40 => Instruction::LStore1,
+            0x41 => Instruction::LStore2,
+            0x42 => Instruction::LStore3,
+            0x65 => Instruction::LSub,
+            0x7d => Instruction::LUShr,
+            0x83 => Instruction::LXor,
+            0xc2 => Instruction::MonitorEnter,
+            0xc3 => Instruction::MonitorExit,
+            0xc5 => {
+                Instruction::MultiANewArray(self.next_byte()?, self.next_byte()?, self.next_byte()?)
+            }
+            0xbb => Instruction::New(u16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0xbc => Instruction::NewArray(self.next_byte()?),
+            0x00 => Instruction::Nop,
+            0x57 => Instruction::Pop,
+            0x58 => Instruction::Pop2,
+            0xb5 => {
+                Instruction::PutField(u16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xb3 => {
+                Instruction::PutStatic(u16::from_be_bytes([self.next_byte()?, self.next_byte()?]))
+            }
+            0xa9 => Instruction::Ret(self.next_byte()?),
+            0xb1 => Instruction::Return,
+            0x35 => Instruction::SALoad,
+            0x56 => Instruction::SAStore,
+            0x11 => Instruction::SIPush(u16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
+            0x5f => Instruction::Swap,
+            0xaa => unimplemented!("instruction `TableSwitch` not yet implemented"), //Instruction::TableSwitch,
+            0xc4 => {
+                let n = self.next_byte()?;
+                match n {
+                    0x84 => Instruction::Wide5(n, self.next_byte()?, self.next_byte()?, self.next_byte()?, self.next_byte()?),
+                    0x15..=0x19 | 0x36..=0x39 | 0x89 => Instruction::Wide3(n, self.next_byte()?, self.next_byte()?),
+                    _ => unimplemented!("invalid opcode in `Instruction::Wide3`; error handling not yet implemented"),
+                }
+            }
+            0xcb..=0xfd => Instruction::NoName,
+        })
     }
 }
 
@@ -40,245 +307,9 @@ pub struct Code {
 impl Code {
     #[must_use]
     pub fn lex(&self) -> Instructions {
-        let mut bytes = self.code.iter().enumerate();
-        let mut instructions = Vec::with_capacity(bytes.len());
-        let mut instruction_map = HashMap::new();
-        let mut instruction_num = 0;
-        while let Some((idx, b)) = bytes.next() {
-            let mut next = || *bytes.next().unwrap().1;
-            let instruction = match b {
-                0x32 => Instruction::AALoad,
-                0x53 => Instruction::AAStore,
-                0x01 => Instruction::AConstNull,
-                0x19 => Instruction::ALoad(next()),
-                0x2a => Instruction::Aload0,
-                0x2b => Instruction::Aload1,
-                0x2c => Instruction::Aload2,
-                0x2d => Instruction::ALoad3,
-                0xbd => Instruction::ANewArray(u16::from_be_bytes([next(), next()])),
-                0xb0 => Instruction::AReturn,
-                0xbe => Instruction::ArrayLength,
-                0x3a => Instruction::AStore(next()),
-                0x4b => Instruction::AStore0,
-                0x4c => Instruction::AStore1,
-                0x4d => Instruction::AStore2,
-                0x4e => Instruction::AStore3,
-                0xbf => Instruction::Athrow,
-                0x33 => Instruction::BALoad,
-                0x54 => Instruction::BAStore,
-                0x10 => Instruction::BiPush(next()),
-                0xca => Instruction::Breakpoint,
-                0x34 => Instruction::CALoad,
-                0x55 => Instruction::CAStore,
-                0xc0 => Instruction::Checkcast(u16::from_be_bytes([next(), next()])),
-                0x90 => Instruction::D2f,
-                0x8e => Instruction::D2i,
-                0x8f => Instruction::D2l,
-                0x63 => Instruction::DAdd,
-                0x31 => Instruction::DALoad,
-                0x52 => Instruction::DAStore,
-                0x98 => Instruction::Dcmpg,
-                0x97 => Instruction::Dcmpl,
-                0x0e => Instruction::DConst0,
-                0x0f => Instruction::DConst1,
-                0x6f => Instruction::DDiv,
-                0x18 => Instruction::DLoad(next()),
-                0x26 => Instruction::DLoad0,
-                0x27 => Instruction::DLoad1,
-                0x28 => Instruction::DLoad2,
-                0x29 => Instruction::DLoad3,
-                0x6b => Instruction::DMul,
-                0x77 => Instruction::DNeg,
-                0x73 => Instruction::DRem,
-                0xaf => Instruction::Dreturn,
-                0x39 => Instruction::DStore(next()),
-                0x47 => Instruction::DStore0,
-                0x48 => Instruction::DStore1,
-                0x49 => Instruction::DStore2,
-                0x4a => Instruction::DStore3,
-                0x67 => Instruction::DSub,
-                0x59 => Instruction::Dup,
-                0x5a => Instruction::DupX1,
-                0x5b => Instruction::DupX2,
-                0x5c => Instruction::Dup2,
-                0x5d => Instruction::Dup2X1,
-                0x5e => Instruction::Dup2X2,
-                0x8d => Instruction::F2d,
-                0x8b => Instruction::F2i,
-                0x8c => Instruction::F2l,
-                0x62 => Instruction::FAdd,
-                0x30 => Instruction::FALoad,
-                0x51 => Instruction::FAStore,
-                0x96 => Instruction::Fcmpg,
-                0x95 => Instruction::Fcmpl,
-                0x0b => Instruction::FConst0,
-                0x0c => Instruction::FConst1,
-                0x0d => Instruction::FConst2,
-                0x6e => Instruction::FDiv,
-                0x17 => Instruction::FLoad(next()),
-                0x22 => Instruction::FLoad0,
-                0x23 => Instruction::FLoad1,
-                0x24 => Instruction::FLoad2,
-                0x25 => Instruction::FLoad3,
-                0x6a => Instruction::FMul,
-                0x76 => Instruction::FNeg,
-                0x72 => Instruction::FRem,
-                0xae => Instruction::Freturn,
-                0x38 => Instruction::FStore(next()),
-                0x43 => Instruction::FStore0,
-                0x44 => Instruction::FStore1,
-                0x45 => Instruction::FStore2,
-                0x46 => Instruction::FStore3,
-                0x66 => Instruction::FSub,
-                0xb4 => Instruction::GetField(u16::from_be_bytes([next(), next()])),
-                0xb2 => Instruction::GetStatic(u16::from_be_bytes([next(), next()])),
-                0xa7 => Instruction::Goto(i16::from_be_bytes([next(), next()])),
-                0xc8 => Instruction::GotoW(i32::from_be_bytes([next(), next(), next(), next()])),
-                0x91 => Instruction::I2b,
-                0x92 => Instruction::I2c,
-                0x87 => Instruction::I2d,
-                0x86 => Instruction::I2f,
-                0x85 => Instruction::I2l,
-                0x93 => Instruction::I2s,
-                0x60 => Instruction::IAdd,
-                0x2e => Instruction::IALoad,
-                0x7e => Instruction::IAnd,
-                0x4f => Instruction::IAStore,
-                0x02 => Instruction::IConstM1,
-                0x03 => Instruction::IConst0,
-                0x04 => Instruction::IConst1,
-                0x05 => Instruction::IConst2,
-                0x06 => Instruction::IConst3,
-                0x07 => Instruction::IConst4,
-                0x08 => Instruction::IConst5,
-                0x6c => Instruction::IDiv,
-                0xa5 => Instruction::IfAcmpeq(i16::from_be_bytes([next(), next()])),
-                0xa6 => Instruction::IfAcmpne(i16::from_be_bytes([next(), next()])),
-                0x9f => Instruction::IfIcmpeq(i16::from_be_bytes([next(), next()])),
-                0xa2 => Instruction::IfIcmpge(i16::from_be_bytes([next(), next()])),
-                0xa3 => Instruction::IfIcmpgt(i16::from_be_bytes([next(), next()])),
-                0xa4 => Instruction::IfIcmple(i16::from_be_bytes([next(), next()])),
-                0xa1 => Instruction::IfIcmplt(i16::from_be_bytes([next(), next()])),
-                0xa0 => Instruction::IfIcmpne(i16::from_be_bytes([next(), next()])),
-                0x99 => Instruction::Ifeq(i16::from_be_bytes([next(), next()])),
-                0x9c => Instruction::Ifge(i16::from_be_bytes([next(), next()])),
-                0x9d => Instruction::Ifgt(i16::from_be_bytes([next(), next()])),
-                0x9e => Instruction::Ifle(i16::from_be_bytes([next(), next()])),
-                0x9b => Instruction::Iflt(i16::from_be_bytes([next(), next()])),
-                0x9a => Instruction::Ifne(i16::from_be_bytes([next(), next()])),
-                0xc7 => Instruction::Ifnonnull(i16::from_be_bytes([next(), next()])),
-                0xc6 => Instruction::Ifnull(i16::from_be_bytes([next(), next()])),
-                0x84 => Instruction::Iinc(next(), next()),
-                0x15 => Instruction::ILoad(next()),
-                0x1a => Instruction::ILoad0,
-                0x1b => Instruction::ILoad1,
-                0x1c => Instruction::ILoad2,
-                0x1d => Instruction::ILoad3,
-                0xfe => Instruction::Impdep1,
-                0xff => Instruction::Impdep2,
-                0x68 => Instruction::IMul,
-                0x74 => Instruction::INeg,
-                0xc1 => Instruction::InstanceOf(u16::from_be_bytes([next(), next()])),
-                0xba => {
-                    Instruction::InvokeDynamic(u16::from_be_bytes([next(), next()]), next(), next())
-                }
-                0xb9 => Instruction::InvokeInterface(
-                    u16::from_be_bytes([next(), next()]),
-                    next(),
-                    next(),
-                ),
-                0xb7 => Instruction::InvokeSpecial(u16::from_be_bytes([next(), next()])),
-                0xb8 => Instruction::InvokeStatic(u16::from_be_bytes([next(), next()])),
-                0xb6 => Instruction::InvokeVirtual(u16::from_be_bytes([next(), next()])),
-                0x80 => Instruction::IOr,
-                0x70 => Instruction::IRem,
-                0xac => Instruction::Ireturn,
-                0x78 => Instruction::IShl,
-                0x7a => Instruction::IShr,
-                0x36 => Instruction::IStore(next()),
-                0x3b => Instruction::IStore0,
-                0x3c => Instruction::IStore1,
-                0x3d => Instruction::IStore2,
-                0x3e => Instruction::IStore3,
-                0x64 => Instruction::ISub,
-                0x7c => Instruction::IUShr,
-                0x82 => Instruction::IXor,
-                0xa8 => Instruction::Jsr(i16::from_be_bytes([next(), next()])),
-                0xc9 => Instruction::JsrW(i32::from_be_bytes([next(), next(), next(), next()])),
-                0x8a => Instruction::L2d,
-                0x89 => Instruction::L2f,
-                0x88 => Instruction::L2i,
-                0x61 => Instruction::LAdd,
-                0x2f => Instruction::LALoad,
-                0x7f => Instruction::LAnd,
-                0x50 => Instruction::LAStore,
-                0x94 => Instruction::Lcmp,
-                0x09 => Instruction::LConst0,
-                0x0a => Instruction::LConst1,
-                0x12 => Instruction::Ldc(u16::from(next())),
-                0x13 => Instruction::LdcW(u16::from_be_bytes([next(), next()])),
-                0x14 => Instruction::Ldc2W(u16::from_be_bytes([next(), next()])),
-                0x6d => Instruction::LDiv,
-                0x16 => Instruction::LLoad(next()),
-                0x1e => Instruction::LLoad0,
-                0x1f => Instruction::LLoad1,
-                0x20 => Instruction::LLoad2,
-                0x21 => Instruction::LLoad3,
-                0x69 => Instruction::LMul,
-                0x75 => Instruction::LNeg,
-                0xab => unimplemented!("instruction `LookupSwitch` not yet implemented"), //Instruction::Lookupswitch,
-                0x81 => Instruction::LOr,
-                0x71 => Instruction::LRem,
-                0xad => Instruction::Lreturn,
-                0x79 => Instruction::LShl,
-                0x7b => Instruction::LShr,
-                0x37 => Instruction::LStore(next()),
-                0x3f => Instruction::LStore0,
-                0x40 => Instruction::LStore1,
-                0x41 => Instruction::LStore2,
-                0x42 => Instruction::LStore3,
-                0x65 => Instruction::LSub,
-                0x7d => Instruction::LUShr,
-                0x83 => Instruction::LXor,
-                0xc2 => Instruction::MonitorEnter,
-                0xc3 => Instruction::MonitorExit,
-                0xc5 => Instruction::MultiANewArray(next(), next(), next()),
-                0xbb => Instruction::New(u16::from_be_bytes([next(), next()])),
-                0xbc => Instruction::NewArray(next()),
-                0x00 => Instruction::Nop,
-                0x57 => Instruction::Pop,
-                0x58 => Instruction::Pop2,
-                0xb5 => Instruction::PutField(u16::from_be_bytes([next(), next()])),
-                0xb3 => Instruction::PutStatic(u16::from_be_bytes([next(), next()])),
-                0xa9 => Instruction::Ret(next()),
-                0xb1 => Instruction::Return,
-                0x35 => Instruction::SALoad,
-                0x56 => Instruction::SAStore,
-                0x11 => Instruction::SIPush(u16::from_be_bytes([next(), next()])),
-                0x5f => Instruction::Swap,
-                0xaa => unimplemented!("instruction `TableSwitch` not yet implemented"), //Instruction::TableSwitch,
-                0xc4 => {
-                    let n = next();
-                    match n {
-                        0x84 => Instruction::Wide5(n, next(), next(), next(), next()),
-                        0x15..=0x19 | 0x36..=0x39 | 0x89 => Instruction::Wide3(n, next(), next()),
-                        _ => unimplemented!("invalid opcode in `Instruction::Wide3`; error handling not yet implemented"),
-                    }
-                }
-                0xcb..=0xfd => Instruction::NoName,
-            };
-            instructions.push(instruction);
-            instruction_map.insert(instruction_num, idx);
-            instruction_num += instruction.len() as usize;
-        }
-        let instruction_count = instructions.len();
         Instructions {
-            instructions,
-            instruction_count,
-            map: instruction_map,
-            cursor: 0,
+            bytes: self.code.iter(),
         }
-        // instructions
     }
 }
 
@@ -726,7 +757,12 @@ pub(crate) enum InstLen {
 }
 
 impl Instruction {
-    // todo: potentially `TableSwitch` and `Lookupswitch` as well?
+    // todo: potentially
+    //  - `TableSwitch`
+    //  - `Ret`
+    //  - `Lookupswitch`
+    //  - `Jsr`
+    //  - `JsrW`
     pub(crate) fn is_control_flow(&self) -> bool {
         matches!(
             self,

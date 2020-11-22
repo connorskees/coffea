@@ -136,7 +136,7 @@ pub(crate) struct Codegen<'a> {
     class: &'a mut ClassFile,
     stack: Vec<StackEntry>,
     local_variables: HashMap<usize, StackEntry>,
-    tokens: Instructions,
+    tokens: Instructions<'a>,
     ast: Vec<AST>,
     current_pos: usize,
     /// whether this is generating code for `<init>` or not
