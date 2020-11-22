@@ -95,21 +95,20 @@ impl MethodInfo {
     }
 }
 
-// todo: make fields public rather than using methods for access
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MethodAccessFlags {
-    is_public: bool,
-    is_private: bool,
-    is_protected: bool,
-    is_static: bool,
-    is_final: bool,
-    is_synchronized: bool,
-    is_bridge: bool,
-    is_var_args: bool,
-    is_native: bool,
-    is_abstract: bool,
-    is_strict: bool,
-    is_synthetic: bool,
+    pub is_public: bool,
+    pub is_private: bool,
+    pub is_protected: bool,
+    pub is_static: bool,
+    pub is_final: bool,
+    pub is_synchronized: bool,
+    pub is_bridge: bool,
+    pub is_var_args: bool,
+    pub is_native: bool,
+    pub is_abstract: bool,
+    pub is_strict: bool,
+    pub is_synthetic: bool,
 }
 
 impl MethodAccessFlags {
@@ -142,66 +141,6 @@ impl MethodAccessFlags {
             is_strict: (n & MethodAccessFlags::STRICT) != 0,
             is_synthetic: (n & MethodAccessFlags::SYNTHETIC) != 0,
         }
-    }
-
-    #[must_use]
-    pub const fn is_public(&self) -> bool {
-        self.is_public
-    }
-
-    #[must_use]
-    pub const fn is_private(&self) -> bool {
-        self.is_private
-    }
-
-    #[must_use]
-    pub const fn is_protected(&self) -> bool {
-        self.is_protected
-    }
-
-    #[must_use]
-    pub const fn is_static(&self) -> bool {
-        self.is_static
-    }
-
-    #[must_use]
-    pub const fn is_final(&self) -> bool {
-        self.is_final
-    }
-
-    #[must_use]
-    pub const fn is_synchronized(&self) -> bool {
-        self.is_synchronized
-    }
-
-    #[must_use]
-    pub const fn is_bridge(&self) -> bool {
-        self.is_bridge
-    }
-
-    #[must_use]
-    pub const fn is_var_args(&self) -> bool {
-        self.is_var_args
-    }
-
-    #[must_use]
-    pub const fn is_native(&self) -> bool {
-        self.is_native
-    }
-
-    #[must_use]
-    pub const fn is_abstract(&self) -> bool {
-        self.is_abstract
-    }
-
-    #[must_use]
-    pub const fn is_strict(&self) -> bool {
-        self.is_strict
-    }
-
-    #[must_use]
-    pub const fn is_synthetic(&self) -> bool {
-        self.is_synthetic
     }
 }
 

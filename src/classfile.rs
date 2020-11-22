@@ -169,7 +169,7 @@ impl<W: Write> ClassFileVisitor<W> {
         let tokens = method.code().unwrap().lex();
         let mut local_variables = HashMap::new();
         // when the method is not static, the first argument is an implicit `this`
-        let arg_offset = if method.access_flags.is_static() {
+        let arg_offset = if method.access_flags.is_static {
             0
         } else {
             local_variables.insert(
