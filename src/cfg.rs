@@ -112,6 +112,7 @@ impl ControlFlowGraph {
             std::fs::OpenOptions::new()
                 .write(true)
                 .create(true)
+                .truncate(true)
                 .open("graph.dot")?,
         );
 
