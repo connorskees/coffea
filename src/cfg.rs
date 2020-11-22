@@ -71,7 +71,10 @@ impl ControlFlowGraph {
         let mut current_block = Vec::new();
 
         let mut current_block_pos = None;
-        for inst in instructions {
+
+        let mut instructions = instructions.into_iter().peekable();
+
+        while let Some(inst) = instructions.next() {
             current_block_pos = current_block_pos.or(Some(current_pos));
             current_pos += inst.len() as usize;
             current_block.push(InstructionNode {
@@ -82,9 +85,13 @@ impl ControlFlowGraph {
             if block_starts.contains(&current_pos) {
                 graph.add_node(current_block_pos.unwrap(), mem::take(&mut current_block));
                 current_block_pos = None;
+            }
 
-                if block_starts.contains(&(current_pos - inst.len() as usize)) {
-                    graph.add_edge(current_pos - inst.len() as usize, current_pos)
+            if let (Some(next_inst), Some(block_pos)) = (instructions.peek(), current_block_pos) {
+                if block_starts.contains(&(current_pos + next_inst.len() as usize))
+                    && !next_inst.is_control_flow()
+                {
+                    graph.add_edge(block_pos, current_pos + next_inst.len() as usize)
                 }
             }
         }
