@@ -520,6 +520,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 
         Ok(Attribute::RuntimeVisibleAnnotations(annotations))
     }
+
     fn parse_attr_runtime_invisible_annotations(&mut self) -> JResult<Attribute> {
         let num_annotations = self.read_u16()?;
         let mut annotations: Vec<Annotation> = Vec::new();
@@ -529,6 +530,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
 
         Ok(Attribute::RuntimeInvisibleAnnotations(annotations))
     }
+
     fn parse_attr_runtime_visible_parameter_annotations(&mut self) -> JResult<Attribute> {
         let num_parameters = self.read_u8()?;
         let mut parameter_annotations: Vec<Vec<Annotation>> = Vec::new();
@@ -545,6 +547,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
             parameter_annotations,
         ))
     }
+
     fn parse_attr_runtime_invisible_parameter_annotations(&mut self) -> JResult<Attribute> {
         let num_parameters = self.read_u8()?;
         let mut parameter_annotations: Vec<Vec<Annotation>> = Vec::new();
@@ -561,6 +564,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
             parameter_annotations,
         ))
     }
+
     fn parse_attr_annotation_default(&mut self) -> JResult<Attribute> {
         let element_value = self.read_element_value()?;
         Ok(Attribute::AnnotationDefault(element_value))

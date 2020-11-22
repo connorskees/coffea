@@ -2,12 +2,42 @@ use crate::code::Code;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Attribute {
-    ConstantValue { const_value_index: u16 },
+    /// A `ConstantValue` attribute represents the value of a constant
+    /// field. There can be no more than one `ConstantValue` attribute
+    /// in the attributes table of a given field_info structure. If the
+    /// field is static (that is, the ACC_STATIC flag  in the
+    /// access_flags item of the field_info structure is set) then the
+    /// constant field represented by the field_info structure is assigned
+    /// the value referenced by its `ConstantValue` attribute as part of
+    /// the initialization of the class or interface declaring the
+    /// constant field.
+    ///
+    /// This occurs prior to the invocation of the class or interface
+    /// initialization method of that class or interface.
+    ///
+    /// If a field_info structure representing a non-static field has a
+    /// ConstantValue attribute, then that attribute must silently be ignored.
+    ConstantValue {
+        const_value_index: u16,
+    },
+
+    /// The `Code` attribute is a variable-length attribute in the attributes
+    /// table of a method_info structure. A `Code` attribute contains the Java
+    /// Virtual Machine instructions and auxiliary information for a single
+    /// method, instance initialization method, or class or interface
+    /// initialization method.
+    ///
+    /// If the method is either native or abstract, its method_info structure
+    /// must not have a `Code` attribute. Otherwise, its method_info structure
+    /// must have exactly one `Code` attribute.
     Code(Code),
     StackMapTable(Vec<FrameType>),
     Exceptions(Vec<u16>),
     InnerClasses(Vec<ClassInfo>),
-    EnclosingMethod { class_index: u16, method_index: u16 },
+    EnclosingMethod {
+        class_index: u16,
+        method_index: u16,
+    },
     Synthetic,
     Signature(u16),
     SourceFile(u16),
@@ -22,7 +52,9 @@ pub enum Attribute {
     RuntimeInvisibleParameterAnnotations(Vec<Vec<Annotation>>),
     AnnotationDefault(ElementValue),
     BootstrapMethods(Vec<BootstrapMethod>),
-    Other { info: Vec<u8> },
+    Other {
+        info: Vec<u8>,
+    },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
