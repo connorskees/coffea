@@ -100,7 +100,7 @@ pub(crate) fn parse_single_type(cc: &mut std::str::Chars<'_>) -> Option<Type> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum BinaryOp {
+pub(crate) enum BinaryOp {
     Add,
     Sub,
     Mul,
@@ -154,7 +154,7 @@ impl fmt::Display for BinaryOp {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum UnaryOp {
+pub(crate) enum UnaryOp {
     Neg(StackEntry),
     ArrayLength(StackEntry),
     PlusPlus(StackEntry),
@@ -210,7 +210,7 @@ impl Indent {
     }
 }
 
-pub fn double_to_f64(high_bytes: u32, low_bytes: u32) -> f64 {
+pub(crate) fn double_to_f64(high_bytes: u32, low_bytes: u32) -> f64 {
     let bits: u64 = (u64::from(high_bytes) << 32) + u64::from(low_bytes);
     match bits {
         0x7ff0_0000_0000_0000 => std::f64::INFINITY,
@@ -225,7 +225,7 @@ pub fn double_to_f64(high_bytes: u32, low_bytes: u32) -> f64 {
     }
 }
 
-pub fn float_to_f32(bytes: u32) -> f32 {
+pub(crate) fn float_to_f32(bytes: u32) -> f32 {
     match bytes {
         0x7f80_0000 => std::f32::INFINITY,
         0xff80_0000 => std::f32::NEG_INFINITY,

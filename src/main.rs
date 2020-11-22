@@ -3,7 +3,7 @@ use std::{
     io::{stdout, BufReader},
 };
 
-use coffea::{errors::JResult, ClassFile};
+use coffea::{ClassFile, JResult};
 
 fn main() -> JResult<()> {
     let out = std::process::Command::new("javac")

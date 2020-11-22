@@ -241,17 +241,17 @@ impl ClassFile {
 /// Methods for accessing data contained within the `ClassFile`
 impl ClassFile {
     #[must_use]
-    pub const fn version(&self) -> (MajorVersion, u16) {
+    pub(crate) const fn version(&self) -> (MajorVersion, u16) {
         self.version
     }
 
     #[must_use]
-    pub const fn const_pool(&self) -> &Vec<PoolKind> {
+    pub(crate) fn const_pool(&self) -> &[PoolKind] {
         &self.const_pool
     }
 
     #[must_use]
-    pub const fn access_flags(&self) -> ClassAccessFlags {
+    pub(crate) const fn access_flags(&self) -> ClassAccessFlags {
         self.access_flags
     }
 
@@ -275,11 +275,11 @@ impl ClassFile {
         }
     }
 
-    pub fn interfaces(&self) -> JResult<Vec<&String>> {
+    pub fn interfaces(&self) -> JResult<Vec<&str>> {
         let mut interfaces = Vec::new();
         for interface_idx in &self.interfaces {
-            interfaces.push(match self.const_pool[usize::from(interface_idx - 1)] {
-                PoolKind::Utf8(ref s) => s,
+            interfaces.push(match &self.const_pool[usize::from(interface_idx - 1)] {
+                PoolKind::Utf8(s) => s.as_str(),
                 _ => unimplemented!(),
             });
         }
@@ -287,7 +287,7 @@ impl ClassFile {
     }
 
     #[must_use]
-    pub const fn fields(&self) -> &Vec<FieldInfo> {
+    pub(crate) const fn fields(&self) -> &Vec<FieldInfo> {
         &self.fields
     }
 
@@ -324,7 +324,7 @@ impl ClassFile {
     }
 
     #[must_use]
-    pub const fn methods(&self) -> &Vec<MethodInfo> {
+    pub(crate) const fn methods(&self) -> &Vec<MethodInfo> {
         &self.methods
     }
 
@@ -333,7 +333,7 @@ impl ClassFile {
         self.methods.iter().map(|m| &m.name).collect()
     }
 
-    pub fn method_by_name(&self, name: &str) -> JResult<&MethodInfo> {
+    pub(crate) fn method_by_name(&self, name: &str) -> JResult<&MethodInfo> {
         for method in &self.methods {
             if method.name == name.as_ref() {
                 return Ok(method);
@@ -343,7 +343,7 @@ impl ClassFile {
     }
 
     #[must_use]
-    pub fn methods_name_hash(&self) -> HashMap<&str, &MethodInfo> {
+    pub(crate) fn methods_name_hash(&self) -> HashMap<&str, &MethodInfo> {
         let names = self.method_names();
         let mut hash = HashMap::new();
         for (ii, name) in names.iter().enumerate() {
@@ -353,7 +353,7 @@ impl ClassFile {
     }
 
     #[must_use]
-    pub const fn attributes(&self) -> &Vec<Attribute> {
+    pub(crate) const fn attributes(&self) -> &Vec<Attribute> {
         &self.attributes
     }
 
@@ -371,7 +371,7 @@ impl ClassFile {
         None
     }
 
-    pub fn class_name_from_index(&self, index: u16) -> JResult<String> {
+    pub(crate) fn class_name_from_index(&self, index: u16) -> JResult<String> {
         if let PoolKind::Class(i) = &self.const_pool[usize::from(index - 1)] {
             Ok(self.utf_from_index(*i)?)
         } else {
@@ -380,7 +380,7 @@ impl ClassFile {
     }
 
     // todo: can return &'self str?
-    pub fn utf_from_index(&self, index: u16) -> JResult<String> {
+    pub(crate) fn utf_from_index(&self, index: u16) -> JResult<String> {
         if let PoolKind::Utf8(s) = &self.const_pool[usize::from(index - 1)] {
             Ok(s.clone())
         } else {
@@ -389,7 +389,7 @@ impl ClassFile {
     }
 
     // todo: can return &'self str?
-    pub fn string_from_index(&self, index: u16) -> JResult<String> {
+    pub(crate) fn string_from_index(&self, index: u16) -> JResult<String> {
         if let PoolKind::String(s) = &self.const_pool[usize::from(index - 1)] {
             self.utf_from_index(*s)
         } else {
@@ -397,7 +397,7 @@ impl ClassFile {
         }
     }
 
-    pub fn bootstrap_methods(&self) -> Option<&[BootstrapMethod]> {
+    pub(crate) fn bootstrap_methods(&self) -> Option<&[BootstrapMethod]> {
         for attr in &self.attributes {
             match attr {
                 Attribute::BootstrapMethods(b) => return Some(b),
@@ -408,7 +408,7 @@ impl ClassFile {
         None
     }
 
-    pub fn read_methodref_from_index(
+    pub(crate) fn read_methodref_from_index(
         &self,
         index: u16,
     ) -> JResult<(String, String, MethodDescriptor)> {
@@ -444,7 +444,7 @@ impl ClassFile {
 
     // todo: return &'a str for first arg?
     // todo: ad hoc struct for return type
-    pub fn read_invoke_dynamic_from_index<'a>(
+    pub(crate) fn read_invoke_dynamic_from_index<'a>(
         &'a self,
         index: u16,
     ) -> JResult<(String, String, MethodDescriptor, &'a [u16])> {
@@ -490,7 +490,7 @@ impl ClassFile {
         }
     }
 
-    pub fn read_fieldref_from_index(&self, index: u16) -> JResult<(String, String, Type)> {
+    pub(crate) fn read_fieldref_from_index(&self, index: u16) -> JResult<(String, String, Type)> {
         match &self.const_pool[usize::from(index - 1)] {
             PoolKind::FieldRef {
                 name_and_type_index,

@@ -5,7 +5,7 @@ use crate::StackEntry;
 
 /// A higher level representation of `StackEntry`
 #[derive(Debug, Clone, PartialEq)]
-pub enum AST {
+pub(crate) enum AST {
     Null,
     /// integer literal
     Int(i32),

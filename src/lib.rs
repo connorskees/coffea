@@ -15,35 +15,35 @@ use std::{cmp::Ordering, collections::HashMap, fmt, string::ToString};
 use crate::{
     ast::AST,
     cfg::ControlFlowGraph,
-    errors::{JResult, ParseError},
+    classfile::ClassAccessFlags,
+    common::{double_to_f64, float_to_f32, BinaryOp, Type, UnaryOp},
+    fields::FieldDescriptor,
     instructions::{Instruction, Instructions},
     invoke_dynamic::{ArgType, InvokeDynamicArgs},
+    pool::PoolKind,
 };
 pub use crate::{
-    classfile::{ClassAccessFlags, ClassFile},
-    common::{double_to_f64, float_to_f32, BinaryOp, Type, UnaryOp},
-    fields::{FieldAccessFlags, FieldDescriptor, FieldInfo},
-    pool::PoolKind,
-    version::MajorVersion,
+    classfile::ClassFile,
+    errors::{JResult, ParseError},
 };
 
-pub mod ast;
-pub mod attributes;
+mod ast;
+mod attributes;
 mod builder;
 mod cfg;
 mod classfile;
-pub mod code;
+mod code;
 mod common;
-pub mod errors;
+mod errors;
 mod fields;
 mod instructions;
 mod invoke_dynamic;
-pub mod methods;
+mod methods;
 mod pool;
 mod version;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum StackEntry {
+pub(crate) enum StackEntry {
     Null,
     Int(i32),
     Float(f32),
