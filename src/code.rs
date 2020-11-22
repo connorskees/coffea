@@ -748,6 +748,12 @@ impl Instruction {
             | Instruction::Ifne(_)
             | Instruction::Ifnonnull(_)
             | Instruction::Ifnull(_)
+            | Instruction::Return
+            | Instruction::AReturn
+            | Instruction::Dreturn
+            | Instruction::Freturn
+            | Instruction::Ireturn
+            | Instruction::Lreturn
         )
     }
 
