@@ -11,15 +11,9 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub(crate) struct InstructionNode {
-    pub pos: usize,
-    pub inst: Instruction,
-}
-
-#[derive(Debug, Clone)]
 pub(crate) struct ControlFlowGraph {
     edges: HashMap<usize, Vec<usize>>,
-    nodes: HashMap<usize, Vec<InstructionNode>>,
+    nodes: HashMap<usize, Vec<Instruction>>,
 }
 
 impl ControlFlowGraph {
@@ -75,10 +69,7 @@ impl ControlFlowGraph {
             }
 
             current_pos += inst.len() as usize;
-            current_block.push(InstructionNode {
-                inst,
-                pos: current_pos as usize,
-            });
+            current_block.push(inst);
 
             if block_starts.contains(&current_pos) {
                 graph.add_node(current_block_pos.unwrap(), mem::take(&mut current_block));
@@ -156,12 +147,16 @@ impl ControlFlowGraph {
         (instructions, block_starts)
     }
 
-    pub fn add_node(&mut self, pos: usize, inst: Vec<InstructionNode>) {
+    pub fn add_node(&mut self, pos: usize, inst: Vec<Instruction>) {
         self.nodes.insert(pos, inst);
     }
 
     pub fn add_edge(&mut self, starting_pos: usize, ending_pos: usize) {
         self.edges.entry(starting_pos).or_default().push(ending_pos);
+    }
+
+    pub fn get_head(&self) -> &[Instruction] {
+        self.nodes.get(&0).unwrap()
     }
 
     /// Serializes graph in DOT file format
@@ -186,7 +181,7 @@ impl ControlFlowGraph {
                 node,
                 instructions
                     .iter()
-                    .map(|i| format!("{:?}", i.inst))
+                    .map(|inst| format!("{:?}", inst))
                     .collect::<Vec<String>>()
                     .join("\\n")
             )?;
