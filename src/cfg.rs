@@ -75,7 +75,6 @@ impl ControlFlowGraph {
             }
 
             current_pos += inst.len() as usize;
-            dbg!(&current_block, current_pos);
             current_block.push(InstructionNode {
                 inst,
                 pos: current_pos as usize,
