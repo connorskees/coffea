@@ -4,8 +4,6 @@ use std::{
     io::{self, Write},
 };
 
-use crate::StackEntry;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     /// signed byte
@@ -155,33 +153,43 @@ impl fmt::Display for BinaryOp {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum UnaryOp {
-    Neg(StackEntry),
-    ArrayLength(StackEntry),
-    PlusPlus(StackEntry),
-    MinusMinus(StackEntry),
-    Negate(StackEntry),
+    Neg,
+    ArrayLength,
+    PlusPlus,
+    MinusMinus,
+    Negate,
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+enum UnaryOpPosition {
+    Prefix,
+    Postfix,
+}
+
+impl UnaryOp {
+    fn position(&self) -> UnaryOpPosition {
+        match self {
+            UnaryOp::Neg => UnaryOpPosition::Prefix,
+            UnaryOp::ArrayLength => UnaryOpPosition::Postfix,
+            UnaryOp::PlusPlus => UnaryOpPosition::Postfix,
+            UnaryOp::MinusMinus => UnaryOpPosition::Postfix,
+            UnaryOp::Negate => UnaryOpPosition::Prefix,
+        }
+    }
+
+    pub fn is_prefix(&self) -> bool {
+        self.position() == UnaryOpPosition::Prefix
+    }
 }
 
 impl fmt::Display for UnaryOp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            UnaryOp::Neg(v) => write!(f, "-{}", v),
-            UnaryOp::ArrayLength(v) => write!(f, "{}.length", v),
-            UnaryOp::PlusPlus(v) => writeln!(f, "{}++;", v),
-            UnaryOp::MinusMinus(v) => writeln!(f, "{}--;", v),
-            UnaryOp::Negate(v) => write!(f, "!{}", v),
-        }
-    }
-}
-
-impl UnaryOp {
-    pub(crate) fn ty(&self) -> Type {
-        match self {
-            Self::Neg(s)
-            | Self::Negate(s)
-            | Self::ArrayLength(s)
-            | Self::PlusPlus(s)
-            | Self::MinusMinus(s) => s.ty(),
+            UnaryOp::Neg => write!(f, "-"),
+            UnaryOp::ArrayLength => write!(f, ".length"),
+            UnaryOp::PlusPlus => writeln!(f, "++;"),
+            UnaryOp::MinusMinus => writeln!(f, "--;"),
+            UnaryOp::Negate => write!(f, "!"),
         }
     }
 }

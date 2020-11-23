@@ -57,7 +57,7 @@ pub(crate) enum AST {
         val: Box<AST>,
     },
     BinaryOp(Box<AST>, BinaryOp, Box<AST>),
-    UnaryOp(UnaryOp),
+    UnaryOp(UnaryOp, Box<AST>),
     If {
         cond: Box<AST>,
         then: Vec<AST>,
@@ -86,7 +86,7 @@ impl From<StackEntry> for AST {
             },
             StackEntry::Class(s) => AST::Object(s),
             StackEntry::Cast(ty, val) => AST::Cast(ty, Box::new(AST::from(*val))),
-            StackEntry::UnaryOp(op) => AST::UnaryOp(*op),
+            StackEntry::UnaryOp(op, val) => AST::UnaryOp(op, Box::new(AST::from(*val))),
             StackEntry::BinaryOp(left, op, right) => {
                 AST::BinaryOp(Box::new(AST::from(*left)), op, Box::new(AST::from(*right)))
             }
@@ -218,7 +218,15 @@ impl AstVisitor {
                 AstVisitor::visit(*val, indent, f)?;
                 write!(f, ";")?;
             }
-            AST::UnaryOp(op) => write!(f, "{}", op)?,
+            AST::UnaryOp(op, val) => {
+                if op.is_prefix() {
+                    write!(f, "{}", op)?;
+                    AstVisitor::visit(*val, indent, f)?;
+                } else {
+                    AstVisitor::visit(*val, indent, f)?;
+                    write!(f, "{}", op)?;
+                }
+            }
             AST::BinaryOp(a, op, b) => {
                 write!(f, "(")?;
                 AstVisitor::visit(*a, indent, f)?;

@@ -59,7 +59,8 @@ pub(crate) enum StackEntry {
     Class(String),
     /// type_to, castee
     Cast(Type, Box<StackEntry>),
-    UnaryOp(Box<UnaryOp>),
+    /// op, val
+    UnaryOp(UnaryOp, Box<StackEntry>),
     /// lhs, op, rhs
     BinaryOp(Box<StackEntry>, BinaryOp, Box<StackEntry>),
     /// name, type
@@ -81,7 +82,7 @@ impl StackEntry {
             StackEntry::Long(_) => Type::Long,
             StackEntry::Array(ty, ..) => Type::Reference(Box::new(ty.clone())),
             StackEntry::New(s) | StackEntry::Class(s) => Type::ClassName(s.clone()),
-            StackEntry::UnaryOp(op) => op.ty(),
+            StackEntry::UnaryOp(_, val) => val.ty(),
             StackEntry::BinaryOp(left, _, _) => left.ty(),
             StackEntry::Index(_, _, ty)
             | StackEntry::Cast(ty, _)
@@ -113,7 +114,13 @@ impl fmt::Display for StackEntry {
             StackEntry::Index(arr, idx, _ty) => write!(f, "{}[{}]", arr, idx),
             StackEntry::Class(name) => write!(f, "{}", name),
             StackEntry::Cast(ty, val) => write!(f, "({}) {}", ty, val),
-            StackEntry::UnaryOp(op) => write!(f, "{}", op),
+            StackEntry::UnaryOp(op, val) => {
+                if op.is_prefix() {
+                    write!(f, "{}{}", op, val)
+                } else {
+                    write!(f, "{}{}", val, op)
+                }
+            }
             StackEntry::BinaryOp(a, op, b) => write!(f, "({} {} {})", a, op, b),
             StackEntry::Ident(s, _ty) => write!(f, "{}", s),
             StackEntry::String(s) => write!(f, "\"{}\"", s),
@@ -342,7 +349,7 @@ impl Codegen<'_> {
             Instruction::INeg | Instruction::FNeg | Instruction::DNeg | Instruction::LNeg => {
                 let val = self.pop_stack()?;
                 self.stack
-                    .push(StackEntry::UnaryOp(Box::new(UnaryOp::Neg(val))));
+                    .push(StackEntry::UnaryOp(UnaryOp::Neg, Box::new(val)));
             }
             Instruction::InstanceOf(idx) => {
                 let obj1 = self.pop_stack()?;
@@ -548,7 +555,7 @@ impl Codegen<'_> {
             Instruction::ArrayLength => {
                 let val = self.pop_stack()?;
                 self.stack
-                    .push(StackEntry::UnaryOp(Box::new(UnaryOp::ArrayLength(val))));
+                    .push(StackEntry::UnaryOp(UnaryOp::ArrayLength, Box::new(val)));
             }
 
             Instruction::Nop | Instruction::NoName => {}
@@ -573,7 +580,7 @@ impl Codegen<'_> {
                     }
                     StackEntry::Ident(..) => {
                         return Ok(Some(if b == 1 {
-                            AST::UnaryOp(UnaryOp::PlusPlus(val.clone()))
+                            AST::UnaryOp(UnaryOp::PlusPlus, Box::new(val.clone().into()))
                         } else {
                             AST::ReAssignment {
                                 var: Box::new(val.clone().into()),
@@ -642,7 +649,7 @@ impl Codegen<'_> {
                 }
 
                 let cond = if then.len() != 1 {
-                    Box::new(AST::UnaryOp(UnaryOp::Negate(raw_cond)))
+                    Box::new(AST::UnaryOp(UnaryOp::Negate, Box::new(AST::from(raw_cond))))
                 } else {
                     match then[0].clone() {
                         AST::If {
@@ -656,7 +663,7 @@ impl Codegen<'_> {
                                 this_cond,
                             ))
                         }
-                        _ => Box::new(AST::UnaryOp(UnaryOp::Negate(raw_cond))),
+                        _ => Box::new(AST::UnaryOp(UnaryOp::Negate, Box::new(AST::from(raw_cond)))),
                     }
                 };
                 return Ok(Some(AST::If { cond, then }));
