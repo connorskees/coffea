@@ -106,7 +106,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                 15 => PoolKind::method_handle(self.read_u8()?, self.read_u16()?),
                 16 => PoolKind::method_type(self.read_u16()?),
                 18 => PoolKind::invoke_dynamic(self.read_u16()?, self.read_u16()?),
-                _ => unimplemented!("unrecognized tag kind"),
+                _ => todo!("unrecognized tag kind"),
             });
             if push_twice {
                 const_pool.push(PoolKind::Long(0));
@@ -189,7 +189,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                         Attribute::Other { info }
                     }
                 },
-                _ => unimplemented!("TODO: handle non-PoolKind::Utf8 in `read_attribute()`"),
+                _ => todo!("TODO: handle non-PoolKind::Utf8 in `read_attribute()`"),
             },
         )
     }
@@ -301,7 +301,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
                     offset_delta: u16::from(tag - 64),
                     stack: self.read_verification_type_info()?,
                 },
-                128..=246 => unimplemented!("TODO: reserved tags"),
+                128..=246 => todo!("TODO: reserved tags"),
                 247 => FrameType::SameLocals1StackItemExtended {
                     offset_delta: self.read_u16()?,
                     stack: self.read_verification_type_info()?,
@@ -361,7 +361,7 @@ impl<R: Read + BufRead> ClassFileBuilder<R> {
             8 => VerificationTypeInfo::UninitializedVar {
                 offset: self.read_u16()?,
             },
-            _ => unimplemented!("TODO: invalid verification type info tag (>8)"),
+            _ => todo!("TODO: invalid verification type info tag (>8)"),
         })
     }
 

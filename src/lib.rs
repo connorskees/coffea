@@ -182,7 +182,7 @@ impl Codegen<'_> {
                     PoolKind::Float { bytes } => {
                         self.stack.push(StackEntry::Float(float_to_f32(*bytes)))
                     }
-                    _ => unimplemented!(),
+                    _ => todo!(),
                 }
             }
             Instruction::Ldc2W(n) => {
@@ -197,7 +197,7 @@ impl Codegen<'_> {
                             .push(StackEntry::Double(double_to_f64(*high_bytes, *low_bytes)));
                     }
                     PoolKind::Long(long) => self.stack.push(StackEntry::Long(*long)),
-                    _ => unimplemented!("Ldc2w should only encounter doubles and longs"),
+                    _ => todo!("Ldc2w should only encounter doubles and longs"),
                 }
             }
             Instruction::AConstNull => self.stack.push(StackEntry::Null),
@@ -357,11 +357,11 @@ impl Codegen<'_> {
             Instruction::Lcmp => {
                 let val2 = match self.pop_stack()? {
                     StackEntry::Long(l) => l,
-                    _ => unimplemented!("Lcmp non-long value"),
+                    _ => todo!("Lcmp non-long value"),
                 };
                 let val1 = match self.pop_stack()? {
                     StackEntry::Long(l) => l,
-                    _ => unimplemented!("Lcmp non-long value"),
+                    _ => todo!("Lcmp non-long value"),
                 };
                 self.stack.push(match val1.cmp(&val2) {
                     Ordering::Equal => StackEntry::Int(0),
@@ -406,7 +406,7 @@ impl Codegen<'_> {
                 self.stack.push(f);
             }
             Instruction::InvokeInterface(_, _, _) => {
-                unimplemented!("instruction `InvokeInterface` not yet implemented")
+                todo!("instruction `InvokeInterface` not yet implemented")
             }
 
             Instruction::InvokeSpecial(index) => {
@@ -491,7 +491,7 @@ impl Codegen<'_> {
                     StackEntry::Ident(_, _) => {
                         self.stack.push(StackEntry::Field(Box::new(obj), name, ty));
                     }
-                    _ => unimplemented!("non-ident field access"),
+                    _ => todo!("non-ident field access"),
                 }
             }
 
@@ -532,7 +532,7 @@ impl Codegen<'_> {
                     9 => Type::Short,   //int
                     10 => Type::Int,    //int
                     11 => Type::Long,   //long
-                    _ => unimplemented!("unexpected NewArray type"),
+                    _ => todo!("unexpected NewArray type"),
                 };
                 let count = Box::new(self.pop_stack()?);
                 self.stack.push(StackEntry::Array(ty, count, Vec::new()))
@@ -543,7 +543,7 @@ impl Codegen<'_> {
                 self.stack.push(StackEntry::Array(ty, count, Vec::new()))
             }
             Instruction::MultiANewArray(_, _, _) => {
-                unimplemented!("instruction `MultiANewArray` not yet implemented")
+                todo!("instruction `MultiANewArray` not yet implemented")
             }
             Instruction::ArrayLength => {
                 let val = self.pop_stack()?;
@@ -585,15 +585,15 @@ impl Codegen<'_> {
                             }
                         }))
                     }
-                    _ => unimplemented!("iinc unknown variable type"),
+                    _ => todo!("iinc unknown variable type"),
                 }
             }
 
             Instruction::IfAcmpeq(_) => {
-                unimplemented!("instruction `IfAcmpeq` not yet implemented")
+                todo!("instruction `IfAcmpeq` not yet implemented")
             }
             Instruction::IfAcmpne(_) => {
-                unimplemented!("instruction `IfAcmpne` not yet implemented")
+                todo!("instruction `IfAcmpne` not yet implemented")
             }
             Instruction::Ifeq(offset) => {
                 let mut cond = self.pop_stack()?.into();
@@ -622,10 +622,10 @@ impl Codegen<'_> {
                 }
                 return Ok(Some(AST::If { cond, then }));
             }
-            Instruction::Ifge(_) => unimplemented!("instruction `Ifge` not yet implemented"),
-            Instruction::Ifgt(_) => unimplemented!("instruction `Ifgt` not yet implemented"),
-            Instruction::Ifle(_) => unimplemented!("instruction `Ifle` not yet implemented"),
-            Instruction::Iflt(_) => unimplemented!("instruction `Iflt` not yet implemented"),
+            Instruction::Ifge(_) => todo!("instruction `Ifge` not yet implemented"),
+            Instruction::Ifgt(_) => todo!("instruction `Ifgt` not yet implemented"),
+            Instruction::Ifle(_) => todo!("instruction `Ifle` not yet implemented"),
+            Instruction::Iflt(_) => todo!("instruction `Iflt` not yet implemented"),
             Instruction::Ifne(offset) => {
                 let raw_cond = self.pop_stack()?;
                 let pos = (self.current_pos as i64 + offset as i64) as usize;
@@ -726,21 +726,21 @@ impl Codegen<'_> {
                 return Ok(Some(AST::If { cond, then }));
             }
             Instruction::IfIcmpge(_) => {
-                unimplemented!("instruction `IfIcmpge` not yet implemented")
+                todo!("instruction `IfIcmpge` not yet implemented")
             }
             Instruction::IfIcmpgt(_) => {
-                unimplemented!("instruction `IfIcmpgt` not yet implemented")
+                todo!("instruction `IfIcmpgt` not yet implemented")
             }
             Instruction::IfIcmple(_) => {
-                unimplemented!("instruction `IfIcmple` not yet implemented")
+                todo!("instruction `IfIcmple` not yet implemented")
             }
             Instruction::IfIcmplt(_) => {
-                unimplemented!("instruction `IfIcmplt` not yet implemented")
+                todo!("instruction `IfIcmplt` not yet implemented")
             }
             Instruction::Ifnonnull(_) => {
-                unimplemented!("instruction `Ifnonnull` not yet implemented")
+                todo!("instruction `Ifnonnull` not yet implemented")
             }
-            Instruction::Ifnull(_) => unimplemented!("instruction `Ifnull` not yet implemented"),
+            Instruction::Ifnull(_) => todo!("instruction `Ifnull` not yet implemented"),
 
             Instruction::Goto(..) => {
                 todo!()
@@ -751,12 +751,12 @@ impl Codegen<'_> {
                 // }
                 // let offset: i16 = i16::from(branchbyte1) << 8 | i16::from(branchbyte2);
                 // dbg!((offset + self.current_pos - len) as usize);
-                // unimplemented!("goto is unimplemented")
+                // todo!("goto is unimplemented")
             }
-            Instruction::GotoW(_) => unimplemented!("instruction `GotoW` not yet implemented"),
-            Instruction::Jsr(_) => unimplemented!("instruction `Jsr` not yet implemented"),
-            Instruction::JsrW(_) => unimplemented!("instruction `JsrW` not yet implemented"),
-            Instruction::Ret(_) => unimplemented!("instruction `Ret` not yet implemented"),
+            Instruction::GotoW(_) => todo!("instruction `GotoW` not yet implemented"),
+            Instruction::Jsr(_) => todo!("instruction `Jsr` not yet implemented"),
+            Instruction::JsrW(_) => todo!("instruction `JsrW` not yet implemented"),
+            Instruction::Ret(_) => todo!("instruction `Ret` not yet implemented"),
 
             Instruction::I2b => self.cast(Type::Byte)?,
             Instruction::I2c => self.cast(Type::Char)?,
@@ -837,10 +837,10 @@ impl Codegen<'_> {
             }
 
             Instruction::Checkcast(_index) => {
-                unimplemented!("instruction `Checkcast` not yet implemented")
+                todo!("instruction `Checkcast` not yet implemented")
             }
 
-            Instruction::Athrow => unimplemented!("instruction `Athrow` not yet implemented"),
+            Instruction::Athrow => todo!("instruction `Athrow` not yet implemented"),
 
             // used only in debugging
             Instruction::Breakpoint | Instruction::Impdep1 | Instruction::Impdep2 => {}
@@ -850,7 +850,7 @@ impl Codegen<'_> {
             | Instruction::MonitorExit
             | Instruction::Wide3(_, _, _)
             | Instruction::Wide5(_, _, _, _, _)
-            | Instruction::TableSwitch => unimplemented!("instruction not yet implemented"),
+            | Instruction::TableSwitch => todo!("instruction not yet implemented"),
         };
         Ok(None)
     }

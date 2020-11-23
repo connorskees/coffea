@@ -37,7 +37,7 @@ impl MajorVersion {
             47 => MajorVersion::JDK1_3,
             46 => MajorVersion::JDK1_2,
             45 => MajorVersion::JDK1_1,
-            _ => unimplemented!("Unknown class file major version {}", n),
+            _ => todo!("Unknown class file major version {}", n),
         }
     }
 }

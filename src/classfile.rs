@@ -280,7 +280,7 @@ impl ClassFile {
         for interface_idx in &self.interfaces {
             interfaces.push(match &self.const_pool[usize::from(interface_idx - 1)] {
                 PoolKind::Utf8(s) => s.as_str(),
-                _ => unimplemented!(),
+                _ => todo!(),
             });
         }
         Ok(interfaces)
@@ -296,7 +296,7 @@ impl ClassFile {
         for field in &self.fields {
             fields.push(match self.const_pool[usize::from(field.name_index - 1)] {
                 PoolKind::Utf8(ref s) => s.as_str(),
-                _ => unimplemented!(),
+                _ => todo!(),
             });
         }
         Ok(fields)
@@ -308,7 +308,7 @@ impl ClassFile {
             fields.push(
                 match self.const_pool[usize::from(field.descriptor_index - 1)] {
                     PoolKind::Utf8(ref s) => s.as_str(),
-                    _ => unimplemented!(),
+                    _ => todo!(),
                 },
             );
         }
@@ -363,7 +363,7 @@ impl ClassFile {
             match attr {
                 Attribute::SourceFile(idx) => match self.const_pool[usize::from(idx - 1)] {
                     PoolKind::Utf8(ref s) => return Some(s.as_str()),
-                    _ => unimplemented!(),
+                    _ => todo!(),
                 },
                 _ => continue,
             }

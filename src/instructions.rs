@@ -247,7 +247,7 @@ impl Iterator for Instructions<'_> {
             0x21 => Instruction::LLoad3,
             0x69 => Instruction::LMul,
             0x75 => Instruction::LNeg,
-            0xab => unimplemented!("instruction `LookupSwitch` not yet implemented"), //Instruction::Lookupswitch,
+            0xab => todo!("instruction `LookupSwitch` not yet implemented"), //Instruction::Lookupswitch,
             0x81 => Instruction::LOr,
             0x71 => Instruction::LRem,
             0xad => Instruction::Lreturn,
@@ -283,13 +283,13 @@ impl Iterator for Instructions<'_> {
             0x56 => Instruction::SAStore,
             0x11 => Instruction::SIPush(u16::from_be_bytes([self.next_byte()?, self.next_byte()?])),
             0x5f => Instruction::Swap,
-            0xaa => unimplemented!("instruction `TableSwitch` not yet implemented"), //Instruction::TableSwitch,
+            0xaa => todo!("instruction `TableSwitch` not yet implemented"), //Instruction::TableSwitch,
             0xc4 => {
                 let n = self.next_byte()?;
                 match n {
                     0x84 => Instruction::Wide5(n, self.next_byte()?, self.next_byte()?, self.next_byte()?, self.next_byte()?),
                     0x15..=0x19 | 0x36..=0x39 | 0x89 => Instruction::Wide3(n, self.next_byte()?, self.next_byte()?),
-                    _ => unimplemented!("invalid opcode in `Instruction::Wide3`; error handling not yet implemented"),
+                    _ => todo!("invalid opcode in `Instruction::Wide3`; error handling not yet implemented"),
                 }
             }
             0xcb..=0xfd => Instruction::NoName,
@@ -972,10 +972,10 @@ impl Instruction {
             | Instruction::JsrW(_) => InstLen::Five,
             Instruction::Wide5(_, _, _, _, _) => InstLen::Six,
             Instruction::TableSwitch => {
-                unimplemented!("instruction `TableSwitch` not yet implemented")
+                todo!("instruction `TableSwitch` not yet implemented")
             }
             Instruction::Lookupswitch => {
-                unimplemented!("instruction `LookupSwitch` not yet implemented")
+                todo!("instruction `LookupSwitch` not yet implemented")
             } //Instruction::Lookupswitch,
         }
     }
