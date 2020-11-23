@@ -214,3 +214,20 @@ impl ControlFlowGraph {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    fn hash_set(items: Vec<usize>) -> HashSet<usize> {
+        items.into_iter().collect()
+    }
+
+    #[test]
+    fn find_block_starts_no_control_flow() {
+        let bytes = vec![0x01, 0x01, 0x19, 0x19];
+        let mut instructions = Instructions::new(bytes.iter());
+
+        let (_, block_starts) = ControlFlowGraph::find_block_starts(&mut instructions);
+        assert_eq!(block_starts, hash_set(vec![0]));
+    }
+}
