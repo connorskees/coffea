@@ -29,8 +29,85 @@ impl ControlFlowGraph {
             nodes: HashMap::new(),
         };
 
+        let (instructions, block_starts) = Self::find_block_starts(tokens);
+
+        let mut current_pos = 0;
+
+        let mut current_block = Vec::new();
+
+        let mut current_block_pos = None;
+
+        let mut instructions = instructions.into_iter().peekable();
+
+        while let Some(inst) = instructions.next() {
+            current_block_pos = current_block_pos.or(Some(current_pos));
+
+            match inst {
+                Instruction::Goto(offset) => {
+                    let pos_to = (current_pos as i64 + offset as i64) as usize;
+                    graph.add_edge(current_block_pos.unwrap(), pos_to);
+                }
+                Instruction::GotoW(..) => todo!(),
+                Instruction::IfAcmpeq(offset)
+                | Instruction::IfAcmpne(offset)
+                | Instruction::IfIcmpeq(offset)
+                | Instruction::IfIcmpge(offset)
+                | Instruction::IfIcmpgt(offset)
+                | Instruction::IfIcmple(offset)
+                | Instruction::IfIcmplt(offset)
+                | Instruction::IfIcmpne(offset)
+                | Instruction::Ifeq(offset)
+                | Instruction::Ifge(offset)
+                | Instruction::Ifgt(offset)
+                | Instruction::Ifle(offset)
+                | Instruction::Iflt(offset)
+                | Instruction::Ifne(offset)
+                | Instruction::Ifnonnull(offset)
+                | Instruction::Ifnull(offset) => {
+                    let pos_to = (current_pos as i64 + offset as i64) as usize;
+                    graph.add_edge(current_block_pos.unwrap(), pos_to);
+                    graph.add_edge(
+                        current_block_pos.unwrap(),
+                        current_pos + inst.len() as usize,
+                    );
+                }
+                _ => {}
+            }
+
+            current_pos += inst.len() as usize;
+            dbg!(&current_block, current_pos);
+            current_block.push(InstructionNode {
+                inst,
+                pos: current_pos as usize,
+            });
+
+            if block_starts.contains(&current_pos) {
+                graph.add_node(current_block_pos.unwrap(), mem::take(&mut current_block));
+                current_block_pos = None;
+            }
+
+            if let (Some(next_inst), Some(block_pos)) = (instructions.peek(), current_block_pos) {
+                if block_starts.contains(&(current_pos + next_inst.len() as usize))
+                    && !next_inst.is_control_flow()
+                {
+                    graph.add_edge(block_pos, current_pos + next_inst.len() as usize)
+                }
+            }
+        }
+
+        if let Some(pos) = current_block_pos {
+            if !current_block.is_empty() {
+                graph.add_node(pos, current_block);
+            }
+        }
+
+        graph
+    }
+
+    pub fn find_block_starts(tokens: &mut Instructions) -> (Vec<Instruction>, HashSet<usize>) {
         let mut block_starts = HashSet::new();
         let mut instructions = Vec::new();
+
         let mut current_pos = 0;
 
         block_starts.insert(0);
@@ -77,76 +154,7 @@ impl ControlFlowGraph {
             current_pos += inst.len() as usize;
         }
 
-        current_pos = 0;
-
-        let mut current_block = Vec::new();
-
-        let mut current_block_pos = None;
-
-        let mut instructions = instructions.into_iter().peekable();
-
-        while let Some(inst) = instructions.next() {
-            current_block_pos = current_block_pos.or(Some(current_pos));
-
-            match inst {
-                Instruction::Goto(offset) => {
-                    let pos_to = (current_pos as i64 + offset as i64) as usize;
-                    graph.add_edge(current_block_pos.unwrap(), pos_to);
-                }
-                Instruction::GotoW(..) => todo!(),
-                Instruction::IfAcmpeq(offset)
-                | Instruction::IfAcmpne(offset)
-                | Instruction::IfIcmpeq(offset)
-                | Instruction::IfIcmpge(offset)
-                | Instruction::IfIcmpgt(offset)
-                | Instruction::IfIcmple(offset)
-                | Instruction::IfIcmplt(offset)
-                | Instruction::IfIcmpne(offset)
-                | Instruction::Ifeq(offset)
-                | Instruction::Ifge(offset)
-                | Instruction::Ifgt(offset)
-                | Instruction::Ifle(offset)
-                | Instruction::Iflt(offset)
-                | Instruction::Ifne(offset)
-                | Instruction::Ifnonnull(offset)
-                | Instruction::Ifnull(offset) => {
-                    let pos_to = (current_pos as i64 + offset as i64) as usize;
-                    graph.add_edge(current_block_pos.unwrap(), pos_to);
-                    graph.add_edge(
-                        current_block_pos.unwrap(),
-                        current_pos + inst.len() as usize,
-                    );
-                }
-                _ => {}
-            }
-
-            current_pos += inst.len() as usize;
-            current_block.push(InstructionNode {
-                inst,
-                pos: current_pos as usize,
-            });
-
-            if block_starts.contains(&current_pos) {
-                graph.add_node(current_block_pos.unwrap(), mem::take(&mut current_block));
-                current_block_pos = None;
-            }
-
-            if let (Some(next_inst), Some(block_pos)) = (instructions.peek(), current_block_pos) {
-                if block_starts.contains(&(current_pos + next_inst.len() as usize))
-                    && !next_inst.is_control_flow()
-                {
-                    graph.add_edge(block_pos, current_pos + next_inst.len() as usize)
-                }
-            }
-        }
-
-        if let Some(pos) = current_block_pos {
-            if !current_block.is_empty() {
-                graph.add_node(pos, current_block);
-            }
-        }
-
-        graph
+        (instructions, block_starts)
     }
 
     pub fn add_node(&mut self, pos: usize, inst: Vec<InstructionNode>) {
