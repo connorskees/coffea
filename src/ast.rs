@@ -62,8 +62,6 @@ pub(crate) enum AST {
         cond: Box<AST>,
         then: Vec<AST>,
     },
-    Goto(usize),
-    StackEntry(StackEntry),
     Return(Option<Box<AST>>),
 }
 
@@ -246,8 +244,6 @@ impl AstVisitor {
 
                 write!(f, "}}")?;
             }
-            AST::Goto(_) => panic!("attempted to render goto"),
-            AST::StackEntry(s) => write!(f, "{}", s)?,
             AST::Return(val) => match val {
                 Some(v) => {
                     write!(f, "return ")?;
