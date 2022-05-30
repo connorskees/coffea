@@ -2,3 +2,5 @@
 **/*.rs.bk
 *.jar
 *.class
+Cargo.lock
+*.dot

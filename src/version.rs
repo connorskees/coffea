@@ -1,6 +1,8 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u16)]
 pub enum MajorVersion {
+    JavaSE17 = 61,
+    JavaSE16 = 60,
     JavaSE15 = 59,
     JavaSE14 = 58,
     JavaSE13 = 57,
@@ -22,6 +24,8 @@ impl MajorVersion {
     #[must_use]
     pub fn from_u16(n: u16) -> MajorVersion {
         match n {
+            61 => MajorVersion::JavaSE17,
+            60 => MajorVersion::JavaSE16,
             59 => MajorVersion::JavaSE15,
             58 => MajorVersion::JavaSE14,
             57 => MajorVersion::JavaSE13,
