@@ -23,6 +23,7 @@ path = "src/lib.rs"
 
 [dependencies]
 bitreader = "0.3.2"
+zip-rs = "0.1.1"
 
 [profile.release]
 debug = true

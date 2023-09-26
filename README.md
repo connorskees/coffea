@@ -1,9 +1,9 @@
 # coffea
+
 Java decompiler written in pure Rust with a focus on speed
 
 ## Status
-The decompilation part of this project is still far from complete.
-The blockers on feature-completeness are control flow reconstruction and generics -- both massive tasks.
-For now, it only handles `.class` files. `.jar` files are blocked on writing a high-level, streaming `zip` format parser.
 
-As a .class file parser, it works well, though this API is not currently exposed in a meaningful way.
+The decompilation part of this project is in the proof-of-concept stage. The implementations of both control flow reconstruction and generic reconstruction are nascent and not as robust they would be in a production decompiler.
+
+This project also contains code for parsing `.class`, which is quite robust.
